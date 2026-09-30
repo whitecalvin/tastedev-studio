@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "product": {
+    "id": "studio",
+    "name": "TASTEDEV Studio",
+    "identifier": "com.gxsoft.tastedev.studio"
+  },
+  "packagePrefix": "tastestudio",
+  "cargo": {
+    "allFeatures": true
+  },
+  "github": {
+    "sourceRepository": "whitecalvin/tastedev-studio",
+    "distributionRepository": "whitecalvin/tastedev-releases"
+  },
+  "binaries": [
+    {
+      "package": "tastedev-studio",
+      "bin": "tastedev-studio",
+      "name": "tastestudio",
+      "platforms": [
+        "windows"
+      ]
+    },
+    {
+      "package": "tastedev-agent",
+      "bin": "tastedev-agent",
+      "name": "tastestudio-agent"
+    }
+  ],
+  "payloadFiles": [
+    "README.md"
+  ],
+  "versionFiles": [
+    {
+      "path": "src-tauri/tauri.conf.json",
+      "pattern": "^\\s*\"version\"\\s*:\\s*\"(\\d+\\.\\d+\\.\\d+)\"",
+      "count": 1
+    },
+    {
+      "path": "package.json",
+      "pattern": "^\\s*\"version\"\\s*:\\s*\"(\\d+\\.\\d+\\.\\d+)\"",
+      "count": 1
+    }
+  ],
+  "windows": {
+    "icon": "resources/branding/tastedev-studio-desktop/icons/icon.ico",
+    "prepareScript": "scripts/prepare-windows-release-payload.ps1",
+    "packageFormats": [
+      "zip",
+      "nsis"
+    ]
+  },
+  "linux": {
+    "host": "192.168.0.103",
+    "user": "whitecalvin",
+    "cargoPath": "/home/whitecalvin/.cargo/bin/cargo",
+    "sourceRoot": "/home/whitecalvin/tastedev-release-sources",
+    "icon": "resources/branding/tastedev-studio-desktop/icons/icon.png",
+    "desktopCategories": "Development;IDE;",
+    "startupWmClass": "com.gxsoft.tastedev.studio",
+    "packageFormats": [
+      "deb"
+    ],
+    "rpmLicense": "MIT OR Apache-2.0"
+  },
+  "ssh": {
+    "identityFileFromUserProfile": ".ssh/id_ed25519",
+    "principal": "release@tastedev.net",
+    "expectedFingerprint": "SHA256:DpGg4oWYas1GSPxa6bb0Xq3EtYbq5A2rxyfdv8O9G1k"
+  },
+  "signing": {
+    "windows": {
+      "endpoint": "https://eus.codesigning.azure.net/",
+      "subscriptionId": "be541831-c82a-48eb-896c-905d83d4bf47",
+      "resourceGroup": "gxsoft",
+      "accountName": "whitecalvin",
+      "certificateProfileName": "gxsoft-public",
+      "moduleVersion": "0.1.4",
+      "expectedSubjectContains": "O=지엑스소프트"
+    }
+  }
+}

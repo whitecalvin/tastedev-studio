@@ -1,0 +1,6 @@
+{
+  "$schema": "../tools/cross-platform-release/release-adapter.schema.json",
+  "schemaVersion": 1,
+  "profile": "rust-desktop",
+  "definition": "release.desktop.json"
+}

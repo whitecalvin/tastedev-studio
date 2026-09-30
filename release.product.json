@@ -1,0 +1,116 @@
+{
+  "$schema": "../tools/cross-platform-release/release-product.schema.json",
+  "schemaVersion": 1,
+  "product": {
+    "id": "studio",
+    "name": "TASTEDEV Studio",
+    "version": "0.1.0",
+    "documentationUrl": "https://tastedev.net/docs/studio"
+  },
+  "git": {
+    "releaseBranch": "main",
+    "requireCleanWorkingTree": true,
+    "createSignedTag": true
+  },
+  "github": {
+    "sourceRepository": "whitecalvin/tastedev-studio",
+    "distributionRepository": "whitecalvin/tastedev-releases",
+    "websiteRepository": "whitecalvin/tastedev-web",
+    "eventType": "product-release-published",
+    "sourceTag": "v0.1.0",
+    "distributionTag": "studio-v0.1.0",
+    "title": "TASTEDEV Studio 0.1.0",
+    "notesFile": "docs/releases/v0.1.0.md"
+  },
+  "artifacts": [
+    {
+      "platform": "Windows",
+      "architecture": "x64",
+      "fileName": "tastestudio_0.1.0_windows_x64.zip",
+      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.0_windows_x64.zip",
+      "codeSigned": true,
+      "signaturePublisher": "GXSOFT",
+      "verification": {
+        "type": "authenticode",
+        "files": [
+          "artifacts/release/windows-x86_64/tastestudio.exe",
+          "artifacts/release/windows-x86_64/tastestudio-agent.exe"
+        ],
+        "archiveMembers": [
+          {
+            "sourcePath": "artifacts/release/windows-x86_64/tastestudio.exe",
+            "memberPath": "tastestudio_0.1.0_windows_x64/tastestudio.exe"
+          },
+          {
+            "sourcePath": "artifacts/release/windows-x86_64/tastestudio-agent.exe",
+            "memberPath": "tastestudio_0.1.0_windows_x64/tastestudio-agent.exe"
+          }
+        ],
+        "expectedSubjectContains": "O=지엑스소프트",
+        "requireTimestamp": true
+      }
+    },
+    {
+      "platform": "Windows",
+      "architecture": "x64",
+      "fileName": "tastestudio_0.1.0_windows_x64-setup.exe",
+      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.0_windows_x64-setup.exe",
+      "codeSigned": true,
+      "signaturePublisher": "GXSOFT",
+      "verification": {
+        "type": "authenticode",
+        "files": [
+          "artifacts/release/windows-x86_64/tastestudio_0.1.0_windows_x64-setup.exe"
+        ],
+        "expectedSubjectContains": "O=지엑스소프트",
+        "requireTimestamp": true
+      }
+    },
+    {
+      "platform": "Linux",
+      "architecture": "x64",
+      "fileName": "tastestudio_0.1.0_linux_x86_64.tar.gz",
+      "path": "artifacts/release/linux-x86_64/tastestudio_0.1.0_linux_x86_64.tar.gz",
+      "codeSigned": true,
+      "signaturePublisher": "GXSOFT SSH release signing",
+      "verification": {
+        "type": "ssh",
+        "signaturePath": "artifacts/release/linux-x86_64/tastestudio_0.1.0_linux_x86_64.tar.gz.sig",
+        "publicKeyFromUserProfile": ".ssh/id_ed25519.pub",
+        "expectedFingerprint": "SHA256:DpGg4oWYas1GSPxa6bb0Xq3EtYbq5A2rxyfdv8O9G1k",
+        "principal": "release@tastedev.net",
+        "namespace": "file"
+      }
+    }
+  ],
+  "releaseAssets": [
+    {
+      "fileName": "tastestudio_0.1.0_windows_x64.zip",
+      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.0_windows_x64.zip"
+    },
+    {
+      "fileName": "tastestudio_0.1.0_windows_x64-setup.exe",
+      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.0_windows_x64-setup.exe"
+    },
+    {
+      "fileName": "tastestudio.exe",
+      "path": "artifacts/release/windows-x86_64/tastestudio.exe"
+    },
+    {
+      "fileName": "tastestudio-agent.exe",
+      "path": "artifacts/release/windows-x86_64/tastestudio-agent.exe"
+    },
+    {
+      "fileName": "tastestudio_0.1.0_linux_x86_64.tar.gz",
+      "path": "artifacts/release/linux-x86_64/tastestudio_0.1.0_linux_x86_64.tar.gz"
+    },
+    {
+      "fileName": "tastestudio_0.1.0_linux_x86_64.tar.gz.sig",
+      "path": "artifacts/release/linux-x86_64/tastestudio_0.1.0_linux_x86_64.tar.gz.sig"
+    },
+    {
+      "fileName": "SHA256SUMS.txt",
+      "path": "artifacts/release/SHA256SUMS.txt"
+    }
+  ]
+}

@@ -14,3 +14,10 @@ agent/target/
 .env
 .env.*
 !.env.example
+
+# 작업 공간 빌드 결과(src-tauri · agent 공용)
+/target/
+
+# 출시 도구
+/release.build.env
+/artifacts/

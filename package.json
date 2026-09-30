@@ -18,7 +18,12 @@
     "desktop:build": "node node_modules/@tauri-apps/cli/tauri.js build",
     "build:desktop": "node scripts/prepare-monaco.mjs && node scripts/build-desktop.mjs",
     "core:start": "node --env-file-if-exists=.env.local --experimental-strip-types transport/main.ts",
-    "ai:login": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/ai-login.ts"
+    "ai:login": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/ai-login.ts",
+    "release:product:check": "pwsh.exe -NoProfile -NoLogo -File ../tools/cross-platform-release/Invoke-ProductRelease.ps1 -Config release.pipeline.json -Plan",
+    "release:product:draft": "pwsh.exe -NoProfile -NoLogo -File ../tools/cross-platform-release/Invoke-ProductRelease.ps1 -Config release.pipeline.json",
+    "release:product:publish": "pwsh.exe -NoProfile -NoLogo -File ../tools/cross-platform-release/Invoke-ProductRelease.ps1 -Config release.pipeline.json -Publish",
+    "release:product:resume": "pwsh.exe -NoProfile -NoLogo -File ../tools/cross-platform-release/Invoke-ProductRelease.ps1 -Config release.pipeline.json -Publish -Resume",
+    "release:product:force": "pwsh.exe -NoProfile -NoLogo -File ../tools/cross-platform-release/Invoke-ProductRelease.ps1 -Config release.pipeline.json -Publish -Force"
   },
   "dependencies": {
     "@heroui/react": "3.2.6",

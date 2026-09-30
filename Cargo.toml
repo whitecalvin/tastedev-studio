@@ -1,0 +1,18 @@
+# TASTEDEV Studio 의 Rust 작업 공간: Tauri 데스크톱(src-tauri)과 독립 Agent(agent).
+# 판 번호는 여기 한 곳([workspace.package])에 두고 공용 출시 도구가 올린다(src-tauri/tauri.conf.json 도 같이).
+[workspace]
+members = ["src-tauri", "agent"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.90"
+
+# 디버그 빌드(= cargo test)는 줄 번호만 남긴다. 패닉 위치는 그대로 보이고, 컴파일 · 링크가
+# 빨라지며 메모리도 덜 쓴다. 외부 크레이트는 디버그 정보를 아예 넣지 않는다(다른 제품과 같음).
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false

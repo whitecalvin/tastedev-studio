@@ -1,0 +1,5 @@
+# 링크는 rustup 에 들어 있는 rust-lld 로 한다. MSVC link.exe 보다 훨씬 빠르고, 테스트마다
+# 실행 파일을 하나씩 만드는 cargo test 에서 차이가 크다. winresource 아이콘과 /NOEXP ·
+# /NOIMPLIB 링크 인자도 그대로 받는다. Windows 대상에만 걸려 Linux 원격 빌드와는 무관하다.
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld"

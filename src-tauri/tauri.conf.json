@@ -31,8 +31,8 @@
     ],
     "shortDescription": "Project-centered desktop IDE",
     "icon": [
-      "../../../../resources/branding/tastedev-studio-desktop/icons/icon.ico",
-      "../../../../resources/branding/tastedev-studio-desktop/icons/icon.png"
+      "../resources/branding/tastedev-studio-desktop/icons/icon.ico",
+      "../resources/branding/tastedev-studio-desktop/icons/icon.png"
     ]
   }
 }
