@@ -22,7 +22,7 @@ import { TestOrchestrator, type TerminalStatus } from '../src/features/core/orch
 import type { SourceRevision } from '../src/features/core/test-plan.ts';
 import { CoreService, type CreateJob } from '../src/features/core/service.ts';
 import { InMemoryCoreRepository } from '../src/features/core/repository.ts';
-import { CoreStore, SqliteCoreRepository, storageKey } from './storage.ts';
+import { CoreStore, SqliteCoreRepository, storageKey, StorageError } from './storage.ts';
 import type { LogState } from './protocol.ts';
 import { validateAgent } from '../src/features/core/matcher.ts';
 import { decode, identifier, timestamp, PROTOCOL, MESSAGE_LIMIT, RunLogs, type Message } from './protocol.ts';
@@ -41,6 +41,7 @@ export async function startCoreServer(options:ServerOptions) {
   if(store)service.repository.transaction(tx=>{for(const a of tx.agents.list())a.status='offline';});
   const logs=new RunLogs(store?.get<LogState>('logs'),store?value=>store.put('logs',value):undefined);const agents=new Map<string,{socket:WebSocket;seen:number}>();const studios=new Map<WebSocket,string>();
   function rememberProject(p:Project){const next=new Map(projects);next.set(p.id,p);store?.put('projects',[...next]);projects.set(p.id,p);}
+  const orphanedAgents=new Set<string>();
   const orchestrator=new TestOrchestrator(service);
   const scheduler=new ScheduleService(service,options.schedulePath?new FileScheduleRepository(options.schedulePath):new MemoryScheduleRepository(),id=>projects.get(id),(p,j)=>dispatch(p,j),Date.now,store?{load:()=>store.get('scheduler'),save:value=>store.put('scheduler',value)}:undefined);
   const artifacts=artifactGateway(service,options.artifactRoot??path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../../../resources/artifacts/tastedev-studio'),options.studioToken,origins,store?{load:()=>store.get('artifact-grants')??[],save:value=>store.put('artifact-grants',value)}:undefined);
@@ -124,7 +125,7 @@ export async function startCoreServer(options:ServerOptions) {
               if(!job.payload.testPlan&&run.status==='pending'&&!job.cancellationRequestedAt)service.acceptExecution(run.projectId,run.id);
               restoreDeadline(run.id,ws);if(job.cancellationRequestedAt)send(ws,{type:'cancel',runId:run.id});
             }}
-            service.observeAgent(agentId,true);send(ws,{type:'registered',agentId,heartbeatTimeoutMs:options.heartbeatTimeoutMs??15000});
+            service.observeAgent(agentId,true);if(typeof m.activeRunId==='string'&&!service.repository.read().runs.some(r=>r.id===m!.activeRunId)){orphanedAgents.add(agentId);service.updateAgentStatus(agentId,'error');}else orphanedAgents.delete(agentId);send(ws,{type:'registered',agentId,heartbeatTimeoutMs:options.heartbeatTimeoutMs??15000});
           }else{
             if(m.type!=='subscribe'||!auth(m.token,options.studioToken))throw new CoreError('Authentication failed.');
             const p=m.project as Project;if(!p||typeof p.name!=='string'||p.name.length>120)throw new CoreError('Invalid Project reference.');identifier(p.id);
@@ -135,7 +136,7 @@ export async function startCoreServer(options:ServerOptions) {
         }
         if(!agentId){if(m.type==='subscribe'){const p=m.project as Project;if(!p||typeof p.name!=='string'||p.name.length>120)throw new CoreError('Invalid Project reference.');identifier(p.id);rememberProject(p);studios.set(ws,p.id);publish();}else if(m.type==='rpc')await rpc(ws,m);else throw new CoreError('Invalid Studio message.');return;}
         const connection=agents.get(agentId);if(connection?.socket!==ws)throw new CoreError('Stale connection.');
-        if(m.type==='heartbeat'){if(m.agentId!==agentId||!['idle','busy'].includes(m.status as string))throw new CoreError('Invalid heartbeat.');timestamp(m.timestamp);connection.seen=Date.now();service.observeAgent(agentId,true);return;}
+        if(m.type==='heartbeat'){if(m.agentId!==agentId||!['idle','busy'].includes(m.status as string))throw new CoreError('Invalid heartbeat.');timestamp(m.timestamp);connection.seen=Date.now();if(orphanedAgents.has(agentId)){service.repository.transaction(tx=>{const a=tx.agents.get(agentId!)!;a.lastSeenAt=new Date().toISOString();a.status='error';});}else service.observeAgent(agentId,true);return;}
         const runId=identifier(m.runId);const run=service.repository.read().runs.find(r=>r.id===runId);
         if(!run)throw new CoreError('Unknown Run; result retained by Agent for reconciliation.');
         if(run.agentId!==agentId||m.jobId!==run.jobId)throw new CoreError('Run ownership mismatch.');
@@ -154,6 +155,7 @@ export async function startCoreServer(options:ServerOptions) {
           }
           if(m.type==='accepted'){if(pipelineJob.cancellationRequestedAt&&pipelineJob.payload.steps[step.order].stage!=='cleanup')send(ws,{type:'cancel',runId});return;}
           if(m.type==='result'||m.type==='rejected'){
+            if(step.status==='pending')throw new CoreError('Step result before durable assignment.');
             if(step.status!=='running'){send(ws,{type:'ack',runId,runStepId:stepId});advance(runId);return;}
             const status=m.type==='rejected'?'failed':run.termination==='timeout'&&m.status==='cancelled'&&pipelineJob.payload.steps[step.order].stage!=='cleanup'?'timeout':m.status;
             if(!['passed','failed','timeout','cancelled'].includes(status as string))throw new CoreError('Invalid step result.');
@@ -178,7 +180,7 @@ export async function startCoreServer(options:ServerOptions) {
           if(run.status==='pending'&&status!=='failed'&&status!=='cancelled')throw new CoreError('Result before acceptance.');
           service.completeExecution(run.projectId,runId,status,m.exitCode as number|null,m.error==="Process start failed"?"Agent could not start the executable.":`Agent reported ${status}.`,start,end);send(ws,{type:'ack',runId});
         }else throw new CoreError('Unknown Agent message.');
-      }catch(error){const reason=error instanceof CoreError?error.message:'Invalid request.';send(ws,{type:m?.type==='rpc'?'reply':'error',requestId:m?.requestId,error:reason});if(!authenticated)ws.close(1008,reason.slice(0,100));}
+      }catch(error){const reason=error instanceof CoreError||error instanceof StorageError?error.message:'Invalid request.';send(ws,{type:m?.type==='rpc'?'reply':'error',requestId:m?.requestId,error:reason});if(!authenticated)ws.close(1008,reason.slice(0,100));}
       finally{pending--;}
     }).catch(()=>{ws.close(1011,'Core operation failed');});});
   });

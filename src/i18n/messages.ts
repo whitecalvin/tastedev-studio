@@ -370,7 +370,7 @@ Endpoint|엔드포인트
 Studio token|Studio 토큰
 Connect Core|Core 연결
 Disconnect Core|Core 연결 해제
-Server memory only. Credentials stay in memory and are not saved.|서버 메모리에서만 유지됩니다. 인증 정보는 메모리에 유지하며 저장하지 않습니다.
+Execution history is saved by Core. Connection credentials stay in memory.|Core가 실행 이력을 저장합니다. 연결 인증 정보는 메모리에 유지합니다.
 Agent registered offline. No connection has been established.|에이전트를 오프라인으로 등록했습니다. 아직 연결되지 않았습니다.
 Agent registration removed.|에이전트 등록을 제거했습니다.
 Job queued. Select Assign next compatible job to execute.|작업을 대기열에 등록했습니다. 다음 호환 작업을 배정하여 실행하세요.
@@ -460,7 +460,7 @@ Read + analyze + propose. Source changes require explicit proposal approval.|읽
 Analysis history|분석 이력
 Failure analysis|실패 분석
 Development|개발
-No analysis in this workspace session.|이 작업 공간 세션에 분석 기록이 없습니다.
+No analysis in this project.|이 프로젝트에 분석 기록이 없습니다.
 Summary|요약
 Observed failure|관찰된 실패
 Root cause candidates|원인 후보
