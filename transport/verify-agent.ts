@@ -4,9 +4,11 @@ import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { startCoreServer } from './server.ts';
-const evidence=path.resolve(process.env.AGENT_EVIDENCE??'../../../resources/verification/dev-01/tasks/tastedev-studio/step-8-20260930');
+// 기본 증거 폴더는 이 파일 위치 기준(TASTEDEV/resources). 작업 폴더 기준이면 transport 에서 돌릴 때 sources/resources 가 생겼다.
+const evidence=path.resolve(process.env.AGENT_EVIDENCE??path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../../../resources/verification/dev-01/tasks/tastedev-studio/step-8-20260930'));
 const root=path.join(evidence,'disposable-'+Date.now());fs.mkdirSync(root,{recursive:true});
 const token=randomUUID();const core=await startCoreServer({port:0,agentToken:token,studioToken:token,heartbeatTimeoutMs:2500});
 const proxy=new WebSocketServer({port:0,host:'127.0.0.1'});await once(proxy,'listening');const addr=proxy.address();if(!addr||typeof addr==='string')throw Error('Invalid proxy address');
