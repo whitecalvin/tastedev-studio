@@ -16,6 +16,17 @@ function Invoke-Step([string]$Label, [scriptblock]$Command) {
     if ($LASTEXITCODE -ne 0) { throw "$Label 이 실패했습니다(종료 코드 $LASTEXITCODE)." }
 }
 
+# pnpm 11 의 `pnpm run` 은 먼저 의존성 상태를 보려고 `pnpm` 을 이름으로 다시 부른다. 이 PC 처럼 pnpm 이 PATH 에 없고
+# corepack 으로만 쓸 수 있으면 "'pnpm' 은 ... 명령이 아닙니다" 로 멈춘다. 이 스크립트 동안만 corepack 을 부르는
+# pnpm.cmd 를 PATH 앞에 둔다(끝나면 지운다).
+$pnpmShim = $null
+if ($null -eq (Get-Command pnpm -CommandType Application -ErrorAction SilentlyContinue)) {
+    $pnpmShim = Join-Path ([IO.Path]::GetTempPath()) "tastedev-pnpm-shim-$PID"
+    [IO.Directory]::CreateDirectory($pnpmShim) | Out-Null
+    [IO.File]::WriteAllText((Join-Path $pnpmShim 'pnpm.cmd'), "@corepack pnpm %*`r`n", [Text.Encoding]::ASCII)
+    $env:PATH = "$pnpmShim;$env:PATH"
+}
+
 Push-Location $root
 try {
     # pnpm 은 Node 의 corepack 으로 부른다(PATH 에 pnpm 이 없어도 된다). 잠금 파일 그대로 설치.
@@ -36,7 +47,10 @@ try {
         throw '.next-desktop\index.html 이 없습니다 — Tauri 앱에 담을 화면을 내보내지 못했습니다.'
     }
 }
-finally { Pop-Location }
+finally {
+    Pop-Location
+    if ($null -ne $pnpmShim) { Remove-Item -LiteralPath $pnpmShim -Recurse -Force -ErrorAction SilentlyContinue }
+}
 
 [IO.Directory]::CreateDirectory($PayloadDirectory) | Out-Null
-Write-Host "TASTEDEV Studio $Version 화면 준비 완료(.next-desktop). Windows payload 에 더할 파일은 없습니다."
+Write-Host "TASTESTUDIO $Version 화면 준비 완료(.next-desktop). Windows payload 에 더할 파일은 없습니다."
