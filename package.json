@@ -23,7 +23,9 @@
     "release:product:draft": "pwsh.exe -NoProfile -NoLogo -File ../tools/cross-platform-release/Invoke-ProductRelease.ps1 -Config release.pipeline.json",
     "release:product:publish": "pwsh.exe -NoProfile -NoLogo -File ../tools/cross-platform-release/Invoke-ProductRelease.ps1 -Config release.pipeline.json -Publish",
     "release:product:resume": "pwsh.exe -NoProfile -NoLogo -File ../tools/cross-platform-release/Invoke-ProductRelease.ps1 -Config release.pipeline.json -Publish -Resume",
-    "release:product:force": "pwsh.exe -NoProfile -NoLogo -File ../tools/cross-platform-release/Invoke-ProductRelease.ps1 -Config release.pipeline.json -Publish -Force"
+    "release:product:force": "pwsh.exe -NoProfile -NoLogo -File ../tools/cross-platform-release/Invoke-ProductRelease.ps1 -Config release.pipeline.json -Publish -Force",
+    "website:publish": "pwsh.exe -NoProfile -NoLogo -File ../tools/cross-platform-release/Publish-ProductWebsitePromotion.ps1 -Config release.product.json",
+    "website:publish:check": "pwsh.exe -NoProfile -NoLogo -File ../tools/cross-platform-release/Publish-ProductWebsitePromotion.ps1 -Config release.product.json -Plan"
   },
   "dependencies": {
     "@heroui/react": "3.2.6",

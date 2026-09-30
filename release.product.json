@@ -22,6 +22,12 @@
     "title": "TASTEDEV Studio 0.1.0",
     "notesFile": "docs/releases/v0.1.0.md"
   },
+  "websitePromotion": {
+    "delivery": "local-push",
+    "localRepositoryRelativePath": "../tastedev-web",
+    "branch": "main",
+    "manifestPath": "data/releases/tastestudio.json"
+  },
   "artifacts": [
     {
       "platform": "Windows",
