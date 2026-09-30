@@ -1,5 +1,16 @@
 # TASTEDEV AI Architecture — STEP 12
 
+## 고도화 1단계 — 2026-10-01
+
+AI 분석과 FixAttempt/승인 이력은 인증된 Core /history/request를 통해 Project/kind/id별 암호화 SQLite record로 저장한다. optimistic version 비교와 proposal/patch/approval 불변 조건으로 오래된 덮어쓰기를 거부한다. GUI는 Core 이력 조회가 끝나기 전에 새 source write를 진행하지 않는다. 승인 저장 완료 후에만 apply를 허용하며 apply/revert 결과 저장 실패는 Source와 clean Editor를 함께 보상 복구한다. 새 Proposal은 새 승인, read-only Provider tools, Protocol task 승인은 기존 계약이다.
+
+Core와 Studio 재시작 후 Analysis/Approval/Attempt History와 read-only Monaco Diff 표시를 production GUI에서 검증했다. 여기서 Provider 또는 GitHub를 새로 호출하지 않았다. Local validation 중단은 자동 재실행하지 않으며 remote retest의 persisted Job/Run은 다시 연결한다. Native Patch 도중 전원 장애를 위한 write-ahead journal과 자동 resume는 후속 4단계다.
+
+[저장·복구 운영 계약](../../../../resources/guides/dev-01/tastedev-studio/core-persistence-20261001/README.md) · [최종 결과/Evidence](../../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/RESULT.md)
+
+고도화 1단계 PASS — 2단계 착수 가능
+
+
 ## STEP14 final acceptance — 2026-09-30
 
 **STEP 14 PASS — STEP 15 착수 가능**. STEP15 NOT_STARTED. Independent Issue Domain/IssueService/IssueProvider, authoritative Run/Log Candidate Builder, optional AI/FixAttempt mapping, secret/local-path masking, Core-only GitHub authentication, repository validation, duplicate search, editable review, scoped explicit approval, guarded creation/reconciliation, existing Issue link and Issues GUI are implemented.

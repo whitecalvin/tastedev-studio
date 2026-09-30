@@ -1,5 +1,16 @@
 # TASTEDEV AI Fix Loop — STEP13
 
+## 고도화 1단계 — 2026-10-01
+
+FixAttempt와 proposal-scoped approval은 Core의 Project-scoped encrypted SQLite record로 보존한다. 패치/base/result/hash/승인 scope는 재시작 후에도 유지하고 버전 비교로 stale writer를 차단한다. 모델의 write 권한을 새로 넓히지 않았다. Approval 저장 실패는 Source write 전에 차단하고 applied/reverted 상태 저장 실패는 가능한 범위에서 Source와 clean Editor를 보상 복구한다.
+
+Local validation은 중단 시 failed로 기록하고 자동 실행하지 않는다. Remote retest는 Job identity·Run status로 다시 연결한다. 이력 조회 자체는 Patch/Validate/Commit/Push 승인이 아니다. Patch 도중 프로세스 종료에 대한 durable write-ahead journal, 복구 화면, 자동 resume는 고도화 4단계 범위로 남긴다.
+
+[저장·복구 운영 계약](../../../../resources/guides/dev-01/tastedev-studio/core-persistence-20261001/README.md) · [최종 결과/Evidence](../../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/RESULT.md)
+
+고도화 1단계 PASS — 2단계 착수 가능
+
+
 Status: PASS. **STEP 13 PASS — STEP 14 착수 가능**. STEP14 NOT_STARTED.
 
 ## Authority and architecture

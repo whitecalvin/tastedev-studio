@@ -1,5 +1,16 @@
 # TASTEDEV Studio GAP 분석
 
+## 고도화 1단계 — 2026-10-01
+
+Remote Core memory-only state loss, Schedule Protocol resync-only, Issue/Approval/FixAttempt session-only gaps는 단일 SQLite 저장소로 닫았다. transaction-before-publish/dispatch/ACK, scheduler durable intent+idempotency, uncertain Issue create 복원, hash/CAS approval history와 Evidence 참조 audit를 확인했다.
+
+비차단 제한: JSON unit 기반 단일 Core writer, 무기한 이력 보관과 기존 bounded log/Event retention, 대규모 paging/부하 미검증, Unix 실제 미검증, DPAPI 다른 사용자/장비 이전 미지원. durable Patch crash journal/자동 재개는 4단계, 서비스 운영·readiness는 2단계, RBAC/quotas는 6단계다. 아래의 이전 persistence GAP는 역사적 상태로 보존한다.
+
+[저장·복구 운영 계약](../../../../resources/guides/dev-01/tastedev-studio/core-persistence-20261001/README.md) · [최종 결과/Evidence](../../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/RESULT.md)
+
+고도화 1단계 PASS — 2단계 착수 가능
+
+
 ## Multilingual UI — 2026-09-30
 
 Implemented the same 10 languages as tastedev-web: Korean, English, German, Spanish, French, Italian, Brazilian Portuguese, Japanese, Simplified Chinese and Traditional Chinese. Default follows the system/browser language; unavailable or unsupported languages fall back to English. Manual selection persists, supports cross-tab synchronization and can return to System language.

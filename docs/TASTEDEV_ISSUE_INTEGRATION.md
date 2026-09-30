@@ -1,5 +1,16 @@
 # TASTEDEV Issue Integration
 
+## 고도화 1단계 — 2026-10-01
+
+Candidate·approval·외부 Issue Link는 암호화 SQLite issues unit에 저장한다. creating 상태를 외부 POST 전에 저장한다. 재시작 시 creating은 failed+uncertain으로 복원하며 marker reconciliation 없이 POST를 반복하지 않는다. 이미 연결된 Issue를 다시 create해도 새 외부 쓰기는 하지 않는다.
+
+이번 단계의 Core 재시작 조회는 실제 authenticated HTTP/SQLite와 controlled FakeIssueProvider로 검증했다. 새 실제 GitHub Issue를 생성하거나 Provider credential을 저장하지 않았다. 기존 STEP14의 실제 GitHub 증거는 별도 역사적 근거로 유지한다.
+
+[저장·복구 운영 계약](../../../../resources/guides/dev-01/tastedev-studio/core-persistence-20261001/README.md) · [최종 결과/Evidence](../../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/RESULT.md)
+
+고도화 1단계 PASS — 2단계 착수 가능
+
+
 Status: STEP14 PASS — STEP15 NOT_STARTED.
 
 ## Issue Domain and Candidate

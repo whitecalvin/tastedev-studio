@@ -1,5 +1,16 @@
 # TASTEDEV Studio 구현 로드맵
 
+## 고도화 1단계 — 2026-10-01
+
+고도화 1단계 Core Persistence and Recovery: PASS. SQLite/migration/backup/restore, 실제 Core restart+Rust Agent reconnect, 결과 ACK 유실·중복 기록 방지, 이력 조회, write failure와 Source integrity를 검증했다.
+
+고도화 2단계 Core Service Runtime: NOT_STARTED. 이번 작업에서 서비스 설치·운영 계정·readiness·공용 서비스 래퍼를 시작하지 않았다. 단계별 범위는 부모 resources/guides/dev-01/tastedev-studio/advancement/TASTESTUDIO_ADVANCEMENT_PROMPTS.md를 따른다.
+
+[저장·복구 운영 계약](../../../../resources/guides/dev-01/tastedev-studio/core-persistence-20261001/README.md) · [최종 결과/Evidence](../../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/RESULT.md)
+
+고도화 1단계 PASS — 2단계 착수 가능
+
+
 ## Multilingual UI — 2026-09-30
 
 Implemented the same 10 languages as tastedev-web: Korean, English, German, Spanish, French, Italian, Brazilian Portuguese, Japanese, Simplified Chinese and Traditional Chinese. Default follows the system/browser language; unavailable or unsupported languages fall back to English. Manual selection persists, supports cross-tab synchronization and can return to System language.

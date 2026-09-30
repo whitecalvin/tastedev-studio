@@ -74,6 +74,7 @@ export class CoreStore {
   close() { this.db.close(); this.key.fill(0); }
 }
 
+function durableKeyFile(filename:string,data:Buffer){const fd=fs.openSync(filename,'wx',0o600);try{fs.writeFileSync(fd,data);fs.fsyncSync(fd);}finally{fs.closeSync(fd);}}
 const keyHeader=Buffer.from('TASTESTUDIO_DPAPI_V1\n');
 /** Windows keys are protected by the current user's DPAPI, Unix keys by mode 0600. */
 function protectWindowsKey(bytes:Buffer,operation:'Protect'|'Unprotect'){
@@ -85,9 +86,9 @@ export function storageKey(filename:string){
  if(fs.existsSync(keyPath)){if(fs.lstatSync(keyPath).isSymbolicLink())throw new Error('Core storage key links are not allowed.');const data=fs.readFileSync(keyPath);
   if(data.subarray(0,keyHeader.length).equals(keyHeader)){if(process.platform!=='win32')throw new Error('Windows storage key requires the original Windows user.');const key=protectWindowsKey(data.subarray(keyHeader.length),'Unprotect');if(key.length!==32)throw new Error('Invalid Core storage key.');return key;}
   if(data.length!==32)throw new Error('Invalid Core storage key.');
-  if(process.platform==='win32'){const wrapped=Buffer.concat([keyHeader,protectWindowsKey(data,'Protect')]);const temporary=keyPath+'.migrate-'+randomBytes(6).toString('hex');fs.writeFileSync(temporary,wrapped,{flag:'wx',mode:0o600});fs.renameSync(temporary,keyPath);}else fs.chmodSync(keyPath,0o600);return data;
+  if(process.platform==='win32'){const wrapped=Buffer.concat([keyHeader,protectWindowsKey(data,'Protect')]);const temporary=keyPath+'.migrate-'+randomBytes(6).toString('hex');durableKeyFile(temporary,wrapped);fs.renameSync(temporary,keyPath);}else fs.chmodSync(keyPath,0o600);return data;
  }
- fs.mkdirSync(path.dirname(filename),{recursive:true});const key=randomBytes(32),data=process.platform==='win32'?Buffer.concat([keyHeader,protectWindowsKey(key,'Protect')]):key;fs.writeFileSync(keyPath,data,{flag:'wx',mode:0o600});return key;
+ fs.mkdirSync(path.dirname(filename),{recursive:true});const key=randomBytes(32),data=process.platform==='win32'?Buffer.concat([keyHeader,protectWindowsKey(key,'Protect')]):key;durableKeyFile(keyPath,data);return key;
 }
 
 export class SqliteCoreRepository extends InMemoryCoreRepository {

@@ -1,5 +1,16 @@
 # TASTEDEV Core Architecture — STEP9 integration
 
+## 고도화 1단계 — 2026-10-01
+
+기본 remote Core repository는 SqliteCoreRepository이다. InMemoryCoreRepository의 transaction/observer 계약을 유지하고 SQLite commit이 성공한 뒤에만 메모리와 구독자를 갱신한다. core snapshot의 ID/Run/Step/Evidence 참조를 검증한다. 배정과 실행 ID를 먼저 저장하며 legacy acceptance·Step/Run/Job result는 원자적으로 저장한다. Pipeline browser result도 Step transaction에 포함한다.
+
+재시작 시 Agent presence는 offline, 실행 reservation은 유지한다. 동일 claim의 결과는 조정하고, claim 없는 실행은 interrupted/failed 처리한다. Unknown claim은 ACK 없이 Agent error로 격리한다. 기존 Rust Agent claim/pending/ack 파일과 execute protocol v1을 재사용한다. 동일 execution을 재전송해 임의로 실행하지 않는다. schema1/SQLite FULL sync/exclusive single writer/AES-GCM/DPAPI 키 계약을 사용한다.
+
+[저장·복구 운영 계약](../../../../resources/guides/dev-01/tastedev-studio/core-persistence-20261001/README.md) · [최종 결과/Evidence](../../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/RESULT.md)
+
+고도화 1단계 PASS — 2단계 착수 가능
+
+
 ## STEP15 final acceptance — 2026-09-30
 
 **STEP 15 PASS — TASTEDEV Studio Phase 1 목표 시스템 완료**. Schedule/Trigger/TriggerEvent/ScheduleRun Domain, Core ScheduleService and replaceable repository, cron-parser5.10.1, explicit timezone, Manual/Cron/Interval/one-time Trigger, existing Protocol TestPlan/Queue/Matcher/Rust Agent reuse, overlap/dedup/missed/capacity safeguards, notification events and Scheduler GUI are implemented.

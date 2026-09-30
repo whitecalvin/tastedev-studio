@@ -1,5 +1,16 @@
 # TASTEDEV Studio 현재 분석
 
+## 고도화 1단계 — 2026-10-01
+
+Core 영속화·장애 복구를 완료했다. Remote Core 기본 저장소는 Node 24 내장 SQLite이며 Queue/Job/Run/Step, logs/sequence, Schedule/Protocol/trigger history, AI Analysis/FixAttempt/Approval, Issue Candidate/Link를 복원한다. Evidence body는 기존 파일 저장소, DB는 참조·체크섬을 유지한다. 결과 커밋 후 ACK, crash gap의 idempotent Job identity, unknown Agent claim 격리, DPAPI 저장 키, offline backup/restore를 구현했다. 아래의 memory-only/session-only 설명은 이전 단계의 역사적 상태다. 미연결 local foundation은 여전히 메모리 모드다.
+
+검증: 고유 Node 426건 PASS(전체 421/422 + 실패1 재검증 + 신규4; 관련20 재검증), lint/typecheck/Web production build PASS, 실제 Rust Agent 복구4개 PASS, Core+Studio 재시작 GUI/Monaco Diff PASS. 실제 Source 변경0/동일 execution 중복0/이력 유실0/소유 orphan0. Windows DEV-01만 실제 확인했으며 서비스 설치·Linux 런타임·제품 패키징 결과를 뜻하지 않는다.
+
+[저장·복구 운영 계약](../../../../resources/guides/dev-01/tastedev-studio/core-persistence-20261001/README.md) · [최종 결과/Evidence](../../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/RESULT.md)
+
+고도화 1단계 PASS — 2단계 착수 가능
+
+
 ## Multilingual UI — 2026-09-30
 
 Implemented the same 10 languages as tastedev-web: Korean, English, German, Spanish, French, Italian, Brazilian Portuguese, Japanese, Simplified Chinese and Traditional Chinese. Default follows the system/browser language; unavailable or unsupported languages fall back to English. Manual selection persists, supports cross-tab synchronization and can return to System language.
