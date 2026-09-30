@@ -4,10 +4,13 @@ import type { CoreService } from '../src/features/core/service.ts';
 import type { BrowserResult } from '../src/features/core/domain.ts';
 import { LocalArtifactStore, artifactId, artifactMime, ARTIFACT_LIMIT } from './artifact-store.ts';
 const equal=(a:string,b:string)=>timingSafeEqual(createHash('sha256').update(a).digest(),createHash('sha256').update(b).digest());
-export function artifactGateway(service:CoreService,root:string,studioToken:string,origins:string[]){
- const store=new LocalArtifactStore(root),grants=new Map<string,{runId:string;stepId:string;projectId:string;expires:number}>();
- function grant(runId:string,stepId:string,base:string){for(const [key,value]of grants)if(value.expires<Date.now())grants.delete(key);const run=service.repository.read().runs.find(r=>r.id===runId)!;const token=randomBytes(32).toString('hex');grants.set(token,{runId,stepId,projectId:run.projectId,expires:Date.now()+3700000});return{url:`${base}/artifacts/${runId}/${stepId}`,token};}
- function revoke(stepId:string){for(const [key,value]of grants)if(value.stepId===stepId)grants.delete(key);}
+export interface ArtifactGrant {runId:string;stepId:string;projectId:string;expires:number}
+export interface GrantPersistence {load():[string,ArtifactGrant][];save(grants:[string,ArtifactGrant][]):void}
+export function artifactGateway(service:CoreService,root:string,studioToken:string,origins:string[],persistence?:GrantPersistence){
+ const store=new LocalArtifactStore(root),grants=new Map<string,ArtifactGrant>(persistence?.load()??[]);
+ function commit(next:Map<string,ArtifactGrant>){persistence?.save([...next]);grants.clear();for(const [key,value]of next)grants.set(key,value);}
+ function grant(runId:string,stepId:string,base:string){const next=new Map(grants);for(const [key,value]of next)if(value.expires<Date.now())next.delete(key);const run=service.repository.read().runs.find(r=>r.id===runId)!;const token=randomBytes(32).toString('hex');next.set(token,{runId,stepId,projectId:run.projectId,expires:Date.now()+3700000});commit(next);return{url:`${base}/artifacts/${runId}/${stepId}`,token};}
+ function revoke(stepId:string){const next=new Map(grants);for(const [key,value]of next)if(value.stepId===stepId)next.delete(key);if(next.size!==grants.size)commit(next);}
  async function handle(req:IncomingMessage,res:ServerResponse){
   try{
    if(req.headers.origin&&!origins.includes(req.headers.origin)){res.writeHead(403).end();return;}

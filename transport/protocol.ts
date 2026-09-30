@@ -17,11 +17,20 @@ export function identifier(v: unknown): string {
 }
 export function timestamp(v:unknown): string {if(typeof v!=='string'||v.length>40||!Number.isFinite(Date.parse(v)))throw new CoreError('Invalid timestamp.');return v;}
 export interface LogChunk { sequence:number; stream:'stdout'|'stderr'; text:string; runStepId?:string }
+export interface LogState { data: [string,LogChunk[]][]; last: [string,number][] }
 /** Latest bounded output only; this is not an artifact store. */
 export class RunLogs {
   private data = new Map<string,LogChunk[]>();
   private last = new Map<string,number>();
+  private commit?: (state: LogState) => void;
+  constructor(initial?:LogState,commit?:(state:LogState)=>void){this.data=new Map(initial?.data??[]);this.last=new Map(initial?.last??[]);this.commit=commit;}
+  export():LogState{return structuredClone({data:[...this.data],last:[...this.last]});}
   append(id:string,sequence:unknown,stream:unknown,text:unknown,runStepId?:string) {
+    const before=this.commit?this.export():undefined;
+    try{this.appendChunk(id,sequence,stream,text,runStepId);this.commit?.(this.export());}
+    catch(e){if(before){this.data=new Map(before.data);this.last=new Map(before.last);}throw e;}
+  }
+  private appendChunk(id:string,sequence:unknown,stream:unknown,text:unknown,runStepId?:string) {
     if(!Number.isSafeInteger(sequence)||(sequence as number)<1||!['stdout','stderr'].includes(stream as string)||typeof text!=='string'||text.length>8192)throw new CoreError('Invalid log chunk.');
     const key=runStepId?`${id}/${runStepId}`:id;
     if((sequence as number)<=(this.last.get(key)??0))return;

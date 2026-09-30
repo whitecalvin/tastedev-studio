@@ -16,6 +16,10 @@ function repository<T extends {id: string}>(rows: T[]): EntityRepository<T> { re
  * Session memory only; a server repository must supply the equivalent atomic unit of work. */
 export class InMemoryCoreRepository implements CoreRepository {
   private state = empty(); private version = 0; private listeners = new Set<() => void>();
+  private commit?: (state: CoreSnapshot, revision: number) => void;
+  constructor(initial: CoreSnapshot = empty(), commit?: (state: CoreSnapshot, revision: number) => void, revision = 0) {
+    this.state = structuredClone(initial); this.version = revision; this.commit = commit;
+  }
   read() { return structuredClone(this.state); }
   revision = () => this.version;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
@@ -24,7 +28,10 @@ export class InMemoryCoreRepository implements CoreRepository {
     const result = operation({ agents: repository(draft.agents), jobs: repository(draft.jobs), runs: repository(draft.runs), steps: repository(draft.steps), artifacts: repository(draft.artifacts), events: repository(draft.events) });
     if (result instanceof Promise) throw new Error('Core transactions must be synchronous.');
     const detached = structuredClone(result);
-    draft.events = draft.events.slice(-1000); this.state = structuredClone(draft); this.version++;
+    draft.events = draft.events.slice(-1000);
+    // A durable adapter must commit successfully before memory or observers change.
+    this.commit?.(draft, this.version + 1);
+    this.state = structuredClone(draft); this.version++;
     for (const listener of this.listeners) { try { listener(); } catch { /* Observer failure cannot undo a committed transaction. */ } }
     return detached;
   }

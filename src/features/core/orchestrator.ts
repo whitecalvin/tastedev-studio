@@ -1,4 +1,4 @@
-import { activeRun, CoreError, type Run, type RunStep, type RunStatus } from './domain.ts';
+import { activeRun, CoreError, type Run, type RunStep, type RunStatus, type BrowserResult } from './domain.ts';
 import type { CoreService } from './service.ts';
 import type { SourceRevision } from './test-plan.ts';
 
@@ -27,7 +27,7 @@ export class TestOrchestrator {
       return null;
     });
   }
-  complete(runId: string, stepId: string, status: TerminalStatus, exitCode: number | null, reason?: string, revision?: SourceRevision, serviceId?: string) {
+  complete(runId: string, stepId: string, status: TerminalStatus, exitCode: number | null, reason?: string, revision?: SourceRevision, serviceId?: string, browserResult?:BrowserResult) {
     this.core.repository.transaction(tx => {
       const run = tx.runs.get(runId), step = tx.steps.get(stepId);
       if (!run || !activeRun(run) || !step || step.runId !== runId || step.status !== 'running') throw new CoreError('Unexpected pipeline result.');
@@ -36,6 +36,7 @@ export class TestOrchestrator {
       if (status === 'failed' && exitCode === 0) throw new CoreError('Failed step cannot report exit zero.');
       if (exitCode !== null && !Number.isInteger(exitCode)) throw new CoreError('Invalid step exit code.');
       step.status = status; step.exitCode = exitCode; step.finishedAt = new Date().toISOString();
+      if(browserResult)step.browserResult=browserResult;
       if (serviceId) step.serviceId = serviceId;
       if (revision) {
         const source = job.payload.steps[step.order].source;

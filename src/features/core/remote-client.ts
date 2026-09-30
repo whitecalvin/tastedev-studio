@@ -37,6 +37,13 @@ export class RemoteCoreClient {
   cancelJob(_projectId:string,id:string){return this.call<CoreSnapshot['jobs'][number]>('cancelJob',[id]);}
   retryJob(_projectId:string,id:string){return this.call<CoreSnapshot['jobs'][number]>('retryJob',[id]);}
   schedulerRequest<T>(action:string,...args:unknown[]){return this.call<T>('scheduler',[action,...args]);}
+  async historyRequest<T>(body:unknown,projectId:string):Promise<T>{
+    if(!this.connected||this.project?.id!==projectId)throw new Error('Core connection required for durable history.');
+    const text=JSON.stringify(body);if(new TextEncoder().encode(text).length>1048576)throw new Error('History record exceeds safe limit.');
+    const url=new URL(this.endpoint);url.protocol=url.protocol==='wss:'?'https:':'http:';url.pathname='/history/request';url.search='';
+    const response=await fetch(url,{method:'POST',headers:{Authorization:'Bearer '+this.token,'X-Project-Id':projectId,'Content-Type':'application/json'},body:text,signal:AbortSignal.timeout(15000)});
+    const result=await response.json();if(!response.ok||result.error)throw new Error(typeof result.error==='string'?result.error:'Core history persistence failed.');return result.value as T;
+  }
   dispatch(_projectId?:string,jobId?:string){void _projectId;return this.call<{job:CoreSnapshot['jobs'][number]}|null>('dispatch',jobId?[jobId]:[]);}
   matches(projectId:string,id:string){const job=this.snapshot(projectId).jobs.find(j=>j.id===id);return job?this.state.agents.map(a=>matchAgent(a,job.requirements)):[];}
 }
