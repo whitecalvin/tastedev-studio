@@ -1,0 +1,172 @@
+# TASTEDEV Studio GAP 분석
+
+## Multilingual UI — 2026-09-30
+
+Implemented the same 10 languages as tastedev-web: Korean, English, German, Spanish, French, Italian, Brazilian Portuguese, Japanese, Simplified Chinese and Traditional Chinese. Default follows the system/browser language; unavailable or unsupported languages fall back to English. Manual selection persists, supports cross-tab synchronization and can return to System language.
+
+Application-owned Project Manager, Workspace, Explorer/editor guidance, Process, Git, Core, Protocol, AI, Issues and Scheduler UI use shared catalogs. Language changes preserve project data, form values and dirty Monaco models. Source, user data, terminal/test logs and AI output keep their original content.
+
+Verification: Node393/393 PASS once; after subsequent catalog/UI changes, affected i18n8/8 PASS and unchanged385 reused. Full lint, typecheck and production build PASS; final build GnpI9Lv0-aYxoPUb7tMNb includes TypeScript validation. Production GUI27 checks plus final10 locale cases PASS; unexpected frontend errors0, controlled source writes0. No duplicate unaffected build/test gates. Native/Rust inputs unchanged; native installed/OS-language QA was not run.
+
+Remaining limits: Monaco built-in third-party menus remain English; unknown external diagnostics fall back to their original English; native-speaker editorial review is pending. These do not change prior phase acceptance.
+
+[Result and evidence](../../../../resources/verification/dev-01/tasks/tastedev-studio/i18n-20260930/RESULT.md) · [I18N guide](../../../../resources/guides/dev-01/tastedev-studio/i18n-20260930/I18N.md)
+
+
+## STEP15 final acceptance — 2026-09-30
+
+**STEP 15 PASS — TASTEDEV Studio Phase 1 목표 시스템 완료**. Schedule/Trigger/TriggerEvent/ScheduleRun Domain, Core ScheduleService and replaceable repository, cron-parser5.10.1, explicit timezone, Manual/Cron/Interval/one-time Trigger, existing Protocol TestPlan/Queue/Matcher/Rust Agent reuse, overlap/dedup/missed/capacity safeguards, notification events and Scheduler GUI are implemented.
+
+Actual production GUI created/edited/enabled/disabled schedules and exercised Run Now. Real Rust Agent completed manual PASS and wall-clock one-time PASS, plus controlled FAIL. Failed Run/Step/log evidence produced an Issue Candidate; automatic AI/Patch/GitHub/commit/push counts0. Time-trigger lateness 473ms. Core restart restored3 disabled definitions; session history is not persisted. Verification schedules disabled, test processes stopped, owned orphans0.
+
+Node385/385 (Scheduler23 included), lint/typecheck/production build PASS. An actual GUI save exposed an optional-ID serialization issue; UI-only correction was validated with scoped lint, typecheck and updated production build. Unaffected385 tests reused, no duplicate full run. Unchanged native input/binary hashes verified; no Rust/Tauri rebuild or installed/Unix retest. Light/Dark GUI errors0.
+
+Limits: Core must stay alive; definitions are file-backed, Run/history and registered saved Protocol are memory-only. After Core restart explicit saved-Protocol sync is required before enabled definitions execute. Missed times skip; no backlog. Same Project/Test queued/active overlap skips. Cron/interval minimum60s; global active Job cap16; at most100 schedules. Git/external/dependency/OS event adapters are foundation only. No auto analysis or external writes. Current contract: [Scheduler](TASTEDEV_SCHEDULER.md). Parent workspace evidence: resources/verification/dev-01/tasks/tastedev-studio/step-15-20260930/RESULT.md and EVIDENCE-INDEX.md. Earlier status statements are historical.
+
+
+## STEP14 final acceptance — 2026-09-30
+
+**STEP 14 PASS — STEP 15 착수 가능**. STEP15 NOT_STARTED. Independent Issue Domain/IssueService/IssueProvider, authoritative Run/Log Candidate Builder, optional AI/FixAttempt mapping, secret/local-path masking, Core-only GitHub authentication, repository validation, duplicate search, editable review, scoped explicit approval, guarded creation/reconciliation, existing Issue link and Issues GUI are implemented.
+
+Actual GitHub E2E created exactly one explicitly approved TEST Issue: [whitecalvin/tastedev-studio #1](https://github.com/whitecalvin/tastedev-studio/issues/1). Exact approved body readback, actual duplicate search and existing link passed; repeated create and existing link performed no additional POST. Close/comment/automatic labels/commit/push were not performed. The TEST Issue remains open with the agreed title marker.
+
+Node362/362 (Issue33 included), lint/typecheck/Web production build PASS. Production GUI Light/Dark verifies edit/masking/plain-text rendering, Cancel with zero writes, explicit fixture create, linked state, existing link and dismissal; page errors0. GUI uses TEST ONLY FakeIssueProvider and is distinct from actual GitHub provider evidence. Successful gates were reused without duplicate builds/tests. Unchanged Agent/Tauri input hashes and Agent binary were verified against STEP13; no native rebuild, installed QA or Unix retest claimed.
+
+Limits: memory-only candidates/links/approvals/search cache; no restart durability. Uncertain POST blocks retries and supports marker reconciliation in the current session; reconciliation examines the newest100 Issues. Duplicate suggestions use bounded keyword search and may miss semantic matches. Core uses existing gh managed keyring or a Core-only token; remoteCore requires its own login. Evidence links are internal references, not public downloads. No automatic close/comment, PR, scheduler or cloud sync.
+
+Current contract: [Issue Integration](TASTEDEV_ISSUE_INTEGRATION.md). Final result and index: parent workspace resources/verification/dev-01/tasks/tastedev-studio/step-14-20260930/RESULT.md and EVIDENCE-INDEX.md. Earlier NOT_STARTED statements are historical.
+
+
+## STEP13 final acceptance — 2026-09-30
+
+**STEP 13 PASS — STEP 14 착수 가능**. STEP14 NOT_STARTED. Approval-bound structured Patch, dirty/base/user-change protection, compensating multi-file rollback, Protocol validation, secret-filtered Workspace Snapshot, existing Core/Rust Agent retest and session FixAttempt/history/retry cap are implemented. Actual managed ChatGPT Pro gpt-6.1-sol generated the disposable service.cjs fix; explicit human approval preceded the real disk patch. Local assertion and real release Rust Agent retest PASSED, then exact source restoration preserved prior user changes. A separate synthetic wrong proposal used a real Agent FAIL to qualify failure-history/recovery; GUI Provider fixture is not counted as actual AI.
+
+Final Node329/329, Rust Debug21/Release21, lint/typecheck/fmt/Clippy/Agent release/Web production build PASS. Production GUI validates Cancel/Apply/Diff/Protocol retest/History/Revert/Reject in Light/Dark; current unexpected page errors0. Multi-file actual disk failure/concurrent protection, masking/path/scope/retry/integrity regressions and owned-process cleanup PASS. Native local-validation/Git button manual checks, installed QA and Unix were not rerun; no Native source changed. Node has no meaningful separate optimized unit configuration; production GUI/build is the distinct production gate.
+
+Limits: session-only attempts/Core state, text Snapshot100 files/24KiB/60KB serialized RPC; no Secret Injection; redacted file proposals rejected rather than overwriting secret placeholders. No automatic commit/push, packaging/install/deploy or STEP14 work. Actual patch approval covers the reviewed disposable file only, not future proposals. Final report distinguishes implementation, automated tests, actual Provider/Agent and unverified Native paths.
+
+Final evidence: `resources/verification/dev-01/tasks/tastedev-studio/step-13-20260930/RESULT.md`, `EVIDENCE-INDEX.md`, `manifest.json`, `source-inputs.json` under the parent TASTEDEV workspace. [AI Fix Loop](TASTEDEV_AI_FIX_LOOP.md) specifies the current contract. Earlier STEP12/13 NOT_STARTED and no-write statements below are historical snapshots superseded by this section. The model-facing AIService remains read-only; approved write/validation actions are application-mediated.
+
+
+## STEP12 final acceptance — 2026-09-30
+
+STEP 12 PASS — STEP 13 착수 가능. STEP13 NOT_STARTED.
+
+Read-only AI Development, Failure Analysis, grounded candidates/source links, proposals and Monaco Diff are implemented. Explicit user approval preceded STEP12B actual Codex Pro transmission. Actual gpt-6.1-sol failure analysis completed with 11 unique read-only calls; masking/injection/grounding checks, unchanged source readback and production GUI passed. Actual Development evidence reused. No application source changes in STEP12B; existing Node306, scoped50/44, lint/typecheck/production build evidence retained. Session history and screenshot metadata limitations remain; no patch/apply/test/dispatch authority. No native packaging, deployment, commit or push.
+
+Final evidence: parent workspace resources/verification/dev-01/tasks/tastedev-studio/step-12b-20260930/RESULT.md and EVIDENCE-INDEX.md. Earlier STEP11/STEP12 status paragraphs below are historical snapshots superseded by this entry.
+
+## STEP11 acceptance — 2026-09-30
+
+STEP 11 PASS — STEP 12 착수 가능. Node264 distinct + Runner2; Rust Debug18/Release18; actual Chromium/Agent Browser6 groups, legacy Agent11 and Pipeline14 distinct groups; artifact integrity/sanitization and production GUI PASS. Final Web build OHcgxvcH8WgtoEaRSzBQv; Agent/Web/Desktop no-bundle builds PASS. UI reviewer resolved its one spacing finding and returned ship. Exact scope, gate reuse and limitations: workspace resources/verification/dev-01/tasks/tastedev-studio/step-11-20260930/RESULT.md. STEP12 NOT_STARTED.
+
+## STEP11 current implementation — 2026-09-30
+
+Browser/e2e TestPlan steps now execute official Playwright Test on the separate Rust Agent. Real Chromium capability probing, isolated contexts, failure screenshots/traces, Console/Page Error/Network/Test Report evidence, bounded authenticated binary transfer, LocalArtifactStore, SHA-256 verification and Studio Evidence Viewer are implemented. [Browser Evidence](TASTEDEV_BROWSER_EVIDENCE.md) is the current contract. The STEP11 task evidence under resources/verification/dev-01/tasks/tastedev-studio/step-11-20260930 determines final acceptance. Core history remains memory-only; binary artifacts persist separately. STEP12 NOT_STARTED. Earlier STEP11-unimplemented statements below are historical.
+
+## STEP10 acceptance — 2026-09-30
+
+STEP 10 PASS — STEP 11 착수 가능. Node253 distinct, Agent Debug17/Release17, real pipeline14 groups and legacy Agent11 groups PASS. Final production GUI4 groups PASS (errors0); Agent/Web/Desktop no-bundle builds PASS. Final evidence: resources/verification/dev-01/tasks/tastedev-studio/step-10-20260930/RESULT.md in the workspace. STEP11 NOT_STARTED. Native GUI/installed QA were not rerun.
+
+## STEP 10 current implementation — 2026-09-30
+
+STEP10 adds TestDefinition → separate TestPlan → existing Job/Queue/Matcher/Run/RunStep → same-Agent sequential execution. Optional Git source, install/build/start/HTTP health/test/cleanup, primary failure and dependent skip, cleanup after failure/cancel/timeout, per-step logs, source SHA and Studio Tests/Run detail are implemented. [Test Orchestration](TASTEDEV_TEST_ORCHESTRATION.md) is the current contract.
+
+The STEP10 task directory under resources/verification/dev-01/tasks/tastedev-studio/step-10-20260930 records exact final acceptance and evidence. STEP11 is NOT_STARTED. Core remains server-memory only. Git uses credential-free HTTPS/git URLs and a detached checkout of an explicitly fetched revision; local dirty/uncommitted files are not transferred. Health v1 is bounded loopback HTTP. Browser engine/evidence upload, AI and Scheduler are excluded.
+
+Tests now use TestPlan: test timeout is the overall main-pipeline budget (default600s), task timeouts still bound individual steps, and cleanup has its own bounded allowance. Optional Test environment/profile overrides reuse STEP9 resolution; resolved per-step constraints are intersected for one Agent. Legacy single-command Tasks retain their existing behavior.
+
+The historical sections below describe earlier STEP8/9 contracts and do not override STEP10 multi-step execution, source provisioning or current Tests UI. Earlier NOT_STARTED/source-copy-absent/single-command-only statements are retained as history.
+
+## Historical baseline
+
+## 판단 기준
+
+2026-09-30 STEP9 Protocol 구현 기준이다. Protocol80+기존139=219 적용 테스트 근거가 있으며 최종 lint/typecheck/Web/Desktop no-bundle build 및 production real-Agent GUI E2E는 PASS다. Rust Agent 필수 게이트는 검증 가능한 불변 입력/산출물 근거로 재사용했다. 독립 UI review는 production8개 화면에서 ship이다. **STEP9 PASS — STEP10 착수 가능, NOT_STARTED**. 기능 구현과 최종 수락은 분리한다. [Protocol](TASTEDEV_PROTOCOL.md)과 [STEP9 evidence](../../../../resources/design/tastedev-studio-step9/EVIDENCE.md)를 따른다. STEP10은 NOT_STARTED다.
+
+- IMPLEMENTED: 요구 동작을 수행하는 구현과 검증 근거가 있음.
+- PARTIAL: 일부 목표 기능 또는 필수 수락 검증이 남아 있음.
+- NOT_IMPLEMENTED: 해당 구현이 없음.
+- REFACTOR_REQUIRED: 기존 구현이 있으나 목표 경계를 지키려면 구조 변경이 필요함.
+- UNKNOWN: 구현 상태 enum 대신 외부 환경·확인 불가 사실에 쓰는 표시. 현재 소스 범위는 확인됐으므로 아래 기능에 UNKNOWN을 사용하지 않는다.
+
+## 기능별 GAP
+
+| 기능 | 상태 | 필요한 작업 / 핵심 완료 증거 |
+|---|---|---|
+| Project Manager | PARTIAL | STEP 1 Web metadata 생성·저장·최근 목록·중복 방지·Workspace 진입·검색 구현 및 검증. Web Open Folder 흐름 구현, 일반 Chrome 실제 연결 검증 완료. Git Clone은 unsupported. |
+| Workspace | PARTIAL | STEP 2 Shell은 IMPLEMENTED: 9 activities, 패널/탭, 키보드, resize, 프로젝트별 layout persistence. STEP3 editor 수명·dirty 보호도 구현·검증했다. |
+| File System abstraction | IMPLEMENTED | FileSystemHost/WorkspaceFileService/WebFileSystemHost 및 IndexedDB handles 구현. 서비스·adapter-double 테스트 통과; Web Browser/Disk gate 완료. OS symlink/원자적 rename/외부 process lock은 browser API 경계. |
+| File Explorer | IMPLEMENTED | 실제 Web host에 연결된 lazy tree, create/rename/delete/refresh와 오류/권한 UI 구현, fake/host-double 테스트 통과. 실제 disposable 폴더 browser CRUD 검증 완료. |
+| Monaco Editor | IMPLEMENTED | Monaco 0.57.0, 모델/여러 탭/dirty/save/save all/close guards/UTF-8·2 MiB policy 구현. 실제 browser 편집·disk readback 검증 완료. |
+| Terminal | IMPLEMENTED | STEP4 xterm UI에 STEP6 Windows ConPTY input/output/geometry 연결. 실제 안전한 PTY 명령과 종료 확인. native 1920 및 Windows 100%·150% 검증 PASS; 과거 frontend 오류 1건은 HISTORICAL_UNRESOLVED / Non-blocking 감사 기록. |
+| Process execution | IMPLEMENTED | TauriProcessHost, executable/args/cwd/env, stdout/stderr, Run/Stop, Job Object cleanup. 실제 Stop/앱 종료 후 PID 소멸 확인. OS sandbox는 제공하지 않음. 원격 실행은 별도 STEP8 Agent 경로. |
+| Git | PARTIAL | 로컬 Native Git status/diff/stage/unstage/commit/history는 IMPLEMENTED, disposable commit 5df2801 확인. clone/checkout/remote/authentication 미구현. Web은 unavailable 유지. |
+| Tauri | IMPLEMENTED | Tauri 2.12.0 Windows desktop host와 정적 frontend, 제한된 command capability, NSIS 실제 설치/앱 실행/제거 완료. 최종 STEP6E 수락은 PASS: 과거 frontend 오류 1건은 UNKNOWN 원인을 보존하는 비차단 이력. native 1920, Windows 100%·150%, Missing Project 복구 및 최종 안내 화면 증거는 PASS. |
+| Core | PARTIAL | Server-memory CoreService/transaction 및 authenticated WebSocket 구현. browser reload 후 재연결 가능; Core restart는 queue/history 소실. DB·durable recovery 미구현. |
+| Agent | PARTIAL | 독립 Rust Agent, persistent identity, heartbeat/capability, single-command 실행·timeout/cancel/tree cleanup·reconnect/result ack 구현 및 Windows 실제 E2E PASS. Unix qualification·source checkout·artifact transfer 미구현. |
+| Job Queue | PARTIAL | priority/FIFO, cancel/retry 및 실제 remote dispatch 구현. 서버 메모리; durable queue·Core 재시작 복구 미구현. |
+| Job Dispatcher | PARTIAL | capability matching·atomic reservation·실제 WS delivery/acceptance 구현. Offline active Run은 Agent reconciliation 대기 가능; 분산 lease/자동 재배정 미구현. |
+| Run | PARTIAL | 실제 remote status·exit/result·bounded stdout/stderr·terminal acknowledgement 구현. revision snapshot·durable Core history 미구현. |
+| RunStep | PARTIAL | Foundation 순서/실패 전파 모델 유지. STEP8 remote는 single command만 지원; multi-step executor·DAG 미구현. |
+| TASTEDEV Protocol | IMPLEMENTED | v1 네 YAML domain/parser/strict schema, requirement/environment merge, task/test→Core Job, Run/Tests/status/initialize/Monaco 저장 재검증 구현. Node219·lint/typecheck/Web/Desktop builds·production actual Agent GUI PASS; Rust Agent gates는 hash 검증 후 재사용. 독립 UI review ship. STEP9 scoped PASS; STEP10 미착수. |
+| Test Orchestration | NOT_IMPLEMENTED | STEP9 Test는 task reference/type metadata와 단일 명령 선택만 제공. STEP10 DAG·native/browser test adapters·결과 orchestration은 미착수. |
+| Playwright | NOT_IMPLEMENTED | browser runner, trace/screenshot/report 수집, 격리 실행. 의도적 실패의 증거 연결. |
+| Evidence | PARTIAL | Run/RunStep에 Artifact metadata 연결 및 details 표시 구현. 실제 증거 수집·접근 권한·검색·보존 미구현. |
+| Artifact | PARTIAL | log/screenshot/report/trace/video metadata index 구현. 파일 업로드·저장·다운로드·hash 검증 미구현. |
+| Issue | NOT_IMPLEMENTED | GitHub adapter, 결과 연결, 초안·명시적 게시·중복 방지. 게시 재시도 검증. |
+| AI Assistant | NOT_IMPLEMENTED | provider abstraction, context 범위, streaming·취소·오류. 공급자 교체 계약. |
+| AI Code Modification | NOT_IMPLEMENTED | diff 제안·사용자 적용·경로 경계·동시 변경 충돌·복구. 사용자 변경 보존. |
+| AI Test Analysis | NOT_IMPLEMENTED | 결과·증거 입력, 원인과 추정 구분, 인용 연결. 근거 없는 성공 판정 방지. |
+| AI Fix / Retest | NOT_IMPLEMENTED | 수정→관련 테스트→결과 비교의 제한된 반복. 실패·비용·횟수 제한 및 취소. |
+| Scheduler | NOT_IMPLEMENTED | schedule·권한·시간대·중복 실행·수동 중지. 재시작 후 실행 정책 검증. |
+| Search | NOT_IMPLEMENTED | Project 내 파일·본문 검색, ignore·대용량·결과 이동. 파일 경계 검증. |
+| Authentication / Authorization | PARTIAL | Agent/Studio shared-token 인증 및 origin allowlist 구현. 사용자 계정·tenant/Project별 권한 모델·token lifecycle 미구현. |
+| Build / Run GUI | PARTIAL | 기존 로컬 Run/Terminal 유지. 별도 Agents/Queue/Runs에 Core 연결·실제 Agent 상태·single-command 배정·결과·log 구현. STEP9 Run/Tests에서 Protocol 명시적 queue 연결. 전체 pipeline 미구현. |
+| Native Filesystem | IMPLEMENTED | TauriFileSystemHost, 실제 절대경로/재시작 binding 복원, lazy CRUD/Monaco Save disk readback, path escape/junction 차단. 외부 프로세스 transaction lock은 없음. |
+| Native PTY | IMPLEMENTED | Windows ConPTY와 xterm 연결, 실제 shell 출력 및 app-exit cleanup 확인. |
+| Native Git local operations | IMPLEMENTED | TauriGitHost로 repository/branch/status/diff/index/commit/history 실제 검증. remote 작업 제외. |
+| Filesystem watcher | NOT_IMPLEMENTED | 명시적 Refresh/Reload 및 Save conflict 검사 사용. 자동 외부 변경 알림은 보류. |
+
+## STEP 6E 검증 GAP 마감
+
+## Historical STEP 6 / 6E acceptance — 2026-09-30
+
+**STEP 6 PASS** under the user's STEP6E acceptance criteria. STEP 7 is **NOT_STARTED**. Historical event `1790699936279 frontend error` remains **HISTORICAL_UNRESOLVED / NOT_REPRODUCED / Root Cause UNKNOWN / Non-blocking**. It is not deleted, normalised or falsely marked resolved. Its original message, stack, component, route, precise runtime context and triggering action remain unknown; a coarse production-session association is not a recovered exception context.
+
+- STEP6E repairs the diagnostic information gap, not a speculative cause of the historical event. Next instrumentation-client installs before hydration; window.error, unhandledrejection, console Error objects, route/root React error boundaries and Tauri frontend invoke/event failures share a bounded local recorder.
+- Records include timestamp, level, source, sanitized message, available stack frames, safe route category, Web/Tauri runtime, application version and platform. Console arguments, arbitrary IPC objects, file contents, environment and credential objects are never serialized; recognized secrets/quoted values/paths/URLs are redacted. Project identity and user action payloads are omitted.
+- Real controlled browser throw and Promise rejection, actual Next/React boundary → diagnostic capture → recovery UI → Retry **PASS**. Controlled records use a separate key and `TEST/CONTROLLED` category; they are excluded from product audits. See [controlled evidence](../../../../resources/verification/dev-01/tasks/tastedev-studio/step-6e-20260930/controlled-browser.json).
+- Current STEP6E production Web manager smoke: unexpected frontend **0**. Last actual Native STEP6D observation: unexpected frontend/native/panic/cleanup **0/0/0/0**. These are separate observations, not a newly repeated Native gate. Historical unresolved frontend events remain **1**, current product blockers **0**. [Audit](../../../../resources/verification/dev-01/tasks/tastedev-studio/step-6e-20260930/error-audit.json).
+- This change ran **Node102/102, lint, typecheck, Web production build**, controlled browser tests and the new-build Web smoke. JS has no separate Debug/Release test configuration. Rust source/dependencies/config did not change; prior Debug9/Release9/Clippy and actual Native functionality evidence remain scoped to those unchanged components.
+- Native filesystem/Monaco/PTY/process/Git/restart, actual 1920/1440/1366 clients, Light/Dark, Windows100%/150%, Missing Project recovery and corrected Native copy retain PASS evidence. **125% DPI remains untested and non-blocking**.
+- No Rust/Tauri rebuild or reinstall was requested for this frontend-only diagnostic closeout. Existing STEP6C EXE/installer **do not contain STEP6E diagnostic changes**. A future desktop package must regenerate its frontend export and embedded application; old desktop-export hashes are not current-source build proof. Prior STEP6B installation evidence remains tied to that older artifact.
+
+[Final result](../../../../resources/verification/dev-01/tasks/tastedev-studio/step-6e-20260930/RESULT.md) · [STEP6–6E evidence index](../../../../resources/verification/dev-01/tasks/tastedev-studio/step-6e-20260930/EVIDENCE-INDEX.md) · [diagnostic gap and storage](../../../../resources/verification/dev-01/tasks/tastedev-studio/step-6e-20260930/DIAGNOSTICS.md). No STEP7, CI, QA-01, deployment, source commit or push.
+
+## Historical STEP 1–5 records
+
+아래 native 미구현·STEP6 미착수 표현은 각 단계 종료 당시 기록이며 위 현재 기능표로 대체된다.
+
+## STEP 1에서 별도로 완료된 기반
+
+App Router/React/TypeScript strict/Tailwind v4/HeroUI/Lucide, versioned local repository, Project validation/service, 기본 theme, error/loading/empty UI, 임시 Overview route는 IMPLEMENTED다. STEP 1 당시 Workspace Shell은 미구현이었다. STEP 2 당시 Shell만 구현했으며 source Search·Editor·Terminal 엔진은 미구현이었다. 현재 Editor는 STEP3, Terminal UI는 STEP4에서 구현했다. ProjectDetector interface와 unsupported adapter만 준비됐다.
+
+## STEP 2 완료 범위
+
+Workspace Shell UI는 IMPLEMENTED이며 전체 IDE 기능은 PARTIAL이다. 독립 Manager/Workspace shell, 공유 theme, reducer/Context, project loading/error, activity별 placeholder, panel persistence, editor 최소 타입, 22개 테스트와 production browser 검증을 완료했다. Source Control/Run/Tests/Agents/Issues/AI의 화면 진입점을 실제 서비스 구현으로 계산하지 않는다.
+
+
+## STEP 3 Web 범위 완료
+
+42개 native 테스트, lint/typecheck/production build 통과. 일반 Chrome의 실제 Explorer·Monaco·디스크 저장/CRUD/충돌/보호 및 세 해상도 검증 완료. Web 범위 PASS이며 OS 오류 시나리오의 테스트 더블 증거와 실제 디스크 증거를 현재 분석에서 구분한다. STEP3 종료 당시 Terminal/Git/Tauri/Core/Agent/AI는 미구현이었다. 현재 Terminal UI/Run foundation은 아래 STEP4 기록을 따른다.
+
+
+
+## STEP 4 Web foundation
+61 tests, lint/typecheck/production build와 실제 Run 설정 CRUD·격리·Dirty Run·xterm 렌더링 검증 완료. Native 실행은 의도적으로 미구현이다. STEP4 당시 STEP5 Git은 미착수였으며 현재 STEP5 기록은 아래를 따른다. 상세: [Process Runtime Architecture](PROCESS_RUNTIME_ARCHITECTURE.md).
+
+## STEP 5 Web foundation
+
+90 tests 및 lint/typecheck/production build PASS. Git runtime abstraction과 UI/Fake workflow 완료, 실제 Native Git은 STEP6 범위. WebUnavailable는 정상 제한 상태이며 실제 clean repository나 main branch를 꾸며내지 않는다. [Git architecture](GIT_RUNTIME_ARCHITECTURE.md). STEP6 미착수.
+

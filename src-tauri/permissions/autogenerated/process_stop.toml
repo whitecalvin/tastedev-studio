@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-process-stop"
+description = "Enables the process_stop command without any pre-configured scope."
+commands.allow = ["process_stop"]
+
+[[permission]]
+identifier = "deny-process-stop"
+description = "Denies the process_stop command without any pre-configured scope."
+commands.deny = ["process_stop"]

@@ -1,0 +1,219 @@
+mod diagnostics;
+use diagnostics::runtime_diagnostic;
+mod filesystem;
+mod git;
+mod job;
+mod process;
+use filesystem::{error, Connection, Result, Workspaces};
+use tauri::{Manager, State};
+use tauri_plugin_dialog::DialogExt;
+fn save_projects(app: &tauri::AppHandle, state: &Workspaces) -> Result<()> {
+    let path = app.path().app_data_dir().map_err(|_| error("storage"))?;
+    std::fs::create_dir_all(&path)?;
+    let data = serde_json::to_vec(&*state.projects.lock().map_err(|_| error("internal"))?)
+        .map_err(|_| error("storage"))?;
+    std::fs::write(path.join("workspaces.json"), data)?;
+    Ok(())
+}
+#[tauri::command]
+async fn workspace_select(
+    app: tauri::AppHandle,
+    state: State<'_, Workspaces>,
+) -> Result<Connection> {
+    let handle = app.clone();
+    let path = tauri::async_runtime::spawn_blocking(move || {
+        handle
+            .dialog()
+            .file()
+            .set_title("Open TASTEDEV Studio workspace")
+            .blocking_pick_folder()
+    })
+    .await
+    .map_err(|_| error("dialog"))?
+    .ok_or_else(|| error("cancelled"))?
+    .into_path()
+    .map_err(|_| error("path"))?;
+    state.register(path)
+}
+#[tauri::command]
+fn workspace_restore(project_id: String, state: State<Workspaces>) -> Result<Option<Connection>> {
+    let path = state
+        .projects
+        .lock()
+        .map_err(|_| error("internal"))?
+        .get(&project_id)
+        .cloned();
+    path.map(|path| state.register(path)).transpose()
+}
+#[tauri::command]
+fn workspace_bind(
+    app: tauri::AppHandle,
+    project_id: String,
+    connection_id: String,
+    state: State<Workspaces>,
+) -> Result<Connection> {
+    let root = state.root(&connection_id)?;
+    state
+        .projects
+        .lock()
+        .map_err(|_| error("internal"))?
+        .insert(project_id, root.clone());
+    save_projects(&app, &state)?;
+    state.register(root)
+}
+#[tauri::command]
+fn workspace_same(
+    connection_id: String,
+    project_id: String,
+    state: State<Workspaces>,
+) -> Result<bool> {
+    let root = state.root(&connection_id)?;
+    Ok(state
+        .projects
+        .lock()
+        .map_err(|_| error("internal"))?
+        .get(&project_id)
+        == Some(&root))
+}
+#[tauri::command]
+fn workspace_permission(connection_id: String, state: State<Workspaces>) -> Result<String> {
+    let root = state.root(&connection_id)?;
+    if !root.is_dir() {
+        return Err(error("not-found"));
+    }
+    Ok("granted".into())
+}
+#[tauri::command]
+fn workspace_disconnect(
+    app: tauri::AppHandle,
+    project_id: String,
+    connection_id: String,
+    state: State<Workspaces>,
+    processes: State<process::Processes>,
+) -> Result<()> {
+    processes.stop_all();
+    state
+        .projects
+        .lock()
+        .map_err(|_| error("internal"))?
+        .remove(&project_id);
+    state
+        .roots
+        .lock()
+        .map_err(|_| error("internal"))?
+        .remove(&connection_id);
+    save_projects(&app, &state)
+}
+#[tauri::command]
+async fn workspace_file(
+    request: filesystem::FileRequest,
+    app: tauri::AppHandle,
+) -> Result<serde_json::Value> {
+    tauri::async_runtime::spawn_blocking(move || {
+        filesystem::execute(&app.state::<Workspaces>(), request)
+    })
+    .await
+    .map_err(|_| error("internal"))?
+}
+#[tauri::command]
+async fn git_operation(request: git::Request, app: tauri::AppHandle) -> Result<serde_json::Value> {
+    tauri::async_runtime::spawn_blocking(move || git::execute(&app.state::<Workspaces>(), request))
+        .await
+        .map_err(|_| error("internal"))?
+}
+#[tauri::command]
+async fn process_start(
+    session_id: String,
+    request: process::Request,
+    app: tauri::AppHandle,
+) -> Result<()> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<process::Processes>().start(
+            app.clone(),
+            &app.state::<Workspaces>(),
+            session_id,
+            request,
+        )
+    })
+    .await
+    .map_err(|_| error("internal"))?
+}
+#[tauri::command]
+async fn process_stop(session_id: String, app: tauri::AppHandle) -> Result<()> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<process::Processes>().stop(&session_id)
+    })
+    .await
+    .map_err(|_| error("internal"))?
+}
+#[tauri::command]
+fn process_write(session_id: String, data: String, state: State<process::Processes>) -> Result<()> {
+    state.write(&session_id, &data)
+}
+#[tauri::command]
+fn process_resize(
+    session_id: String,
+    columns: u16,
+    rows: u16,
+    state: State<process::Processes>,
+) -> Result<()> {
+    state.resize(&session_id, columns, rows)
+}
+pub fn run() {
+    // All children inherit this outer kill-on-close job, including descendants born
+    // before a per-session job is attached. The OS closes its handle on app exit.
+    let app_job = job::ProcessJob::attach(unsafe {
+        windows_sys::Win32::System::Threading::GetCurrentProcess()
+    })
+    .expect("Process cleanup boundary could not initialize");
+    std::mem::forget(app_job);
+    tauri::Builder::default()
+        .plugin(
+            tauri::plugin::Builder::<tauri::Wry>::new("runtime-diagnostics")
+                .js_init_script(include_str!("diagnostics-init.js"))
+                .build(),
+        )
+        .plugin(tauri_plugin_dialog::init())
+        .manage(Workspaces::default())
+        .manage(process::Processes::default())
+        .setup(|app| {
+            diagnostics::initialize(&app.path().app_data_dir()?)?;
+            let path = app.path().app_data_dir()?.join("workspaces.json");
+            if path.exists() {
+                let data = std::fs::read(path)?;
+                let projects = serde_json::from_slice(&data)?;
+                *app.state::<Workspaces>()
+                    .projects
+                    .lock()
+                    .map_err(|_| "workspace lock")? = projects;
+            }
+            eprintln!("Studio native runtime started");
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            workspace_select,
+            workspace_restore,
+            workspace_bind,
+            workspace_same,
+            workspace_permission,
+            workspace_disconnect,
+            workspace_file,
+            git_operation,
+            process_start,
+            process_stop,
+            process_write,
+            process_resize,
+            runtime_diagnostic
+        ])
+        .build(tauri::generate_context!())
+        .expect("Studio runtime initialization failed")
+        .run(|app, event| {
+            if matches!(
+                event,
+                tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+            ) {
+                app.state::<process::Processes>().stop_all();
+                diagnostics::record("native", "stopped");
+            }
+        });
+}

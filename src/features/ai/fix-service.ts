@@ -1,0 +1,46 @@
+import type { WorkspaceFileService } from '../filesystem/file-service.ts';
+import type { Documents } from '../editor/documents.ts';
+import type { AnalysisRecord } from './domain.ts';
+import { aiPath, uuid, args } from './security.ts';
+
+export type FixStatus = 'proposed'|'approved'|'applied'|'validating'|'retesting'|'passed'|'failed'|'reverted'|'cancelled'|'rejected'|'recovery-required';
+export class FixError extends Error { readonly code:string;constructor(code:string){super(code);this.code=code;this.name='FixError';} }
+export async function contentHash(text:string){return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)))).map(n=>n.toString(16).padStart(2,'0')).join('');}
+export interface Edit { start:number; remove:string; insert:string }
+export interface FilePatch { path:string; baseHash:string; resultHash:string; base:string; result:string; edits:Edit[] }
+export interface FixAttempt {id:string;projectId:string;runId?:string;originRunId?:string;analysisId:string;proposalId:string;attempt:number;status:FixStatus;createdAt:string;patches:FilePatch[];approval?:{proposalId:string;files:string[];changeHash:string;timestamp:string};error?:string;retestJobId?:string;retestRunId?:string;validation?:{name:string;status:string;durationMs:number}[]}
+export const fixTools = [{name:'apply_patch',permission:'write',approval:'proposal-and-content'}, {name:'validation_task',permission:'validate',approval:'protocol-task'}, {name:'remote_retest',permission:'validate',approval:'protocol-test'}] as const;
+export function structuredEdit(base:string,result:string):Edit[]{let start=0;while(start<base.length&&start<result.length&&base[start]===result[start])start++;let end=0;while(end<base.length-start&&end<result.length-start&&base[base.length-end-1]===result[result.length-end-1])end++;return base===result?[]:[{start,remove:base.slice(start,base.length-end),insert:result.slice(start,result.length-end)}];}
+export function applyEdits(base:string,edits:Edit[]){let value=base;let previous=base.length+1;for(const e of [...edits].sort((a,b)=>b.start-a.start)){if(!Number.isSafeInteger(e.start)||e.start<0||e.start+e.remove.length>previous||value.slice(e.start,e.start+e.remove.length)!==e.remove)throw new FixError('INVALID_PATCH');value=value.slice(0,e.start)+e.insert+value.slice(e.start+e.remove.length);previous=e.start;}return value;}
+/** The model proposes data; only an explicitly approved immutable attempt can write. */
+export class FixService {
+ readonly history:FixAttempt[]=[];private busy=false;
+ readonly projectId:string;readonly files:Pick<WorkspaceFileService,'read'|'write'>;readonly documents?:Documents;readonly maximumAttempts:number;
+ constructor(projectId:string,files:Pick<WorkspaceFileService,'read'|'write'>,documents?:Documents,maximumAttempts=3){this.projectId=projectId;this.files=files;this.documents=documents;this.maximumAttempts=maximumAttempts;uuid(projectId);if(!Number.isInteger(maximumAttempts)||maximumAttempts<1||maximumAttempts>10)throw new FixError('INVALID_LIMIT');}
+ private own(id:string){const a=this.history.find(a=>a.id===id);if(!a||a.projectId!==this.projectId)throw new FixError('PROJECT_BOUNDARY');return a;}
+ private dirty(path:string){return this.documents?.snapshot().openEditors.some(d=>d.path===path&&d.content!==d.savedContent);}
+ async propose(record:AnalysisRecord,indices=record.result.proposal.map((_,i)=>i)){
+  if(record.projectId!==this.projectId)throw new FixError('PROJECT_BOUNDARY');const originRunId=this.history.find(a=>a.retestRunId===record.runId)?.originRunId??record.runId;const attempt=this.history.filter(a=>a.originRunId===originRunId).length+1;if(attempt>this.maximumAttempts)throw new FixError('RETRY_LIMIT');
+  if(!indices.length||new Set(indices).size!==indices.length)throw new FixError('INVALID_PATCH');const patches:FilePatch[]=[];
+  for(const i of indices){const p=record.result.proposal[i];if(!p)throw new FixError('INVALID_PATCH');const path=aiPath(p.path),base=record.originals[path];if(typeof base!=='string'||base.includes('[redacted]')||p.proposed.includes('[redacted]')||patches.some(p=>p.path===path))throw new FixError('REDACTED_OR_DUPLICATE_PATCH');const edits=structuredEdit(base,p.proposed);if(!edits.length||applyEdits(base,edits)!==p.proposed)throw new FixError('INVALID_PATCH');patches.push({path,base,result:p.proposed,baseHash:await contentHash(base),resultHash:await contentHash(p.proposed),edits});}
+  const a:FixAttempt={id:crypto.randomUUID(),projectId:this.projectId,runId:record.runId,originRunId,analysisId:record.id,proposalId:crypto.randomUUID(),attempt,status:'proposed',createdAt:new Date().toISOString(),patches};this.history.push(a);return structuredClone(a);
+ }
+ async approve(id:string,files:string[]){const a=this.own(id);if(a.status!=='proposed'||files.length!==a.patches.length||new Set(files).size!==files.length||files.some(p=>!a.patches.some(f=>f.path===p)))throw new FixError('APPROVAL_SCOPE');a.approval={proposalId:a.proposalId,files:[...files],changeHash:await contentHash(JSON.stringify(a.patches)),timestamp:new Date().toISOString()};a.status='approved';}
+ reject(id:string){const a=this.own(id);if(a.status!=='proposed')throw new FixError('INVALID_STATE');a.status='rejected';}
+ cancel(id:string){const a=this.own(id);if(!['proposed','approved'].includes(a.status))throw new FixError('INVALID_STATE');a.status='cancelled';}
+ private async preflight(a:FixAttempt,reverse=false){for(const p of a.patches){aiPath(p.path);if(this.dirty(p.path))throw new FixError('DIRTY_EDITOR');const file=await this.files.read(p.path);if(file.content!==(reverse?p.result:p.base)||await contentHash(file.content)!==(reverse?p.resultHash:p.baseHash))throw new FixError('PATCH_CONFLICT');}}
+ private async sync(a:FixAttempt){for(const p of a.patches){const d=this.documents?.snapshot().openEditors.find(d=>d.path===p.path);if(d)await this.documents!.reload(d.id);}}
+ async apply(id:string){if(this.busy)throw new FixError('BUSY');const a=this.own(id),written:FilePatch[]=[];this.busy=true;try{
+  if(a.status!=='approved'||a.approval?.proposalId!==a.proposalId||a.approval.changeHash!==await contentHash(JSON.stringify(a.patches))||a.patches.some(p=>!a.approval!.files.includes(p.path)))throw new FixError('APPROVAL_REQUIRED');await this.preflight(a);
+  for(const p of a.patches){if(this.dirty(p.path))throw new FixError('DIRTY_EDITOR');const result=applyEdits(p.base,p.edits);if(await contentHash(result)!==p.resultHash)throw new FixError('INVALID_PATCH');await this.files.write(p.path,result,p.base);written.push(p);if((await this.files.read(p.path)).content!==result)throw new FixError('WRITE_VERIFY_FAILED');}a.status='applied';delete a.error;await this.sync(a);
+ }catch(error){let recovery=false;for(const p of written.reverse()){try{if(this.dirty(p.path))throw new FixError('DIRTY_EDITOR');await this.files.write(p.path,p.base,p.result);}catch{recovery=true;}}a.error=error instanceof Error?error.message:'PATCH_FAILED';if(written.length)a.status=recovery?'recovery-required':'failed';throw error;}finally{this.busy=false;}}
+ async revert(id:string){if(this.busy)throw new FixError('BUSY');const a=this.own(id);if(!['applied','passed','failed','cancelled'].includes(a.status))throw new FixError('INVALID_STATE');this.busy=true;const restored:FilePatch[]=[];try{await this.preflight(a,true);for(const p of a.patches){if(this.dirty(p.path))throw new FixError('DIRTY_EDITOR');await this.files.write(p.path,p.base,p.result);restored.push(p);}a.status='reverted';await this.sync(a);}catch(error){for(const p of restored.reverse()){try{await this.files.write(p.path,p.result,p.base);}catch{a.status='recovery-required';}}throw error;}finally{this.busy=false;}}
+ async execute(name:string,input:unknown){if(name!=='apply_patch')throw new FixError('TOOL_UNAVAILABLE');const a=args(input,['projectId','attemptId']);if(a.projectId!==this.projectId||typeof a.attemptId!=='string')throw new FixError('PROJECT_BOUNDARY');return this.apply(a.attemptId);}
+ get(id:string){return structuredClone(this.own(id));}
+ beginValidation(id:string){const a=this.own(id);if(a.status!=='applied')throw new FixError('INVALID_STATE');a.status='validating';}
+ validationResult(id:string,name:string,status:string,durationMs:number){const a=this.own(id);if(a.status!=='validating')throw new FixError('INVALID_STATE');(a.validation??=[]).push({name,status,durationMs});a.status=status==='passed'?'applied':'failed';}
+ beginRetest(id:string,jobId?:string){const a=this.own(id);if(a.status!=='applied')throw new FixError('INVALID_STATE');a.status='retesting';a.retestJobId=jobId;}
+ linkRetest(id:string,runId:string){const a=this.own(id);if(a.status!=='retesting')throw new FixError('INVALID_STATE');uuid(runId);a.retestRunId=runId;}
+ retestResult(id:string,status:'passed'|'failed'|'cancelled'|'timeout'){const a=this.own(id);if(a.status!=='retesting')throw new FixError('INVALID_STATE');a.status=status==='passed'?'passed':status==='cancelled'?'cancelled':'failed';}
+}
+

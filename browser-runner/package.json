@@ -1,0 +1,8 @@
+{
+  "name": "@tastedev/browser-runner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": { "@playwright/test": "1.62.1", "fflate": "0.8.2" },
+  "scripts": { "test": "node --test test/*.test.cjs" }
+}

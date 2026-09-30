@@ -1,0 +1,16 @@
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+public/monaco/
+
+src-tauri/target/
+.next-desktop/
+agent/target/
+
+# 환경 값(비밀) — .env.example 만 올린다
+.env
+.env.*
+!.env.example

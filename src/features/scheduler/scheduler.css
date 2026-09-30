@@ -1,0 +1,1 @@
+.schedule-review select{width:100%;padding:8px;border:1px solid var(--studio-line);border-radius:4px;background:var(--studio-surface);color:inherit}.schedule-review input[type=checkbox]{width:auto;margin-right:8px}.schedule-review label:has(input){display:flex;align-items:center;gap:8px}
