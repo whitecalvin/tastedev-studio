@@ -26,7 +26,7 @@ export interface ProcessHost {
   write(sessionId: string, data: string): Promise<void>;
   resize(sessionId: string, columns: number, rows: number): Promise<void>;
 }
-export const desktopRequired = 'Local process execution requires the TASTEDEV Studio desktop runtime.';
+export const desktopRequired = 'Local process execution requires the TASTESTUDIO desktop runtime.';
 export class WebUnavailableProcessHost implements ProcessHost {
   readonly capabilities = { process: false, pty: false };
   subscribe() { return () => {}; }

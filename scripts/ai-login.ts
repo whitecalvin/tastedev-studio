@@ -10,6 +10,6 @@ try{
   const login=await client.call<{authUrl:string}>('account/login/start',{type:'chatgpt'});
   const url=new URL(login.authUrl);if(url.protocol!=='https:'||url.hostname!=='auth.openai.com')throw Error('Unexpected login URL.');
   console.log('Open this official link and sign in with your ChatGPT subscription account:\n'+login.authUrl);
-  if(!await completed)throw Error('ChatGPT sign-in did not complete.');console.log('ChatGPT sign-in complete. TASTEDEV Studio can now use Codex.');
+  if(!await completed)throw Error('ChatGPT sign-in did not complete.');console.log('ChatGPT sign-in complete. TASTESTUDIO can now use Codex.');
  }
 }finally{clearTimeout(timer);client.close();}

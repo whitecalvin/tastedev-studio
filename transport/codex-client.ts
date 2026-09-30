@@ -51,7 +51,7 @@ export class CodexClient {
  static async connect(signal:AbortSignal,launch?:Launch){
   signal.throwIfAborted();if(!launch)await mkdir(codexHome(),{recursive:true});
   const client=new CodexClient(signal,launch??codexLaunch);
-  try{await client.call('initialize',{clientInfo:{name:'tastedev_studio',title:'TASTEDEV Studio',version:'0.1.0'},capabilities:{experimentalApi:true}});client.write({method:'initialized'});return client;}catch(error){client.close();throw error;}
+  try{await client.call('initialize',{clientInfo:{name:'tastedev_studio',title:'TASTESTUDIO',version:'0.1.0'},capabilities:{experimentalApi:true}});client.write({method:'initialized'});return client;}catch(error){client.close();throw error;}
  }
  private write(packet:unknown){if(!this.closed)this.child.stdin.write(JSON.stringify(packet)+'\n');}
  call<T=unknown>(method:string,params:unknown):Promise<T>{

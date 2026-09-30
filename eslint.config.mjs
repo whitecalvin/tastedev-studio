@@ -6,7 +6,7 @@ export default defineConfig([
   ...nextVitals,
   ...nextTypescript,
   { files:['browser-runner/**/*.cjs'], rules:{'@typescript-eslint/no-require-imports':'off'} },
-  globalIgnores([".next/**", ".next-desktop/**", "src-tauri/target/**", "public/monaco/**", "out/**", "next-env.d.ts"]),
+  globalIgnores([".next/**", ".next-desktop/**", "src-tauri/target/**", "target/**", "agent/target/**", "public/monaco/**", "out/**", "next-env.d.ts"]),
 ]);
 
 

@@ -21,7 +21,7 @@ function useRunSession(projectId: string) {
   useEffect(() => {
     mounted.current = true;
     const timer = setTimeout(() => { try { const next = configurations.list(projectId); setList(next); select(next[0]?.id ?? ''); } catch { setError('Run configurations could not be loaded. Stored data is unchanged; check browser storage.'); } setReady(true); }, 0);
-    if (!service.host.capabilities.process && !service.terminal.snapshot().chunks.length) service.terminal.append('system', `\x1b[1mTASTEDEV Studio Terminal\x1b[0m\r\n${desktopRequired}\r\n`);
+    if (!service.host.capabilities.process && !service.terminal.snapshot().chunks.length) service.terminal.append('system', `\x1b[1mTASTESTUDIO Terminal\x1b[0m\r\n${desktopRequired}\r\n`);
     return () => { mounted.current = false; clearTimeout(timer); queueMicrotask(() => { if (!mounted.current) void service.dispose().catch(() => { /* Production Web host never starts a process; native cleanup reporting belongs to STEP6. */ }); }); };
   }, [projectId, service, configurations]);
   const run = async () => {

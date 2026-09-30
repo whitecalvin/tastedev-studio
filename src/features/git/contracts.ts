@@ -1,4 +1,4 @@
-export const gitDesktopRequired = 'Native Git integration requires the TASTEDEV Studio desktop runtime.';
+export const gitDesktopRequired = 'Native Git integration requires the TASTESTUDIO desktop runtime.';
 export type GitKind = 'untracked' | 'added' | 'modified' | 'deleted' | 'renamed' | 'conflicted';
 export interface GitFileStatus { path: string; originalPath?: string; index: GitKind | null; workingTree: GitKind | null }
 export interface GitRepository { id: string; root: string; currentBranch: string | null; detached: boolean; hasRemote: boolean }

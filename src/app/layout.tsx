@@ -7,7 +7,7 @@ import "@/styles/files.css";
 import '@xterm/xterm/css/xterm.css';
 import '@/styles/process.css';
 
-export const metadata: Metadata = { title: "TASTEDEV Studio", description: "Your projects, ready for the next step." };
+export const metadata: Metadata = { title: "TASTESTUDIO", description: "Your projects, ready for the next step." };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en"><body><LanguageProvider><ThemeProvider>{children}</ThemeProvider></LanguageProvider></body></html>;
 }

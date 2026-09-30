@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "product": {
     "id": "studio",
-    "name": "TASTEDEV Studio",
+    "name": "TASTESTUDIO",
     "identifier": "com.gxsoft.tastedev.studio"
   },
   "packagePrefix": "tastestudio",

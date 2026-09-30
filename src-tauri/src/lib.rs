@@ -25,7 +25,7 @@ async fn workspace_select(
         handle
             .dialog()
             .file()
-            .set_title("Open TASTEDEV Studio workspace")
+            .set_title("Open TASTESTUDIO workspace")
             .blocking_pick_folder()
     })
     .await
