@@ -92,7 +92,7 @@ class Schema {
   }
 }
 
-function parseYaml(source: string, file: string): unknown {
+export function parseYaml(source: string, file: string): unknown {
   if (new TextEncoder().encode(source).length > 65536) throw new ProtocolError(file, '$', 'Protocol files are limited to 64 KiB each.');
   try {
     return load(source, { schema: CORE_SCHEMA, json: false, maxDepth: 16, maxTotalMergeKeys: 0,

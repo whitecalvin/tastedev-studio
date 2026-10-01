@@ -10,6 +10,8 @@ import { resolveProtocol, resolveTestPlan } from './resolver';
 import { planPayload } from '../core/test-plan';
 import { buildSnapshot } from '../ai/snapshot';
 import { withWorkspaceSnapshot } from './workspace-test';
+import { DefinitionForm } from './definition-form';
+import { matchAgent } from '../core/matcher';
 
 function useProtocolState() {
   const { files, connection, ready, revision, editor, refresh, ask, documents } = useFiles();
@@ -89,7 +91,8 @@ export function ProtocolStatus() {
 }
 export function ProtocolView({ tests = false }: { tests?: boolean }) {
   const { t } = useI18n();
-
+  const [editing, setEditing] = useState<{ kind: 'task' | 'test'; name?: string } | null>(null);
+  const core = useCore();
   const p = useProtocol(); const { documents, run } = useFiles(); const { dispatch } = useWorkspace();
   const d = p.state.status === 'Valid' ? p.state.definition : null;
   const open = (file: string) => void run('Opening Protocol…', async () => { await documents.open(`.tastedev/${file}`); dispatch({ type: 'activity', value: 'explorer' }); });
@@ -105,11 +108,13 @@ export function ProtocolView({ tests = false }: { tests?: boolean }) {
         <details><summary>{t("Project requirements")}</summary><pre>{JSON.stringify(d.requirements, null, 2)}</pre></details>
         <details><summary>{t("Definition files")}</summary>{protocolFiles.map(file => <button className="ws-text-button protocol-file" key={file} onClick={() => open(file)}>{file}</button>)}<p>{t("Optional files can be created in Explorer.")}</p></details>
         <h4>{tests ? t("Tests") : t("Tasks")}</h4>
+        <button className="fs-button" disabled={p.pending || p.dirty} onClick={() => setEditing({ kind: tests ? 'test' : 'task' })}>{t(tests ? 'New test' : 'New task')}</button>
+        {editing && <DefinitionForm key={`${editing.kind}:${editing.name ?? 'new'}`} kind={editing.kind} name={editing.name} projectId={core.project.id} onClose={() => setEditing(null)} onSaved={p.reload} />}
         {Object.keys(tests ? d.tests : d.tasks).length === 0 && <p>{t("No")} {tests ? 'tests' : 'tasks'} {t("declared. Edit")} {tests ? 'tests.yml' : 'tasks.yml'} {t("in Explorer.")}</p>}
         <ul className="protocol-list">{Object.values(tests ? d.tests : d.tasks).map(item => {
-          if(tests) return <TestEntry key={item.name} name={item.name}/>;
+          if(tests) return <TestEntry key={item.name} name={item.name} onEdit={() => setEditing({ kind: 'test', name: item.name })}/>;
           const kind = 'task'; const resolved = resolveProtocol(p.state, kind, item.name); const step = resolved.payload.steps[0];
-          return <li key={item.name}><strong>{item.name}</strong>{'type' in item && <small>{item.type} {t("· task:")} {item.task}</small>}<code>{step.executable} · {step.cwd} · {step.timeoutMs! / 1000}{t("s")}</code><details><summary>{t("Effective requirements")}</summary><pre>{JSON.stringify(resolved.requirements, null, 2)}</pre></details><button className="fs-button" disabled={p.pending || p.dirty || !p.connected} onClick={() => p.queue(kind, item.name)}>{t("Queue")} {tests ? 'test' : 'task'}: {item.name}</button></li>;
+          return <li key={item.name}><strong>{item.name}</strong><button className="ws-text-button" disabled={p.pending || p.dirty} onClick={() => setEditing({ kind: 'task', name: item.name })}>{t('Edit definition')}</button>{'type' in item && <small>{item.type} {t("· task:")} {item.task}</small>}<code>{step.executable} · {step.cwd} · {step.timeoutMs! / 1000}{t("s")}</code><details><summary>{t("Effective requirements")}</summary><pre>{JSON.stringify(resolved.requirements, null, 2)}</pre></details><button className="fs-button" disabled={p.pending || p.dirty || !p.connected} onClick={() => p.queue(kind, item.name)}>{t("Queue")} {tests ? 'test' : 'task'}: {item.name}</button></li>;
         })}</ul>
         {p.dirty && <p role="status">{t("Save Protocol edits before queuing. The view reflects saved files.")}</p>}
         {!p.connected && <p>{t("Connect to Core in Agents to queue a task.")}</p>}
@@ -119,7 +124,7 @@ export function ProtocolView({ tests = false }: { tests?: boolean }) {
     </>}
   </section>;
 }
-function TestEntry({name}:{name:string}) {
+function TestEntry({name,onEdit}:{name:string;onEdit():void}) {
   const { t } = useI18n();
 
   const p=useProtocol(),core=useCore(),{dispatch}=useWorkspace();
@@ -128,7 +133,8 @@ function TestEntry({name}:{name:string}) {
   const job=[...core.snapshot.jobs].reverse().find(j=>j.payload.testPlan?.testName===name);
   const latest=core.snapshot.runs.find(r=>r.jobId===job?.id);
   const steps=core.snapshot.steps.filter(s=>s.runId===latest?.id),current=steps.find(s=>s.status==='running');
+  const readiness = plan ? core.snapshot.agents.map(agent => ({agent, ...matchAgent(agent, plan.requirements)})) : [];
   const elapsed=latest?.startedAt?Math.max(0,Date.parse(latest.finishedAt??new Date().toISOString())-Date.parse(latest.startedAt))/1000:0;
-  return <li><strong>{name}</strong><small>{plan?.steps.some(s=>s.browser)?t("Chromium · "):''}{plan?.type??t("Invalid plan")} · {latest?.status??job?.status??t("Not run")}</small>{problem?<p role="alert">{problem}</p>:<><code>{plan!.steps.map(s=>s.stage).join(' → ')}</code><details><summary>{t("Effective requirements")}</summary><pre>{JSON.stringify(plan!.requirements,null,2)}</pre></details><button className="fs-button" disabled={p.pending||p.dirty||!p.connected} onClick={()=>p.queue('test',name)}>{t("Run Test:")} {name}</button></>}{latest&&<><p>{current?`Current: ${current.name}`:t("Latest result")} · {steps.filter(s=>!['pending','running'].includes(s.status)).length}/{steps.length} {t("steps ·")} {elapsed.toFixed(1)}{t("s")}</p><small>{core.snapshot.agents.find(a=>a.id===latest.agentId)?.name??latest.agentId}</small><button className="ws-text-button" onClick={()=>{core.select({kind:'run',id:latest.id});dispatch({type:'activity',value:'runs'});}}>{t("View")} {t(latest.status)} {t("run")}</button></>}</li>;
+  return <li><strong>{name}</strong><button className="ws-text-button" disabled={p.pending || p.dirty} onClick={onEdit}>{t('Edit definition')}</button><small>{plan?.steps.some(s=>s.browser)?t("Chromium · "):''}{plan?.type??t("Invalid plan")} · {latest?.status??job?.status??t("Not run")}</small>{problem?<p role="alert">{problem}</p>:<><code>{plan!.steps.map(s=>s.stage).join(' → ')}</code><details><summary>{t("Effective requirements")}</summary><pre>{JSON.stringify(plan!.requirements,null,2)}</pre></details><button className="fs-button" disabled={p.pending||p.dirty||!p.connected} onClick={()=>p.queue('test',name)}>{t("Run Test:")} {name}</button></>}<details><summary>{t("Agent readiness")}</summary>{readiness.length ? readiness.map(match => <p key={match.agent.id}>{match.agent.name}: {match.matches ? t("Compatible") : match.reasons.map(reason => t(reason)).join(" · ")}</p>) : <p>{t("No agents registered.")}</p>}<p>{t("Capability preview. Core checks permissions and availability again when assigning.")}</p></details>{job && <button className="ws-text-button" onClick={() => {core.select({kind:"job",id:job.id});dispatch({type:"activity",value:"queue"});}}>{t("Inspect queue / cancel / retry")}</button>}{latest&&<><p>{current?`Current: ${current.name}`:t("Latest result")} · {steps.filter(s=>!['pending','running'].includes(s.status)).length}/{steps.length} {t("steps ·")} {elapsed.toFixed(1)}{t("s")}</p><small>{core.snapshot.agents.find(a=>a.id===latest.agentId)?.name??latest.agentId}</small><button className="ws-text-button" onClick={()=>{core.select({kind:'run',id:latest.id});dispatch({type:'activity',value:'runs'});}}>{t("View")} {t(latest.status)} {t("run")}</button></>}</li>;
 }
 

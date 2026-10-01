@@ -156,3 +156,11 @@ input::placeholder, textarea::placeholder { color: var(--studio-muted); opacity:
 }
 
 
+/* Protocol authoring stays within the existing IDE panel. */
+.protocol-form { display: grid; gap: 10px; margin: 12px 0; padding: 12px; border: 1px solid var(--studio-line); border-radius: 6px; }
+.protocol-form label { display: grid; gap: 4px; min-width: 0; }
+.protocol-form input, .protocol-form select, .protocol-form textarea { width: 100%; min-width: 0; color: inherit; background: var(--studio-surface); border: 1px solid var(--studio-line); border-radius: 4px; padding: 6px; }
+.protocol-form textarea { min-height: 76px; resize: vertical; font-family: monospace; }
+.protocol-form fieldset { display: grid; gap: 8px; min-width: 0; }
+.protocol-form pre { overflow: auto; max-height: 260px; font-size: 11px; }
+.protocol-form-actions { display: flex; flex-wrap: wrap; gap: 6px; }
