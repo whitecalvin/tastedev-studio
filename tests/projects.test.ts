@@ -134,3 +134,11 @@ test("web filesystem, Git and detection report unsupported without side effects"
   assert.equal((await new WebProjectDetector().detect("/app")).status, "unsupported");
 });
 
+test('selected browser folder preserves user project name and description without fabricating an absolute path', async () => {
+  const { service } = setup();
+  const project = await service.registerBrowserFolder('My selected workspace', 'User description');
+  assert.equal(project.name, 'My selected workspace'); assert.equal(project.description, 'User description');
+  assert.equal(project.workspacePath, null); assert.equal(project.browserFolder, true);
+  assert.equal((await service.get(project.id))?.description, 'User description');
+});
+

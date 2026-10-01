@@ -1,11 +1,11 @@
 mod diagnostics;
 use diagnostics::runtime_diagnostic;
+mod announcements;
 mod filesystem;
 mod git;
 mod job;
 mod process;
 mod update;
-mod announcements;
 use filesystem::{error, Connection, Result, Workspaces};
 use tauri::{Manager, State};
 use tauri_plugin_dialog::DialogExt;
@@ -195,10 +195,14 @@ fn update_action(
 }
 #[tauri::command]
 async fn announcements_get(locale: String) -> std::result::Result<String, String> {
-    tauri::async_runtime::spawn_blocking(move || announcements::fetch(&locale)).await.map_err(|_| "network".to_string())?
+    tauri::async_runtime::spawn_blocking(move || announcements::fetch(&locale))
+        .await
+        .map_err(|_| "network".to_string())?
 }
 #[tauri::command]
-fn announcements_open(url: String) -> std::result::Result<(), String> { announcements::open(&url) }
+fn announcements_open(url: String) -> std::result::Result<(), String> {
+    announcements::open(&url)
+}
 pub fn run() {
     let context = tauri::generate_context!();
     // Capture initialization failures as well as errors after setup. No user data

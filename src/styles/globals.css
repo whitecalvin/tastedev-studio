@@ -100,6 +100,9 @@ h3 { font-size: 16px; font-weight: 600; }
 .form-fields label { font-size: 13px; font-weight: 600; }
 .form-fields input, .form-fields textarea { display: block; width: 100%; border: 1px solid var(--studio-line); border-radius: 5px; background: var(--studio-bg); color: var(--studio-text); padding: 10px 12px; margin-top: 8px; font-weight: 400; }
 .form-fields textarea { resize: vertical; min-height: 85px; }
+.project-folder-input { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.form-fields .project-folder-input input { margin-top: 0; flex: 1; min-width: 0; }
+.project-folder-input button { flex-shrink: 0; }
 .form-fields small { display: block; font-weight: 400; line-height: 1.6; color: var(--studio-muted); margin-top: 7px; }
 input::placeholder, textarea::placeholder { color: var(--studio-muted); opacity: 1; }
 .required-note, .optional-note { float: right; color: var(--studio-muted); font-size: 11px; font-weight: 400; }

@@ -204,6 +204,7 @@ reverted|zurückgesetzt|revertido|annulé|ripristinato|revertido|復元済み|�
 validating|wird geprüft|validando|validation en cours|convalida in corso|validando|検証中|验证中|驗證中
 retesting|erneuter Test|repitiendo prueba|nouveau test|nuovo test|testando novamente|再テスト中|重新测试中|重新測試中
 open|offen|abierto|ouvert|aperto|aberto|未解決|打开|開啟
-closed|geschlossen|cerrado|fermé|chiuso|fechado|解決済み|已关闭|已關閉`;
+closed|geschlossen|cerrado|fermé|chiuso|fechado|解決済み|已关闭|已關閉
+Choose folder|Ordner auswählen|Elegir carpeta|Choisir un dossier|Scegli cartella|Escolher pasta|フォルダーを選択|选择文件夹|選擇資料夾`;
 export const additionalLanguages=['de','es','fr','it','pt','ja','zh','zh-hant'] as const;
 export const international:Partial<Record<Language,Record<string,string>>>=Object.fromEntries(additionalLanguages.map((language,index)=>[language,Object.fromEntries(rows.split('\n').map(row=>{const cells=row.split('|');if(cells.length!==9)throw new Error('Invalid translation row: '+cells[0]);return[cells[0],cells[index+1]];}))]));

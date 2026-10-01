@@ -57,10 +57,10 @@ export class ProjectService {
       assertUniqueProject((await this.repository.list()).filter(item => item.id !== id), valid);
       await this.repository.save({ ...project, workspacePath: valid.workspacePath, browserFolder: false, updatedAt: this.options.now?.() ?? new Date().toISOString() });
     });
-  }  async registerBrowserFolder(name: string): Promise<Project> {
+  }  async registerBrowserFolder(name: string, description = ''): Promise<Project> {
     return this.exclusive(async () => {
       const now = this.options.now?.() ?? new Date().toISOString();
-      const project: Project = { id: this.options.id?.() ?? crypto.randomUUID(), name, description: '', workspacePath: null, browserFolder: true, repositoryUrl: null, defaultBranch: null, framework: null, runtime: null, packageManager: null, projectType: null, gitEnabled: null, createdAt: now, updatedAt: now, lastOpenedAt: null };
+      const project: Project = { id: this.options.id?.() ?? crypto.randomUUID(), name, description, workspacePath: null, browserFolder: true, repositoryUrl: null, defaultBranch: null, framework: null, runtime: null, packageManager: null, projectType: null, gitEnabled: null, createdAt: now, updatedAt: now, lastOpenedAt: null };
       await this.repository.save(project); return project;
     });
   }

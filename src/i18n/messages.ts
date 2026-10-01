@@ -11,12 +11,14 @@ import {reliabilityMessages} from './reliability.ts';
 import {onboardingMessages} from './onboarding.ts';
 import {teamMessages} from './team.ts';
 import {updateMessages} from './update.ts';
+import {announcementMessages} from './announcements.ts';
 /** English source messages remain the stable IDs; user content never enters this catalog. */
 const entries=`Language|언어
 System language|시스템 언어
 Projects|프로젝트
 Project|프로젝트
 New Project|새 프로젝트
+Choose folder|폴더 선택
 Recent Projects|최근 프로젝트
 All projects|모든 프로젝트
 All|전체
@@ -750,6 +752,6 @@ const koreanExtra:Record<string,string>={
  'Run Test:':'테스트 실행:','declared. Edit':'정의됨. 편집:','in Explorer.':'탐색기에서.', 'run':'실행',
  'stdout / stderr · latest 128 KiB retained · separate from Local Terminal':'stdout / stderr · 최근 128 KiB 보관 · 로컬 터미널과 별개',
 };
-export const catalogs:Partial<Record<Language,Readonly<Record<string,string>>>>={ko:{...korean,...koreanExtra,...reliabilityMessages.ko,...onboardingMessages.ko,...teamMessages.ko,...updateMessages.ko},...Object.fromEntries(Object.keys(international).map(language=>[language,{...international[language as Language],...development[language],...guidance[language],...analysisGuidance[language],...fragments[language],...interaction[language],...approval[language],...stateMessages[language],...reliabilityMessages[language],...onboardingMessages[language],...teamMessages[language as Language],...updateMessages[language as Language]}]))};
+export const catalogs:Partial<Record<Language,Readonly<Record<string,string>>>>={ko:{...korean,...koreanExtra,...reliabilityMessages.ko,...onboardingMessages.ko,...teamMessages.ko,...updateMessages.ko,...announcementMessages.ko},...Object.fromEntries(Object.keys(international).map(language=>[language,{...international[language as Language],...development[language],...guidance[language],...analysisGuidance[language],...fragments[language],...interaction[language],...approval[language],...stateMessages[language],...reliabilityMessages[language],...onboardingMessages[language],...teamMessages[language as Language],...updateMessages[language as Language],...announcementMessages[language as Language]}]))};
 export function translate(language:Language,key:string,values?:Record<string,string|number>){const catalog=catalogs[language];return interpolate(catalog&&Object.hasOwn(catalog,key)?catalog[key]:key,values);}
 export function translateFeedback(language:Language,message:string){const match=matchFeedback(message);return match?translate(language,match.key,match.values):translate(language,message);}

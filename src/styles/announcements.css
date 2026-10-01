@@ -1,6 +1,6 @@
 .studio-notice-bell { gap: 6px; }
 .studio-notice-count { background: var(--accent); color: var(--accent-foreground); border-radius: 12px; padding: 1px 6px; font-size: 11px; }
-.studio-notice { position: fixed; z-index: 35; top: 66px; right: 20px; width: min(420px, calc(100vw - 40px)); max-height: 65vh; overflow: auto; padding: 16px; background: var(--studio-surface); color: var(--studio-text); border: 1px solid var(--studio-border); border-left: 4px solid var(--accent); border-radius: 8px; box-shadow: 0 6px 25px #0002; }
+.studio-notice { position: fixed; z-index: 35; top: 66px; right: 20px; width: min(420px, calc(100vw - 40px)); max-height: 65vh; overflow: auto; padding: 16px; background: var(--studio-surface); color: var(--studio-text); border: 1px solid var(--studio-line); border-left: 4px solid var(--accent); border-radius: 8px; box-shadow: 0 6px 25px #0002; }
 .studio-notice-bottom { top: auto; bottom: 40px; }
 .studio-notice-popup { top: 20vh; right: max(20px, calc((100vw - 520px) / 2)); width: min(520px, calc(100vw - 40px)); }
 .studio-notice-urgent { border-left-color: #d33c49; }
@@ -9,6 +9,6 @@
 .studio-notice-body { white-space: pre-wrap; overflow-wrap: anywhere; }
 .studio-notice-image { max-width: 100%; height: auto; object-fit: contain; }
 .studio-notice-list { max-height: 55vh; overflow: auto; }
-.studio-notice-item { padding: 12px 0; border-bottom: 1px solid var(--studio-border); }
+.studio-notice-item { padding: 12px 0; border-bottom: 1px solid var(--studio-line); }
 .studio-notice-title { width: 100%; display: flex; gap: 8px; justify-content: space-between; text-align: start; color: inherit; background: transparent; border: 0; padding: 4px 0; cursor: pointer; font-weight: 600; }
 .studio-notice-title span { color: var(--accent); font-size: 12px; white-space: nowrap; }
