@@ -25,6 +25,8 @@ import { CoreProvider } from '../core/context';
 import { CoreSidebar, CoreDetail } from '../core/views';
 import { ProtocolProvider, ProtocolStatus, ProtocolView } from '../protocol/views';
 import { bottomTabs, shortcuts, type Activity, type Panel } from './state';
+import { SearchView } from '../editor/search-view';
+import { ProblemsView } from '../editor/problems-view';
 
 export const activities = [
   { id: 'explorer', label: 'Explorer', icon: Files }, { id: 'search', label: 'Search', icon: Search },
@@ -75,10 +77,6 @@ export function ActivityBar() {
 }
 function ViewMessage({ title, children }: { title: string; children: React.ReactNode }) { return <div className="ws-view-message"><h3>{title}</h3>{children}</div>; }
 
-function SearchView() {
-  const { t } = useI18n();
- return <ViewMessage title={t("Search this workspace")}><p>{t("File content search will be available after filesystem integration.")}</p><p>{t("No files have been indexed.")}</p></ViewMessage>; }
-
 function SettingsView() {
   const { t } = useI18n();
  return <ViewMessage title={t("Appearance & layout")}><LanguageControl /><ThemeControl /><UpdateButton /><AnnouncementSettings /><p>{t("Theme is shared across the application. Layout is saved separately for each project in this browser.")}</p><dl className="ws-shortcuts">{shortcuts.map(item => <div key={item.key}><dt>{t(item.label)}</dt><dd><kbd>Ctrl + Alt + {item.key.toUpperCase()}</kbd></dd></div>)}</dl></ViewMessage>; }
@@ -113,7 +111,7 @@ export function BottomPanel() {
   return <section id="bottomPanelVisible" className="ws-bottom" hidden={!state.bottomPanelVisible} aria-label={t("Bottom panel")}><ResizeHandle dimension="bottomHeight" /><div className="ws-bottom-heading"><div role="tablist" aria-label={t("Bottom panel tabs")}>{bottomTabs.map((tab, index) => <button key={tab} id={`ws-tab-${tab}`} role="tab" aria-selected={tab === state.activeBottomPanelTab} aria-controls={`ws-content-${tab}`} tabIndex={tab === state.activeBottomPanelTab ? 0 : -1} onClick={() => dispatch({ type: 'tab', value: tab })} onKeyDown={event => {
     const next = event.key === 'ArrowRight' ? (index + 1) % bottomTabs.length : event.key === 'ArrowLeft' ? (index + bottomTabs.length - 1) % bottomTabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? bottomTabs.length - 1 : -1;
     if (next >= 0) { event.preventDefault(); dispatch({ type: 'tab', value: bottomTabs[next] }); document.getElementById(`ws-tab-${bottomTabs[next]}`)?.focus(); }
-  }}>{t(tab)}</button>)}</div><ClosePanel panel="bottomPanelVisible" label={t("bottom panel")} /></div>{bottomTabs.map(tab => <div key={tab} role="tabpanel" id={`ws-content-${tab}`} aria-labelledby={`ws-tab-${tab}`} hidden={tab !== state.activeBottomPanelTab} tabIndex={0} className="ws-bottom-content">{tab === 'Terminal' ? <TerminalView /> : tab === 'Output' ? <OutputView /> : <p>{t(bottomMessages[tab])}</p>}</div>)}</section>;
+  }}>{t(tab)}</button>)}</div><ClosePanel panel="bottomPanelVisible" label={t("bottom panel")} /></div>{bottomTabs.map(tab => <div key={tab} role="tabpanel" id={`ws-content-${tab}`} aria-labelledby={`ws-tab-${tab}`} hidden={tab !== state.activeBottomPanelTab} tabIndex={0} className="ws-bottom-content">{tab === 'Terminal' ? <TerminalView /> : tab === 'Output' ? <OutputView /> : tab === 'Problems' ? <ProblemsView /> : <p>{t(bottomMessages[tab])}</p>}</div>)}</section>;
 }
 export function StatusBar({ project }: { project: Project }) {
   const { t } = useI18n();

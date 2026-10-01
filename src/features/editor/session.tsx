@@ -12,6 +12,7 @@ import { projectService } from '../projects/services/browser-services';
 
 interface Question { title: string; message: string; initial?: string; choices: { value: string; label: string; danger?: boolean }[] }
 interface Pending extends Question { resolve: (value: string | null) => void }
+export interface EditorProblem { path: string; line: number; column: number; message: string; severity: number }
 function useFileSession(projectId: string) {
   const [files] = useState(() => new WorkspaceFileService(browserFileHost));
   const [documents] = useState(() => new Documents(files));
@@ -24,6 +25,7 @@ function useFileSession(projectId: string) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [revision, setRevision] = useState(0);
+  const [problems, setProblems] = useState<EditorProblem[]>([]);
   const [pending, setPending] = useState<Pending | null>(null);
   const ask = (question: Question) => new Promise<string | null>(resolve => setPending({ ...question, resolve }));
   const answer = (value: string | null) => { pending?.resolve(value); setPending(null); };
@@ -67,7 +69,7 @@ function useFileSession(projectId: string) {
     await run('Closing editor…', async () => { await documents.close(id, choice); });
   };
   const save = () => run('Saving file…', async () => { const id = documents.snapshot().activeEditorId; if (id) { await documents.save(id); setNotice('File saved to the connected folder.'); } });
-  return { files, documents, editor, connection, ready, busy, error, notice, setError, setNotice, revision, refresh: () => setRevision(n => n + 1), pending, ask, answer, run, protect, connect, disconnect, close, save, saveAll, requestAccess: () => run('Requesting access…', async () => { setConnection(await files.requestAccess()); setRevision(n => n + 1); }) };
+  return { files, documents, editor, connection, ready, busy, error, notice, setError, setNotice, revision, problems, setProblems, refresh: () => setRevision(n => n + 1), pending, ask, answer, run, protect, connect, disconnect, close, save, saveAll, requestAccess: () => run('Requesting access…', async () => { setConnection(await files.requestAccess()); setRevision(n => n + 1); }) };
 }
 type Session = ReturnType<typeof useFileSession>;
 const Context = createContext<Session | null>(null);
