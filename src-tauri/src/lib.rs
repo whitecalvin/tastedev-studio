@@ -1,3 +1,4 @@
+mod debugger;
 mod diagnostics;
 use diagnostics::runtime_diagnostic;
 mod announcements;
@@ -7,6 +8,37 @@ mod git;
 mod job;
 mod process;
 mod update;
+
+#[tauri::command]
+async fn debug_start(app: tauri::AppHandle, request: debugger::Start) -> Result<()> {
+    tauri::async_runtime::spawn_blocking(move || {
+        use tauri::Emitter;
+        let events = app.clone();
+        app.state::<debugger::Debuggers>().start(
+            request,
+            &app.state::<Workspaces>(),
+            std::sync::Arc::new(move |event| {
+                let _ = events.emit("studio-debug", event);
+            }),
+        )
+    })
+    .await
+    .map_err(|_| error("internal"))?
+}
+#[tauri::command]
+fn debug_action(request: debugger::Action, state: State<debugger::Debuggers>) -> Result<()> {
+    state.action(request)
+}
+#[tauri::command]
+async fn debug_stop(app: tauri::AppHandle, session_id: String, workspace_id: String) -> Result<()> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<debugger::Debuggers>()
+            .stop(&session_id, &workspace_id)
+    })
+    .await
+    .map_err(|_| error("internal"))?
+}
+
 #[tauri::command]
 async fn project_environment() -> Result<serde_json::Value> {
     tauri::async_runtime::spawn_blocking(bootstrap::environment)
@@ -117,6 +149,7 @@ fn workspace_disconnect(
     state: State<Workspaces>,
     processes: State<process::Processes>,
 ) -> Result<()> {
+    app.state::<debugger::Debuggers>().stop_all();
     processes.stop_all();
     state
         .projects
@@ -197,7 +230,12 @@ fn update_action(
         if protected.unwrap_or(true) {
             return Err("workspace-busy".into());
         }
-        processes.prepare_update().map_err(|_| "workspace-busy")?;
+        let debuggers = app.state::<debugger::Debuggers>();
+        debuggers.prepare_update().map_err(|_| "workspace-busy")?;
+        if processes.prepare_update().is_err() {
+            debuggers.cancel_update();
+            return Err("workspace-busy".into());
+        }
     }
     match app
         .state::<update::Updates>()
@@ -211,6 +249,7 @@ fn update_action(
         }
         Err(error) => {
             if action == "install" {
+                app.state::<debugger::Debuggers>().cancel_update();
                 processes.cancel_update();
             }
             Err(error)
@@ -247,6 +286,7 @@ pub fn run() {
         .manage(Workspaces::default())
         .manage(bootstrap::Operations::default())
         .manage(process::Processes::default())
+        .manage(debugger::Debuggers::default())
         .setup(|app| {
             diagnostics::initialize(&app.path().app_data_dir()?)?;
             app.manage(update::Updates::new(
@@ -278,6 +318,9 @@ pub fn run() {
             workspace_disconnect,
             workspace_file,
             git_operation,
+            debug_start,
+            debug_action,
+            debug_stop,
             process_start,
             process_stop,
             process_write,
@@ -306,6 +349,7 @@ pub fn run() {
             event,
             tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
         ) {
+            app.state::<debugger::Debuggers>().stop_all();
             app.state::<process::Processes>().stop_all();
             diagnostics::record("native", "stopped");
         }

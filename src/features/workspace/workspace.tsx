@@ -1,4 +1,5 @@
 "use client";
+import {DebugProvider,DebugView} from '../debugger/views';
 import { useI18n, LanguageControl } from '@/i18n/react';
 import { AIStateProvider, AISidebar, AIPanel, AIProposalArea, useAI } from '../ai/views';
 import {ScheduleProvider,ScheduleSidebar,ScheduleDetail} from '../scheduler/views';
@@ -85,7 +86,7 @@ export function PrimarySidebar() {
 
   const { state } = useWorkspace();
   const { state: git, service } = useGit();
-  const views: Record<Activity, React.ReactNode> = { explorer: <Explorer decoration={path => { const kind = service.host.capabilities.git && git.fresh ? gitDecoration(git.files, path) : null; return kind ? { label: kind, text: statusLetters[kind] } : null; }} />, search: <SearchView />, 'source-control': <SourceControlView />, run: <><ProtocolView /><RunView /></>, tests: <ProtocolView tests />, agents: <CoreSidebar activity="agents" />, queue: <CoreSidebar activity="queue" />, runs: <CoreSidebar activity="runs" />, scheduler:<ScheduleSidebar />, issues: <IssuesSidebar />, ai: <AISidebar />, settings: <SettingsView /> };
+  const views: Record<Activity, React.ReactNode> = { explorer: <Explorer decoration={path => { const kind = service.host.capabilities.git && git.fresh ? gitDecoration(git.files, path) : null; return kind ? { label: kind, text: statusLetters[kind] } : null; }} />, search: <SearchView />, 'source-control': <SourceControlView />, run: <><ProtocolView /><RunView /><DebugView /></>, tests: <ProtocolView tests />, agents: <CoreSidebar activity="agents" />, queue: <CoreSidebar activity="queue" />, runs: <CoreSidebar activity="runs" />, scheduler:<ScheduleSidebar />, issues: <IssuesSidebar />, ai: <AISidebar />, settings: <SettingsView /> };
   return <aside id="primarySidebarVisible" className="ws-primary" hidden={!state.primarySidebarVisible} aria-label={t("Primary sidebar")}><div className="ws-panel-heading"><h2>{t(activities.find(item => item.id === state.activeActivity)?.label ?? '')}</h2><ClosePanel panel="primarySidebarVisible" label={t("primary sidebar")} /></div><div className="ws-sidebar-body">{views[state.activeActivity]}</div></aside>;
 }
 function ResizeHandle({ dimension }: { dimension: 'bottomHeight' | 'secondaryWidth' }) {
@@ -116,7 +117,7 @@ export function BottomPanel() {
 export function StatusBar({ project }: { project: Project }) {
   const { t } = useI18n();
  const { connection, editor } = useFiles(); const active = editor.openEditors.find(d => d.id === editor.activeEditorId); return <footer className="ws-status"><span><RuntimeLabel /></span><span className="ws-status-path" title={connection?.workspacePath ?? project.workspacePath ?? undefined}>{connection?.name ?? project.workspacePath ?? t("No folder connected")}</span><span><ConnectionStatus /></span><span>{active?.language ?? t("No open file")}</span><span>{editor.dirtyEditors.length} {t("unsaved")}</span><ProtocolStatus /><RunStatus /><GitStatus /></footer>; }
-export function WorkspaceShell({ project }: { project: Project }) { return <ProtocolProvider><AIStateProvider><IssuesProvider><ScheduleProvider><WorkspaceContent project={project} /></ScheduleProvider></IssuesProvider></AIStateProvider></ProtocolProvider>; }
+export function WorkspaceShell({ project }: { project: Project }) { return <DebugProvider><ProtocolProvider><AIStateProvider><IssuesProvider><ScheduleProvider><WorkspaceContent project={project} /></ScheduleProvider></IssuesProvider></AIStateProvider></ProtocolProvider></DebugProvider>; }
 function WorkspaceContent({ project }: { project: Project }) {
   const { t } = useI18n();
  const ai=useAI(); const { state } = useWorkspace(); const coreActive = ['agents','queue','runs'].includes(state.activeActivity),issuesActive=state.activeActivity==='issues',schedulerActive=state.activeActivity==='scheduler'; return <div className="ws-shell" style={{ '--ws-bottom-height': `${state.bottomHeight}px`, '--ws-secondary-width': `${state.secondaryWidth}px` } as CSSProperties}><a href="#main-content" className="skip-link">{t("Skip to editor")}</a><TitleBar project={project} /><FileFeedback /><div className="ws-main"><ActivityBar /><PrimarySidebar /><div className="ws-editor-host" hidden={coreActive||issuesActive||schedulerActive||state.activeActivity==='ai'||!!ai.proposal}><GitEditorArea /></div>{!ai.proposal&&coreActive && <CoreDetail activity={state.activeActivity} />}{!ai.proposal&&issuesActive&&<IssueDetail />}{!ai.proposal&&schedulerActive&&<ScheduleDetail />}<AIProposalArea /><SecondaryPanel /></div><BottomPanel /><StatusBar project={project} /></div>; }

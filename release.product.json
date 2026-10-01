@@ -4,7 +4,7 @@
   "product": {
     "id": "studio",
     "name": "TASTEDEV Studio",
-    "version": "0.1.14",
+    "version": "0.1.15",
     "documentationUrl": "https://tastedev.net/docs/studio"
   },
   "git": {
@@ -17,10 +17,10 @@
     "distributionRepository": "whitecalvin/tastedev-releases",
     "websiteRepository": "whitecalvin/tastedev-web",
     "eventType": "product-release-published",
-    "sourceTag": "v0.1.14",
-    "distributionTag": "studio-v0.1.14",
-    "title": "TASTEDEV Studio 0.1.14",
-    "notesFile": "docs/releases/v0.1.14.md"
+    "sourceTag": "v0.1.15",
+    "distributionTag": "studio-v0.1.15",
+    "title": "TASTEDEV Studio 0.1.15",
+    "notesFile": "docs/releases/v0.1.15.md"
   },
   "websitePromotion": {
     "delivery": "local-push",
@@ -32,8 +32,8 @@
     {
       "platform": "Windows",
       "architecture": "x64",
-      "fileName": "tastestudio_0.1.14_windows_x64.zip",
-      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.14_windows_x64.zip",
+      "fileName": "tastestudio_0.1.15_windows_x64.zip",
+      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.15_windows_x64.zip",
       "codeSigned": true,
       "signaturePublisher": "GXSOFT",
       "verification": {
@@ -45,11 +45,11 @@
         "archiveMembers": [
           {
             "sourcePath": "artifacts/release/windows-x86_64/tastestudio.exe",
-            "memberPath": "tastestudio_0.1.14_windows_x64/tastestudio.exe"
+            "memberPath": "tastestudio_0.1.15_windows_x64/tastestudio.exe"
           },
           {
             "sourcePath": "artifacts/release/windows-x86_64/tastestudio-agent.exe",
-            "memberPath": "tastestudio_0.1.14_windows_x64/tastestudio-agent.exe"
+            "memberPath": "tastestudio_0.1.15_windows_x64/tastestudio-agent.exe"
           }
         ],
         "expectedSubjectContains": "O=지엑스소프트",
@@ -59,14 +59,14 @@
     {
       "platform": "Windows",
       "architecture": "x64",
-      "fileName": "tastestudio_0.1.14_windows_x64-setup.exe",
-      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.14_windows_x64-setup.exe",
+      "fileName": "tastestudio_0.1.15_windows_x64-setup.exe",
+      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.15_windows_x64-setup.exe",
       "codeSigned": true,
       "signaturePublisher": "GXSOFT",
       "verification": {
         "type": "authenticode",
         "files": [
-          "artifacts/release/windows-x86_64/tastestudio_0.1.14_windows_x64-setup.exe"
+          "artifacts/release/windows-x86_64/tastestudio_0.1.15_windows_x64-setup.exe"
         ],
         "expectedSubjectContains": "O=지엑스소프트",
         "requireTimestamp": true
@@ -75,13 +75,13 @@
     {
       "platform": "Linux",
       "architecture": "x64",
-      "fileName": "tastedev-studio-0.1.14-linux-x86_64.tar.gz",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.14-linux-x86_64.tar.gz",
+      "fileName": "tastedev-studio-0.1.15-linux-x86_64.tar.gz",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.15-linux-x86_64.tar.gz",
       "codeSigned": true,
       "signaturePublisher": "GXSOFT SSH release signing",
       "verification": {
         "type": "ssh",
-        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-0.1.14-linux-x86_64.tar.gz.sig",
+        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-0.1.15-linux-x86_64.tar.gz.sig",
         "publicKeyFromUserProfile": ".ssh/id_ed25519.pub",
         "expectedFingerprint": "SHA256:DpGg4oWYas1GSPxa6bb0Xq3EtYbq5A2rxyfdv8O9G1k",
         "principal": "release@tastedev.net",
@@ -91,12 +91,12 @@
   ],
   "releaseAssets": [
     {
-      "fileName": "tastestudio_0.1.14_windows_x64.zip",
-      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.14_windows_x64.zip"
+      "fileName": "tastestudio_0.1.15_windows_x64.zip",
+      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.15_windows_x64.zip"
     },
     {
-      "fileName": "tastestudio_0.1.14_windows_x64-setup.exe",
-      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.14_windows_x64-setup.exe"
+      "fileName": "tastestudio_0.1.15_windows_x64-setup.exe",
+      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.15_windows_x64-setup.exe"
     },
     {
       "fileName": "tastestudio.exe",
@@ -107,12 +107,12 @@
       "path": "artifacts/release/windows-x86_64/tastestudio-agent.exe"
     },
     {
-      "fileName": "tastedev-studio-0.1.14-linux-x86_64.tar.gz",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.14-linux-x86_64.tar.gz"
+      "fileName": "tastedev-studio-0.1.15-linux-x86_64.tar.gz",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.15-linux-x86_64.tar.gz"
     },
     {
-      "fileName": "tastedev-studio-0.1.14-linux-x86_64.tar.gz.sig",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.14-linux-x86_64.tar.gz.sig"
+      "fileName": "tastedev-studio-0.1.15-linux-x86_64.tar.gz.sig",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.15-linux-x86_64.tar.gz.sig"
     },
     {
       "fileName": "SHA256SUMS.txt",

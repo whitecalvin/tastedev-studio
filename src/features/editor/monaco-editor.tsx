@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from 'react';
 import type * as Monaco from 'monaco-editor';
+import {useDebugService} from '../debugger/views';
 import { useFiles } from './session';
 import {useI18n} from '@/i18n/react';
 import { loadLanguageWorkspace, uriWorkspacePath, workspaceUri } from './language-workspace';
@@ -23,6 +24,7 @@ export function loadMonaco() {
   return monacoPromise;
 }
 export function MonacoEditor() {
+  const debug=useDebugService();
   const { documents, editor: state, busy, files, connection, revision, setProblems } = useFiles();
   const {t}=useI18n();const ariaLabel=t('File editor');const label=useRef(ariaLabel);
   const container = useRef<HTMLDivElement>(null);
@@ -35,6 +37,7 @@ export function MonacoEditor() {
     const models = new Map<string, Monaco.editor.ITextModel>();
     const views = new Map<string, Monaco.editor.ICodeEditorViewState | null>();
     const saved = new Map<string,string>();
+    let unsubscribeDebug:(()=>void)|undefined;
     let unsubscribe: (() => void) | undefined, observer: MutationObserver | undefined;
     let change: Monaco.IDisposable | undefined, selection: Monaco.IDisposable | undefined;
     let opener: Monaco.IDisposable | undefined, markers: Monaco.IDisposable | undefined;
@@ -44,8 +47,9 @@ export function MonacoEditor() {
     let active: string | null = null, syncing = false;
     loadMonaco().then(monaco => {
       if (!alive || !container.current) return;
-      const widget = monaco.editor.create(container.current, { model: null, readOnly:!!protectedEditor.current, automaticLayout: true, fontSize: 13, fontFamily: 'Consolas, monospace', lineNumbers: 'on', minimap: { enabled: false }, wordWrap: 'off', tabSize: 2, scrollBeyondLastLine: false, bracketPairColorization: { enabled: true }, accessibilitySupport: 'auto', ariaLabel: label.current, fixedOverflowWidgets: true });
+      const widget = monaco.editor.create(container.current, { model: null, readOnly:!!protectedEditor.current, automaticLayout: true, fontSize: 13, fontFamily: 'Consolas, monospace', lineNumbers: 'on', glyphMargin:true, minimap: { enabled: false }, wordWrap: 'off', tabSize: 2, scrollBeyondLastLine: false, bracketPairColorization: { enabled: true }, accessibilitySupport: 'auto', ariaLabel: label.current, fixedOverflowWidgets: true });
       instance.current = widget;
+      const decorations=widget.createDecorationsCollection();
       actionListener=(event)=>{const action=(event as CustomEvent).detail as keyof typeof editorActions;if(!Object.hasOwn(editorActions,action)||widget.getOption(monaco.editor.EditorOption.readOnly))return;void widget.getAction(editorActions[action])?.run().catch(error=>{if(alive)setError(error instanceof Error?error.message:'Editor action failed.');});};
       window.addEventListener('tastestudio.editor.action',actionListener);
       const theme = () => monaco.editor.setTheme(document.documentElement.dataset.theme === 'dark' ? 'vs-dark' : 'vs');
@@ -66,11 +70,13 @@ export function MonacoEditor() {
         }
         for (const [id, model] of models) if (!state.openEditors.some(doc => doc.id === id)) { if (!retained.has(model)) model.dispose(); else if(saved.has(id)&&model.getValue(undefined,true)!==saved.get(id))model.setValue(saved.get(id)!); models.delete(id); views.delete(id); saved.delete(id); }
         if(documents.revealLine){widget.revealLineInCenter(documents.revealLine);widget.setPosition({lineNumber:documents.revealLine,column:1});documents.revealLine=undefined;}
+        const doc=active?documents.get(active):null, debugState=debug?.snapshot();
+        decorations.set(doc&&debugState?[...debugState.breakpoints.filter(point=>point.path===doc.path).map(point=>({range:new monaco.Range(point.line,1,point.line,1),options:{glyphMarginClassName:'studio-debug-breakpoint',glyphMarginHoverMessage:{value:'Breakpoint'}}})),...debugState.frames.slice(0,1).filter(frame=>frame.path===doc.path).map(frame=>({range:new monaco.Range(frame.line,1,frame.line,1),options:{isWholeLine:true,className:'studio-debug-paused'}}))]:[]);
         syncing = false;
       };
       change = widget.onDidChangeModelContent(() => { if (!syncing && active) documents.edit(active, widget.getModel()!.getValue(undefined, true)); });
       selection=widget.onDidChangeCursorSelection(event=>{documents.selection=active&&!event.selection.isEmpty()?{path:documents.get(active).path,text:widget.getModel()!.getValueInRange(event.selection),start:event.selection.startLineNumber}:undefined;});
-      sync(); unsubscribe = documents.subscribe(sync);
+      sync(); unsubscribe = documents.subscribe(sync); unsubscribeDebug=debug?.subscribe(sync);
       if (connection?.permission === 'granted') {
         const connectionId=connection.id;
         opener=monaco.editor.registerEditorOpener({async openCodeEditor(_source,uri,position){const path=uriWorkspacePath(uri,connectionId);if(!path||!alive||files.connection?.id!==connectionId)return false;await documents.open(path);if(!alive||files.connection?.id!==connectionId)return false;documents.reveal(position?('startLineNumber' in position?position.startLineNumber:position.lineNumber):1);return true;}});
@@ -85,8 +91,8 @@ export function MonacoEditor() {
         }).catch(error=>{if(alive&&!controller.signal.aborted)setError(error instanceof Error?error.message:'Language workspace could not load.');});
       }
     }).catch(error => { if (alive) setError(error instanceof Error ? error.message : 'The editor could not be loaded.'); });
-    return () => { alive = false; controller.abort(); if(actionListener)window.removeEventListener('tastestudio.editor.action',actionListener); unsubscribe?.(); observer?.disconnect(); change?.dispose(); selection?.dispose(); opener?.dispose(); markers?.dispose(); instance.current?.dispose(); instance.current = null; languageCleanup?.(); models.forEach(model => {if(!model.isDisposed())model.dispose();}); setProblems([]); };
-  }, [documents, files, connection?.id, connection?.permission, revision, setProblems]);
+    return () => { alive = false; controller.abort(); if(actionListener)window.removeEventListener('tastestudio.editor.action',actionListener); unsubscribe?.(); unsubscribeDebug?.(); observer?.disconnect(); change?.dispose(); selection?.dispose(); opener?.dispose(); markers?.dispose(); instance.current?.dispose(); instance.current = null; languageCleanup?.(); models.forEach(model => {if(!model.isDisposed())model.dispose();}); setProblems([]); };
+  }, [debug, documents, files, connection?.id, connection?.permission, revision, setProblems]);
   useEffect(() => { protectedEditor.current=busy; instance.current?.updateOptions({ readOnly: !!busy }); }, [busy]);
   return <div className="fs-monaco-wrap" hidden={!state.activeEditorId}><div ref={container} className="fs-monaco" />{error && <p className="fs-editor-error" role="alert">{error}</p>}</div>;
 }
