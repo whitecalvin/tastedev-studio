@@ -1,5 +1,14 @@
 # TASTEDEV Studio GAP 분석
 
+## 3차 고도화 6단계 — 팀 운영·종합 실제 검증 (2026-10-02)
+
+Owner 사용자 생성/역할/프로젝트 권한/비활성화, bounded 세션 발급·해지와 stale etag 보호를 구현했다. 관리 응답에는 저장된 token hash를 넣지 않고 새 토큰은 password input에서 발급 직후만 표시하며 브라우저 저장소에 저장하지 않는다. 기존 TeamAccess/암호화 CoreStore/Protocol/Queue/Matcher/Rust Agent를 재사용하며 세션 해지·권한 강등은 해당 승인으로 실행 중인 작업의 취소도 요청한다. 최근168시간 Run의 최신1000건 표본과 표본 한도, UTC 일별 추이/통과율/생성→종료 평균 경과 시간, 현재 Agent/Queue, 최신25개 FixAttempt 승인과100개 Run→Issue/PR 링크를 제공한다. 링크는 프로젝트 GitHub 저장소와 실제 Run/snapshot identity로 제한하고 검토 후 저장한다. 링크의 GitHub 존재 확인/직접 PR 생성은 지원하지 않는다.
+
+실제 서명된 Rust Agent2대에서 Owner/Developer 동시 Run2건의 PASS/의도된FAIL을 확인했고 Viewer 쓰기·Developer 관리 차단, 실행 중 세션 해지 취소, Core 재시작 후 Run3건/해지 상태를 확인했다. Source Snapshot은 Dummy .env 제외, 단일 테스트 실행 유지. GUI는 production export+실제 Core SQLite/WebSocket 및 controlled native filesystem IPC를 사용한다. Node592 유효 cases(full591+번역 실패 scope 복구), lint/production export-TypeScript 통과. 최종 GUI/공용 Rust 게이트/배포 증거는 phase-6와 checkpoint.json이 최종 상태다. 기존1~5단계 유효 증거를 재사용하고 설치 updater/Native DPI/Unix GUI 검증은 사용자/QA 영역으로 유지한다.
+
+운영 보고는 전체 Run을 무제한 집계하지 않으며 Core transaction/snapshot과 HistoryStore 메모리 비용이 전체 기록에 비례할 수 있다. 보고/권한은 server authority이며 외부 LDAP/SSO/법적 audit 시스템은 도입하지 않았다. Guide: resources/guides/dev-01/tastedev-studio/THIRD_ADVANCEMENT_TEAM_OPERATIONS.md.
+
+
 ## 고도화 2단계 — 2026-10-01
 
 구현 공백 해소: 설정 validation/우선순위, config/data/log 경계, readiness, bounded drain, structured masked logs/rotation, CLI stop 및 offline backup의 동일 경로 선택. 남은 필수 검증 공백: 공용 native SCM 서비스 adapter 실제 경로, 승인된 disposable 서비스·제한 계정, 가능한 Linux/systemd 종료·재시작. 이 공백이 해소되기 전 운영 서비스 준비 완료/PASS로 간주하지 않는다.
