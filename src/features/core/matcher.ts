@@ -2,10 +2,13 @@ import { CoreError, type Agent, type AgentCapability, type Job, type JobPayload,
 import { validateSource, validateHealth, validateBrowser } from './test-plan.ts';
 const platforms = ['windows', 'linux', 'macos'], architectures = ['x86_64', 'arm64'], runtimes = ['node', 'java', 'python', 'rust', 'git', 'playwright'], browsers = ['chromium', 'firefox', 'webkit'];
 const version = (s: string) => /^\d{1,4}(?:\.\d{1,4}){0,2}$/.test(s);
+// Java's runtime version can include an update component, e.g. 25.0.4.1.
+// Requirements retain the existing >=major.minor.patch contract.
+const runtimeVersion = (runtime: string, value: string) => runtime === 'java' ? /^\d{1,4}(?:\.\d{1,4}){0,3}$/.test(value) : version(value);
 export function text(value: string, label: string, max = 120) { if (typeof value !== 'string' || !value.trim() || value.length > max || /[\x00-\x1f]/.test(value)) throw new CoreError(`${label} is invalid.`); return value.trim(); }
 function positive(value: number) { return Number.isSafeInteger(value) && value > 0; }
 export function validateCapabilities(c: AgentCapability): AgentCapability {
-  if (!c || !positive(c.cpuCores) || !positive(c.memoryMiB) || !['docker','gpu','pty'].every(k => typeof c[k as 'docker'] === 'boolean') || !Array.isArray(c.browsers) || c.browsers.some(b => !browsers.includes(b)) || !c.runtimes || Object.entries(c.runtimes).some(([key, v]) => !runtimes.includes(key) || typeof v !== 'string' || !version(v))) throw new CoreError('Capabilities must contain valid structured hardware and runtime versions.');
+  if (!c || !positive(c.cpuCores) || !positive(c.memoryMiB) || !['docker','gpu','pty'].every(k => typeof c[k as 'docker'] === 'boolean') || !Array.isArray(c.browsers) || c.browsers.some(b => !browsers.includes(b)) || !c.runtimes || Object.entries(c.runtimes).some(([key, v]) => !runtimes.includes(key) || typeof v !== 'string' || !runtimeVersion(key, v))) throw new CoreError('Capabilities must contain valid structured hardware and runtime versions.');
   return { cpuCores: c.cpuCores, memoryMiB: c.memoryMiB, docker: c.docker, gpu: c.gpu, pty: c.pty, runtimes: { ...c.runtimes }, browsers: [...new Set(c.browsers)] };
 }
 export function validateAgent(a: Pick<Agent, 'name' | 'platform' | 'architecture' | 'capabilities'>) {
