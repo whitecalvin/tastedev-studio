@@ -1,5 +1,7 @@
 import { LanguageProvider } from "@/i18n/react";
 import { UpdateProvider } from '@/features/update/views';
+import { AnnouncementsProvider } from '@/features/announcements/views';
+import '@/styles/announcements.css';
 import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/ui/theme";
 import "@/styles/globals.css";
@@ -10,7 +12,7 @@ import '@/styles/process.css';
 
 export const metadata: Metadata = { title: "TASTESTUDIO", description: "Your projects, ready for the next step." };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><LanguageProvider><ThemeProvider><UpdateProvider>{children}</UpdateProvider></ThemeProvider></LanguageProvider></body></html>;
+  return <html lang="en"><body><LanguageProvider><ThemeProvider><UpdateProvider><AnnouncementsProvider>{children}</AnnouncementsProvider></UpdateProvider></ThemeProvider></LanguageProvider></body></html>;
 }
 
 

@@ -5,6 +5,7 @@ import {ScheduleProvider,ScheduleSidebar,ScheduleDetail} from '../scheduler/view
 import { IssuesProvider, IssuesSidebar, IssueDetail } from '../issues/views';
 import { RuntimeLabel } from '@/features/runtime/label';
 import { UpdateButton } from '@/features/update/views';
+import { AnnouncementsButton, AnnouncementSettings } from '@/features/announcements/views';
 import Link from 'next/link';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Files, Search, GitBranch, Play, FlaskConical, Bot, CircleDot, Sparkles, Settings, PanelLeft, PanelRight, PanelBottom, X, ArrowLeft, Boxes, ListOrdered, History } from 'lucide-react';
@@ -64,7 +65,7 @@ export function TitleBar({ project }: { project: Project }) {
   const { t } = useI18n();
 
   const { state } = useWorkspace();
-  return <header className="ws-titlebar"><Link href="/" className="ws-brand" title={t("Return to Project Manager")}><Boxes size={18} /><span>TASTESTUDIO</span></Link><span className="ws-divider" /><strong className="ws-project-name" title={project.name}>{project.name}</strong><span className="ws-breadcrumb">/ {t(activities.find(item => item.id === state.activeActivity)?.label ?? "")}</span><span className="ws-metadata"><ConnectionStatus /></span><div className="ws-title-actions"><LanguageControl /><ThemeControl /><PanelToggle panel="primarySidebarVisible" label={t("Primary sidebar")}><PanelLeft size={17} /></PanelToggle><PanelToggle panel="bottomPanelVisible" label={t("Bottom panel")}><PanelBottom size={17} /></PanelToggle><PanelToggle panel="secondaryPanelVisible" label={t("Secondary panel")}><PanelRight size={17} /></PanelToggle><Link href="/" className="ws-manager-link"><ArrowLeft size={14} />{t("Projects")}</Link></div></header>;
+  return <header className="ws-titlebar"><Link href="/" className="ws-brand" title={t("Return to Project Manager")}><Boxes size={18} /><span>TASTESTUDIO</span></Link><span className="ws-divider" /><strong className="ws-project-name" title={project.name}>{project.name}</strong><span className="ws-breadcrumb">/ {t(activities.find(item => item.id === state.activeActivity)?.label ?? "")}</span><span className="ws-metadata"><ConnectionStatus /></span><div className="ws-title-actions"><AnnouncementsButton /><LanguageControl /><ThemeControl /><PanelToggle panel="primarySidebarVisible" label={t("Primary sidebar")}><PanelLeft size={17} /></PanelToggle><PanelToggle panel="bottomPanelVisible" label={t("Bottom panel")}><PanelBottom size={17} /></PanelToggle><PanelToggle panel="secondaryPanelVisible" label={t("Secondary panel")}><PanelRight size={17} /></PanelToggle><Link href="/" className="ws-manager-link"><ArrowLeft size={14} />{t("Projects")}</Link></div></header>;
 }
 export function ActivityBar() {
   const { t } = useI18n();
@@ -80,7 +81,7 @@ function SearchView() {
 
 function SettingsView() {
   const { t } = useI18n();
- return <ViewMessage title={t("Appearance & layout")}><LanguageControl /><ThemeControl /><UpdateButton /><p>{t("Theme is shared across the application. Layout is saved separately for each project in this browser.")}</p><dl className="ws-shortcuts">{shortcuts.map(item => <div key={item.key}><dt>{t(item.label)}</dt><dd><kbd>Ctrl + Alt + {item.key.toUpperCase()}</kbd></dd></div>)}</dl></ViewMessage>; }
+ return <ViewMessage title={t("Appearance & layout")}><LanguageControl /><ThemeControl /><UpdateButton /><AnnouncementSettings /><p>{t("Theme is shared across the application. Layout is saved separately for each project in this browser.")}</p><dl className="ws-shortcuts">{shortcuts.map(item => <div key={item.key}><dt>{t(item.label)}</dt><dd><kbd>Ctrl + Alt + {item.key.toUpperCase()}</kbd></dd></div>)}</dl></ViewMessage>; }
 export function PrimarySidebar() {
   const { t } = useI18n();
 
