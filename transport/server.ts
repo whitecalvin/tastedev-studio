@@ -1,3 +1,5 @@
+import {snapshotDelta} from '../src/features/core/snapshot-delta.ts';
+import type {CoreSnapshot} from '../src/features/core/domain.ts';
 import {executionReport} from './execution-report.ts';
 import {RunHistory} from './run-history.ts';
 import {liveSnapshot} from '../src/features/core/history-query.ts';
@@ -28,7 +30,7 @@ import { TestOrchestrator, type TerminalStatus } from '../src/features/core/orch
 import type { SourceRevision } from '../src/features/core/test-plan.ts';
 import { CoreService, type CreateJob } from '../src/features/core/service.ts';
 import { InMemoryCoreRepository } from '../src/features/core/repository.ts';
-import { CoreStore, SqliteCoreRepository, storageKey, StorageError } from './storage.ts';
+import { CoreStore, SqliteCoreRepository, storageKey, StorageError, STORAGE_VERSION } from './storage.ts';
 import type { LogState } from './protocol.ts';
 import { validateAgent } from '../src/features/core/matcher.ts';
 import { decode, identifier, timestamp, PROTOCOL, MESSAGE_LIMIT, RunLogs, type Message } from './protocol.ts';
@@ -97,7 +99,7 @@ export async function startCoreServer(options:ServerOptions) {
   const issues=issueGateway(options.issueProvider??new GitHubIssueProvider(undefined,issueSecrets),options.studioToken,origins,id=>projects.get(id),id=>service.snapshot(id),id=>(logs.read([id])[id]??[]).map(l=>l.text),issueSecrets,store?{load:()=>store.get('issues')??[],save:value=>store.put('issues',value)}:undefined,(req,p,action,target)=>authorizeHTTP(req,p,['list','get'].includes(action)?'read':'issue-write',target));
   const records=new RunHistory(service,logs,store);
   const history=new HistoryStore(store),historyHandler=historyGateway(history,options.studioToken,origins,id=>projects.has(id),(req,p,action,kind,value)=>{authorizeHTTP(req,p,action==='put'?'history-write':'read',value?.id);if(action==='put'&&kind==='attempt'&&value&&'approval' in value&&value.approval)authorizeHTTP(req,p,'approve',value.id);});
-  const health=()=>({live:!closed,ready:ready&&!draining,state:closed?'stopped':draining?'draining':ready?'ready':'starting',version:options.version??'development',protocolVersion:PROTOCOL,storage:store?'sqlite':'memory',schema:store?1:null});
+  const health=()=>({live:!closed,ready:ready&&!draining,state:closed?'stopped':draining?'draining':ready?'ready':'starting',version:options.version??'development',protocolVersion:PROTOCOL,storage:store?'sqlite':'memory',schema:store?STORAGE_VERSION:null});
   let stopping:Promise<{timedOut:boolean}>|undefined;
   const stop=(timeoutMs=options.shutdownTimeoutMs??15000)=>stopping??=(async()=>{
     draining=true;ready=false;event('info','core.draining');const deadline=Date.now()+timeoutMs;
@@ -131,7 +133,17 @@ export async function startCoreServer(options:ServerOptions) {
   cleanup.push(async()=>{for(const ws of wss.clients)ws.terminate();server.closeAllConnections();await new Promise<void>(resolve=>wss.close(()=>server.close(()=>resolve())));});
   server.on('upgrade',(req,socket,head)=>{if(draining||!['/agent','/studio'].includes(req.url??'')||(req.headers.origin&&!origins.includes(req.headers.origin))){socket.end('HTTP/1.1 403 Forbidden\r\n\r\n');return;}wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,req));});
   const send=(ws:WebSocket,data:object)=>{if(ws.readyState!==WebSocket.OPEN)return false;if(ws.bufferedAmount>1048576){ws.terminate();return false;}ws.send(JSON.stringify({protocolVersion:PROTOCOL,...data}));return true;};
-  function publish(){for(const [ws,id] of studios){if(team&&!team.permits(studioIdentities.get(ws)! ,id,'read')){ws.close(1008,'Team access expired or revoked');continue;}const snapshot=liveSnapshot(service.snapshot(id));if(team){snapshot.agents=snapshot.agents.filter(a=>team.allowedAgent(id,a.id));const allowed=new Set(snapshot.agents.map(a=>a.id));snapshot.events=snapshot.events.filter(e=>e.projectId===id||allowed.has(e.entityId));}send(ws,{type:'snapshot',snapshot,logs:logs.read(snapshot.runs.map(r=>r.id)),access:team?team.describe(studioIdentities.get(ws)!,id):{mode:'local-single-user'}});}}
+  const deltaClients=new Set<WebSocket>(),published=new Map<WebSocket,{projectId:string;snapshot:CoreSnapshot;sequence:number;logs:string}>();
+  function publish(){for(const [ws,id] of studios){
+    if(team&&!team.permits(studioIdentities.get(ws)!,id,'read')){ws.close(1008,'Team access expired or revoked');continue;}
+    const snapshot=liveSnapshot(service.snapshot(id));
+    if(team){snapshot.agents=snapshot.agents.filter(a=>team.allowedAgent(id,a.id));const allowed=new Set(snapshot.agents.map(a=>a.id));snapshot.events=snapshot.events.filter(e=>e.projectId===id||allowed.has(e.entityId));}
+    const previous=published.get(ws),sequence=(previous?.sequence??0)+1,runLogs=logs.read(snapshot.runs.map(r=>r.id)),encodedLogs=JSON.stringify(runLogs),access=team?team.describe(studioIdentities.get(ws)!,id):{mode:'local-single-user'};
+    const payload=deltaClients.has(ws)&&previous?.projectId===id
+      ?{type:'delta',projectId:id,sequence,baseSequence:previous.sequence,delta:snapshotDelta(previous.snapshot,snapshot),...(previous.logs!==encodedLogs?{logs:runLogs}:{}),access}
+      :{type:'snapshot',projectId:id,sequence,snapshot,logs:runLogs,access};
+    if(send(ws,payload)&&deltaClients.has(ws))published.set(ws,{projectId:id,snapshot,sequence,logs:encodedLogs});
+  }}
   let publishTimer:ReturnType<typeof setTimeout>|undefined;
   const schedule=()=>{publishTimer??=setTimeout(()=>{publishTimer=undefined;publish();},40)};
   const unsubscribe=service.repository.subscribe(schedule);cleanup.push(unsubscribe);cleanup.push(()=>{clearTimeout(publishTimer);for(const timer of runTimers.values())clearTimeout(timer);});
@@ -153,7 +165,7 @@ export async function startCoreServer(options:ServerOptions) {
     switch(m.method){
       case 'records':value=records.request(projectId,args[0],args[1]);break;
       case 'team':{if(!team){value={mode:'local-single-user'};break;}const identity=studioIdentities.get(ws)!;switch(args[0]){case 'describe':value=team.describe(identity,projectId);break;case 'configuration':value=team.configuration(identity);break;case 'update':team.update(identity,args[1] as TeamConfiguration);revokeAgentConnections();value=team.describe(identity,projectId);break;case 'agents':value=team.agentOverview(identity,projectId);break;case 'register-agent':value=team.registerCredential(identity,projectId,args[1]);break;case 'revoke-agent':value=team.revokeCredential(identity,projectId,args[1],args[2]);revokeAgentConnections();break;case 'audit':value=team.audit(identity,projectId);break;default:throw new TeamAccessError();}break;}
-      case 'storageHealth':value={mode:store?'sqlite':'memory',schema:store?1:null,artifactAudit:artifactAudit.filter(a=>service.snapshot(projectId).artifacts.some(v=>v.id===a.id))};break;
+      case 'storageHealth':value={mode:store?'sqlite':'memory',schema:store?STORAGE_VERSION:null,artifactAudit:artifactAudit.filter(a=>service.snapshot(projectId).artifacts.some(v=>v.id===a.id))};break;
       case 'scheduler': {const previousIds=new Set(scheduler.list(projectId).schedules.map(s=>s.id));switch(args[0]){case 'list':scheduler.refresh();value=scheduler.list(projectId);break;case 'register':value=scheduler.register(projectId,args[1]);break;case 'save':value=scheduler.save(projectId,args[1],args[2]===undefined?undefined:identifier(args[2]));if(team)grantSchedules(scheduler.list(projectId).schedules.filter(s=>!previousIds.has(s.id)||s.id===args[2]).map(s=>s.id),studioIdentities.get(ws)!);break;case 'enable':value=scheduler.enable(projectId,identifier(args[1]),args[2] as boolean);if(team&&args[2]===true)grantSchedules([identifier(args[1])],studioIdentities.get(ws)!);break;case 'remove':value=scheduler.remove(projectId,identifier(args[1]));break;case 'run':{const scheduleId=identifier(args[1]);if(team)manualScheduleGrants.set(scheduleId,studioIdentities.get(ws)!);try{value=await scheduler.runNow(projectId,scheduleId,identifier(args[2]));}finally{manualScheduleGrants.delete(scheduleId);}break;}default:throw new CoreError('Scheduler: invalid-input.');}break;}
       case 'createJob': {const input=args[0] as CreateJob;if(!input||(!input.payload?.testPlan&&input.payload?.steps?.length!==1))throw new CoreError('Use a structured command or TestPlan.');for(const step of input.payload.steps){if(step.source?.provider==='snapshot'){await verifySnapshot(step.source.snapshot);if(step.source.snapshot.projectId!==projectId)throw new CoreError('Snapshot project mismatch.');}}value=await service.createJob(projectId,input,team?studioIdentities.get(ws)!.userId:undefined);break;}
       case 'dispatch':{const jobId=args[0]===undefined?undefined:identifier(args[0]);if(team){const queue=service.queue(projectId).filter(j=>jobId===undefined||j.id===jobId);if(jobId&&!queue.length)throw new CoreError('Queued Job not found.');grantJobs(queue.map(j=>j.id),studioIdentities.get(ws)!);}value=dispatch(projectId,jobId);break;}
@@ -169,7 +181,7 @@ export async function startCoreServer(options:ServerOptions) {
     let agentId:string|undefined;let authenticated=false;let processing=Promise.resolve();let pending=0;
     const timer=setTimeout(()=>{if(!authenticated)ws.close(1008,'Authentication required');},5000);
     ws.on('error',()=>{});
-    ws.on('close',()=>{clearTimeout(timer);studios.delete(ws);studioIdentities.delete(ws);if(agentId)lose(agentId,ws);});
+    ws.on('close',()=>{clearTimeout(timer);studios.delete(ws);deltaClients.delete(ws);published.delete(ws);studioIdentities.delete(ws);if(agentId)lose(agentId,ws);});
     ws.on('message',(raw,binary)=>{if(++pending>64){pending--;ws.close(1008,'Message rate exceeded');return;}operations++;processing=processing.then(async()=>{let m:Message|undefined;
       try {
         if(binary)throw new CoreError('Text JSON required.');m=decode(raw.toString());
@@ -195,11 +207,11 @@ export async function startCoreServer(options:ServerOptions) {
             const p=m.project as Project;if(!p||typeof p.name!=='string'||p.name.length>120)throw new CoreError('Invalid Project reference.');identifier(p.id);
             if(team){const identity=team.authenticate(m.token);team.require(identity,p.id,'read');studioIdentities.set(ws,identity);}
             // Reference existing Studio Project metadata; never create a duplicate domain model.
-            if(!team||!projects.has(p.id)){if(team)team.require(studioIdentities.get(ws)!,p.id,'agent-manage');rememberProject(p);}studios.set(ws,p.id);authenticated=true;publish();
+            if(!team||!projects.has(p.id)){if(team)team.require(studioIdentities.get(ws)!,p.id,'agent-manage');rememberProject(p);}studios.set(ws,p.id);if(m.snapshotMode==='delta-v1')deltaClients.add(ws);published.delete(ws);authenticated=true;publish();
           }
           clearTimeout(timer);return;
         }
-        if(!agentId){if(m.type==='subscribe'){const p=m.project as Project;if(!p||typeof p.name!=='string'||p.name.length>120)throw new CoreError('Invalid Project reference.');identifier(p.id);if(team)team.require(studioIdentities.get(ws)!,p.id,'read');if(!team||!projects.has(p.id)){if(team)team.require(studioIdentities.get(ws)!,p.id,'agent-manage');rememberProject(p);}studios.set(ws,p.id);publish();}else if(m.type==='rpc')await rpc(ws,m);else throw new CoreError('Invalid Studio message.');return;}
+        if(!agentId){if(m.type==='subscribe'){const p=m.project as Project;if(!p||typeof p.name!=='string'||p.name.length>120)throw new CoreError('Invalid Project reference.');identifier(p.id);if(team)team.require(studioIdentities.get(ws)!,p.id,'read');if(!team||!projects.has(p.id)){if(team)team.require(studioIdentities.get(ws)!,p.id,'agent-manage');rememberProject(p);}studios.set(ws,p.id);published.delete(ws);publish();}else if(m.type==='rpc')await rpc(ws,m);else throw new CoreError('Invalid Studio message.');return;}
         const connection=agents.get(agentId);if(connection?.socket!==ws)throw new CoreError('Stale connection.');
         if(team&&!team.validAgentSession(agentId,agentSessionHashes.get(agentId)??'')){revokeAgentConnections();return;}
         if(m.type==='heartbeat'){if(m.agentId!==agentId||!['idle','busy'].includes(m.status as string))throw new CoreError('Invalid heartbeat.');timestamp(m.timestamp);connection.seen=Date.now();if(orphanedAgents.has(agentId)){service.repository.transaction(tx=>{const a=tx.agents.get(agentId!)!;a.lastSeenAt=new Date().toISOString();a.status='error';});}else service.observeAgent(agentId,true);return;}

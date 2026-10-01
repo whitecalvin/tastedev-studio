@@ -3,6 +3,7 @@ export class RunHistory {
  private service:CoreService;private logs:RunLogs;private store?:CoreStore;private policies=new Map<string,number>();
  constructor(service:CoreService,logs:RunLogs,store?:CoreStore){this.service=service;this.logs=logs;this.store=store;}
  request(projectId:string,action:unknown,input:unknown){
+  if(action==='page'&&this.store)return this.store.pageRuns(projectId,input);
   const snapshot=this.service.snapshot(projectId);
   if(action==='page'){const jobs=new Map(snapshot.jobs.map(j=>[j.id,j]));return pageHistory(snapshot.runs.map(r=>({id:r.id,createdAt:r.createdAt,status:r.status,name:jobs.get(r.jobId)?.name??r.id,agentId:r.agentId,finishedAt:r.finishedAt})),input);}
   if(action==='detail'){const id=identifier(input),run=snapshot.runs.find(r=>r.id===id);if(!run)throw Error('Run not found in this project.');const value={...snapshot,runs:[run],jobs:snapshot.jobs.filter(j=>j.id===run.jobId),steps:snapshot.steps.filter(s=>s.runId===id),artifacts:snapshot.artifacts.filter(a=>a.runId===id),events:snapshot.events.filter(e=>e.entityId===id).slice(-100)};if(Buffer.byteLength(JSON.stringify(value))>2000000)throw Error('Run detail exceeds export limit.');return value;}

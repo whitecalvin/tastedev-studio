@@ -2,6 +2,7 @@
 import {coreAccess,accessFeedback,sessionExpiredMessage,type CoreAccess} from './access.ts';
 import {coreEndpoint} from './connection-profiles.ts';
 import {ArtifactDownloads} from './artifact-download.ts';
+import {applySnapshotDelta} from './snapshot-delta.ts';
 import {liveSnapshot} from './history-query.ts';
 import type { Agent, Artifact, CoreSnapshot } from './domain';
 import type { Project } from '../projects/types/project';
@@ -14,6 +15,7 @@ export type ConnectionPhase='disabled'|'connecting'|'connected'|'recovering'|'un
 export class RemoteCoreClient {
   enabled=false;connected=false;status='Not connected';logs:Record<string,RemoteLog[]>={};
   access:CoreAccess|null=null;phase:ConnectionPhase='disabled';lastError='';snapshotReceivedAt:string|null=null;
+  private liveState=empty();private sequence=0;
   private state=empty();private version=0;private listeners=new Set<()=>void>();private ws:WebSocket|null=null;private timer:ReturnType<typeof setTimeout>|undefined;private retry=500;private token='';private endpoint='';private project:Project|null=null;
   private pending=new Map<string,{resolve:(value:unknown)=>void;reject:(error:Error)=>void;timer:ReturnType<typeof setTimeout>}>();
   private downloads=new ArtifactDownloads();private historical=new Map<string,CoreSnapshot>();
@@ -26,10 +28,17 @@ export class RemoteCoreClient {
   connect(endpoint:string,token:string,project:Project){const url=new URL(coreEndpoint(endpoint));if(token.length<16||token.length>512||/[\r\n\0]/.test(token))throw new Error('Enter the configured Studio token.');this.disconnect();this.enabled=true;this.endpoint=url.href;this.token=token;this.project=project;this.retry=500;this.open();}
   reconnect(){if(!this.enabled||!this.project)return;if(!this.token){this.status=sessionExpiredMessage;this.lastError=this.status;this.phase='authentication';this.changed();return;}clearTimeout(this.timer);const ws=this.ws;this.ws=null;ws?.close();this.connected=false;for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(new Error('Core disconnected; refresh state before retrying.'));}this.pending.clear();this.open();}
   private open(){if(!this.enabled)return;this.phase=this.snapshotReceivedAt?'recovering':'connecting';this.status='Connecting to Core…';this.changed();const ws=new WebSocket(this.endpoint);this.ws=ws;
-    ws.onopen=()=>{if(this.ws===ws)ws.send(JSON.stringify({type:'subscribe',protocolVersion:1,token:this.token,project:this.project}));};
+    ws.onopen=()=>{if(this.ws===ws)ws.send(JSON.stringify({type:'subscribe',snapshotMode:'delta-v1',protocolVersion:1,token:this.token,project:this.project}));};
     ws.onmessage=event=>{if(this.ws!==ws)return;try{if(typeof event.data!=='string'||event.data.length>4000000)throw new Error('Core response exceeds limit.');const m=JSON.parse(event.data);if(m.protocolVersion!==1)throw new Error('Core protocol mismatch.');if(m.type==='snapshot'){
       if(!m.snapshot||!['agents','jobs','runs','steps','artifacts','events'].every(k=>Array.isArray(m.snapshot[k])))throw new Error('Invalid Core snapshot.');
+      if(m.projectId!==undefined&&m.projectId!==this.project!.id)throw Error('Core snapshot project mismatch.');
+      this.liveState=structuredClone(m.snapshot);this.sequence=m.sequence??0;
       this.access=coreAccess(m.access,this.project!.id);this.state=this.mergeHistory(m.snapshot);this.retainLogs(m.logs??{});this.connected=true;this.phase='connected';this.lastError='';this.snapshotReceivedAt=new Date().toISOString();this.status='Connected to Core';this.retry=500;this.changed();
+    }else if(m.type==='delta'){
+      if(m.projectId!==this.project!.id||m.baseSequence!==this.sequence||m.sequence!==this.sequence+1)throw Error('Core delta sequence or project mismatch.');
+      const next=applySnapshotDelta(this.liveState,m.delta);
+      if(next.runs.some(r=>r.projectId!==this.project!.id)||next.jobs.some(j=>j.projectId!==this.project!.id))throw Error('Core delta project mismatch.');
+      this.access=coreAccess(m.access,this.project!.id);this.liveState=next;this.sequence=m.sequence;this.state=this.mergeHistory(structuredClone(next));if(m.logs)this.retainLogs(m.logs);this.snapshotReceivedAt=new Date().toISOString();this.changed();
     }else if(m.type==='reply'){const p=this.pending.get(m.requestId);if(p){clearTimeout(p.timer);this.pending.delete(m.requestId);if(m.error)p.reject(new Error(accessFeedback(String(m.error))));else p.resolve(m.value);}}
     else if(m.type==='error'){this.status=typeof m.error==='string'?accessFeedback(m.error):'Core rejected the connection.';this.lastError=this.status;this.phase=/auth|token|forbidden|TEAM_/i.test(String(m.error))?'authentication':/protocol/i.test(this.status)?'protocol-error':'error';this.changed();}
     }catch(error){this.lastError=error instanceof Error?error.message:'Invalid Core response.';this.phase='protocol-error';this.status='Invalid Core response. Reconnect to retry.';ws.close();}};
@@ -37,7 +46,7 @@ export class RemoteCoreClient {
     ws.onclose=event=>{if(this.ws!==ws)return;this.connected=false;const blocked=this.phase==='authentication'||this.phase==='protocol-error'||event.code===1008;if(event.code===1008&&this.phase!=='protocol-error'){this.phase='authentication';this.lastError=/expired|revoked/i.test(event.reason)?sessionExpiredMessage:(this.lastError||'Core rejected the connection.');this.status=this.lastError;this.token='';}if(!blocked){this.phase=this.snapshotReceivedAt?'recovering':'unavailable';this.status='Core disconnected. Retrying…';}for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(new Error('Core disconnected; refresh state before retrying.'));}this.pending.clear();this.changed();if(this.enabled&&!blocked){this.timer=setTimeout(()=>this.open(),this.retry);this.retry=Math.min(this.retry*2,10000);}};
   }
   setProject(project:Project){if(this.project?.id!==project.id){this.historical.clear();this.logs={};this.downloads.clear();}this.project=project;if(this.ws?.readyState===WebSocket.OPEN)this.ws.send(JSON.stringify({type:'subscribe',protocolVersion:1,project}));}
-  disconnect(){this.enabled=false;this.connected=false;clearTimeout(this.timer);const ws=this.ws;this.ws=null;ws?.close();for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(new Error('Core disconnected.'));}this.pending.clear();this.historical.clear();this.downloads.clear();this.state=empty();this.logs={};this.access=null;this.token='';this.phase='disabled';this.lastError='';this.snapshotReceivedAt=null;this.status='Not connected';this.changed();}
+  disconnect(){this.enabled=false;this.connected=false;clearTimeout(this.timer);const ws=this.ws;this.ws=null;ws?.close();for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(new Error('Core disconnected.'));}this.pending.clear();this.historical.clear();this.downloads.clear();this.liveState=empty();this.sequence=0;this.state=empty();this.logs={};this.access=null;this.token='';this.phase='disabled';this.lastError='';this.snapshotReceivedAt=null;this.status='Not connected';this.changed();}
   private call<T>(method:string,args:unknown[]):Promise<T>{if(!this.connected||this.ws?.readyState!==WebSocket.OPEN)return Promise.reject(new Error('Connect to Core before changing remote state.'));const requestId=crypto.randomUUID(),payload=JSON.stringify({type:'rpc',protocolVersion:1,requestId,method,args});if(new TextEncoder().encode(payload).length>60000)return Promise.reject(new Error('Core request exceeds the safe transfer limit. Reduce the workspace snapshot or Protocol plan.'));return new Promise<T>((resolve,reject)=>{const timer=setTimeout(()=>{this.pending.delete(requestId);reject(new Error('Core request timed out. Inspect state before retrying.'));},10000);this.pending.set(requestId,{resolve:value=>resolve(value as T),reject,timer});this.ws!.send(payload);});}
   async artifact(a:Pick<Artifact,'location'|'size'|'checksum'>,projectId:string,signal?:AbortSignal){if(!this.connected||this.project?.id!==projectId||!/^\/artifacts\/[0-9a-f-]{36}\/[0-9a-f-]{36}$/i.test(a.location))throw Error('Artifact project boundary.');const endpoint=new URL(this.endpoint);endpoint.protocol=endpoint.protocol==='wss:'?'https:':'http:';endpoint.pathname=a.location;endpoint.search='';const token=this.token;return this.downloads.download(endpoint.href+':'+projectId,{size:a.size,checksum:a.checksum??''},(start,end,signal)=>fetch(endpoint,{headers:{Authorization:'Bearer '+token,'X-Project-Id':projectId,Range:`bytes=${start}-${end}`,'If-Match':`"${a.checksum}"`},signal}),signal);}
   recordsRequest<T>(action:string,input?:unknown){return this.call<T>('records',[action,input]);}
