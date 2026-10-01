@@ -1,6 +1,7 @@
 mod debugger;
 mod diagnostics;
 mod git_collaboration;
+mod language;
 use diagnostics::runtime_diagnostic;
 mod announcements;
 mod bootstrap;
@@ -9,6 +10,48 @@ mod git;
 mod job;
 mod process;
 mod update;
+
+#[tauri::command]
+async fn language_start(
+    app: tauri::AppHandle,
+    request: language::Start,
+) -> Result<serde_json::Value> {
+    tauri::async_runtime::spawn_blocking(move || {
+        use tauri::Emitter;
+        let events = app.clone();
+        app.state::<language::Languages>().start(
+            request,
+            &app.state::<Workspaces>(),
+            std::sync::Arc::new(move |event| {
+                let _ = events.emit("studio-language", event);
+            }),
+        )
+    })
+    .await
+    .map_err(|_| error("internal"))?
+}
+#[tauri::command]
+async fn language_call(
+    app: tauri::AppHandle,
+    request: language::Call,
+) -> Result<serde_json::Value> {
+    tauri::async_runtime::spawn_blocking(move || app.state::<language::Languages>().call(request))
+        .await
+        .map_err(|_| error("internal"))?
+}
+#[tauri::command]
+async fn language_stop(
+    app: tauri::AppHandle,
+    session_id: String,
+    workspace_id: String,
+) -> Result<()> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<language::Languages>()
+            .stop(&session_id, &workspace_id)
+    })
+    .await
+    .map_err(|_| error("internal"))?
+}
 
 #[tauri::command]
 async fn debug_start(app: tauri::AppHandle, request: debugger::Start) -> Result<()> {
@@ -150,6 +193,7 @@ fn workspace_disconnect(
     state: State<Workspaces>,
     processes: State<process::Processes>,
 ) -> Result<()> {
+    app.state::<language::Languages>().stop_all();
     app.state::<debugger::Debuggers>().stop_all();
     processes.stop_all();
     state
@@ -243,8 +287,12 @@ fn update_action(
         if protected.unwrap_or(true) {
             return Err("workspace-busy".into());
         }
+        app.state::<language::Languages>().begin_update();
         let debuggers = app.state::<debugger::Debuggers>();
-        debuggers.prepare_update().map_err(|_| "workspace-busy")?;
+        if debuggers.prepare_update().is_err() {
+            app.state::<language::Languages>().end_update();
+            return Err("workspace-busy".into());
+        }
         if processes.prepare_update().is_err() {
             debuggers.cancel_update();
             return Err("workspace-busy".into());
@@ -264,6 +312,7 @@ fn update_action(
             if action == "install" {
                 app.state::<debugger::Debuggers>().cancel_update();
                 processes.cancel_update();
+                app.state::<language::Languages>().end_update();
             }
             Err(error)
         }
@@ -300,6 +349,7 @@ pub fn run() {
         .manage(bootstrap::Operations::default())
         .manage(process::Processes::default())
         .manage(debugger::Debuggers::default())
+        .manage(language::Languages::default())
         .manage(git_collaboration::Collaboration::default())
         .setup(|app| {
             diagnostics::initialize(&app.path().app_data_dir()?)?;
@@ -333,6 +383,9 @@ pub fn run() {
             workspace_file,
             git_operation,
             git_collaboration,
+            language_start,
+            language_call,
+            language_stop,
             debug_start,
             debug_action,
             debug_stop,

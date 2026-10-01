@@ -1,13 +1,15 @@
 "use client";
 import { useEffect, useRef, useState } from 'react';
 import type * as Monaco from 'monaco-editor';
+import {useLanguageService} from './language-views';
+import {connectLanguageProviders} from './language-monaco';
 import {useDebugService} from '../debugger/views';
 import { useFiles } from './session';
 import {useI18n} from '@/i18n/react';
 import { loadLanguageWorkspace, uriWorkspacePath, workspaceUri } from './language-workspace';
 import { boundIndexReader } from './workspace-index';
 let monacoPromise: Promise<typeof Monaco> | undefined;
-export const editorActions = { definition:'editor.action.revealDefinition', references:'editor.action.referenceSearch.trigger', format:'editor.action.formatDocument' } as const;
+export const editorActions = { definition:'editor.action.revealDefinition', references:'editor.action.referenceSearch.trigger', rename:'editor.action.rename', format:'editor.action.formatDocument' } as const;
 export function requestEditorAction(action: keyof typeof editorActions){window.dispatchEvent(new CustomEvent('tastestudio.editor.action',{detail:action}));}
 export function loadMonaco() {
   monacoPromise ??= (async () => {
@@ -24,7 +26,7 @@ export function loadMonaco() {
   return monacoPromise;
 }
 export function MonacoEditor() {
-  const debug=useDebugService();
+  const debug=useDebugService();const languageService=useLanguageService();
   const { documents, editor: state, busy, files, connection, revision, setProblems } = useFiles();
   const {t}=useI18n();const ariaLabel=t('File editor');const label=useRef(ariaLabel);
   const container = useRef<HTMLDivElement>(null);
@@ -39,10 +41,10 @@ export function MonacoEditor() {
     const saved = new Map<string,string>();
     let unsubscribeDebug:(()=>void)|undefined;
     let unsubscribe: (() => void) | undefined, observer: MutationObserver | undefined;
-    let change: Monaco.IDisposable | undefined, selection: Monaco.IDisposable | undefined;
+    let selection: Monaco.IDisposable | undefined;
     let opener: Monaco.IDisposable | undefined, markers: Monaco.IDisposable | undefined;
     const controller = new AbortController(), retained = new Set<Monaco.editor.ITextModel>();
-    let languageCleanup: (()=>void) | undefined;
+    let languageCleanup: (()=>void) | undefined,serverCleanup:(()=>void)|undefined;const modelChanges=new Map<string,Monaco.IDisposable>();
     let actionListener: ((event: Event)=>void) | undefined;
     let active: string | null = null, syncing = false;
     loadMonaco().then(monaco => {
@@ -58,7 +60,7 @@ export function MonacoEditor() {
         const state = documents.snapshot(); syncing = true;
         for (const doc of state.openEditors) {
           let model = models.get(doc.id);
-          if (!model) { const uri = workspaceUri(monaco, connection?.id ?? 'disconnected', doc.path); model = monaco.editor.getModel(uri) ?? monaco.editor.createModel(doc.content, doc.language, uri); if(model.getValue(undefined,true)!==doc.content)model.setValue(doc.content); models.set(doc.id, model); }
+          if (!model) { const uri = workspaceUri(monaco, connection?.id ?? 'disconnected', doc.path); model = monaco.editor.getModel(uri) ?? monaco.editor.createModel(doc.content, doc.language, uri); if(model.getValue(undefined,true)!==doc.content)model.setValue(doc.content); models.set(doc.id, model); modelChanges.set(doc.id,model.onDidChangeContent(()=>{if(!syncing&&documents.snapshot().openEditors.some(current=>current.id===doc.id))documents.edit(doc.id,model!.getValue(undefined,true));})); }
           else { if (model.getValue(undefined, true) !== doc.content) model.setValue(doc.content); if (model.getLanguageId() !== doc.language) monaco.editor.setModelLanguage(model, doc.language); }
           saved.set(doc.id,doc.savedContent);
         }
@@ -68,15 +70,15 @@ export function MonacoEditor() {
           const view = active ? views.get(active) : null; if (view) widget.restoreViewState(view);
           if (active) widget.focus();
         }
-        for (const [id, model] of models) if (!state.openEditors.some(doc => doc.id === id)) { if (!retained.has(model)) model.dispose(); else if(saved.has(id)&&model.getValue(undefined,true)!==saved.get(id))model.setValue(saved.get(id)!); models.delete(id); views.delete(id); saved.delete(id); }
+        for (const [id, model] of models) if (!state.openEditors.some(doc => doc.id === id)) { if (!retained.has(model)) model.dispose(); else if(saved.has(id)&&model.getValue(undefined,true)!==saved.get(id))model.setValue(saved.get(id)!); modelChanges.get(id)?.dispose();modelChanges.delete(id); models.delete(id); views.delete(id); saved.delete(id); }
         if(documents.revealLine){widget.revealLineInCenter(documents.revealLine);widget.setPosition({lineNumber:documents.revealLine,column:1});documents.revealLine=undefined;}
         const doc=active?documents.get(active):null, debugState=debug?.snapshot();
         decorations.set(doc&&debugState?[...debugState.breakpoints.filter(point=>point.path===doc.path).map(point=>({range:new monaco.Range(point.line,1,point.line,1),options:{glyphMarginClassName:'studio-debug-breakpoint',glyphMarginHoverMessage:{value:'Breakpoint'}}})),...debugState.frames.slice(0,1).filter(frame=>frame.path===doc.path).map(frame=>({range:new monaco.Range(frame.line,1,frame.line,1),options:{isWholeLine:true,className:'studio-debug-paused'}}))]:[]);
         syncing = false;
       };
-      change = widget.onDidChangeModelContent(() => { if (!syncing && active) documents.edit(active, widget.getModel()!.getValue(undefined, true)); });
+
       selection=widget.onDidChangeCursorSelection(event=>{documents.selection=active&&!event.selection.isEmpty()?{path:documents.get(active).path,text:widget.getModel()!.getValueInRange(event.selection),start:event.selection.startLineNumber}:undefined;});
-      sync(); unsubscribe = documents.subscribe(sync); unsubscribeDebug=debug?.subscribe(sync);
+      sync(); if(languageService&&connection)serverCleanup=connectLanguageProviders(monaco,languageService,connection.id,documents,files); unsubscribe = documents.subscribe(sync); unsubscribeDebug=debug?.subscribe(sync);
       if (connection?.permission === 'granted') {
         const connectionId=connection.id;
         opener=monaco.editor.registerEditorOpener({async openCodeEditor(_source,uri,position){const path=uriWorkspacePath(uri,connectionId);if(!path||!alive||files.connection?.id!==connectionId)return false;await documents.open(path);if(!alive||files.connection?.id!==connectionId)return false;documents.reveal(position?('startLineNumber' in position?position.startLineNumber:position.lineNumber):1);return true;}});
@@ -91,8 +93,8 @@ export function MonacoEditor() {
         }).catch(error=>{if(alive&&!controller.signal.aborted)setError(error instanceof Error?error.message:'Language workspace could not load.');});
       }
     }).catch(error => { if (alive) setError(error instanceof Error ? error.message : 'The editor could not be loaded.'); });
-    return () => { alive = false; controller.abort(); if(actionListener)window.removeEventListener('tastestudio.editor.action',actionListener); unsubscribe?.(); unsubscribeDebug?.(); observer?.disconnect(); change?.dispose(); selection?.dispose(); opener?.dispose(); markers?.dispose(); instance.current?.dispose(); instance.current = null; languageCleanup?.(); models.forEach(model => {if(!model.isDisposed())model.dispose();}); setProblems([]); };
-  }, [debug, documents, files, connection?.id, connection?.permission, revision, setProblems]);
+    return () => { alive = false; controller.abort(); if(actionListener)window.removeEventListener('tastestudio.editor.action',actionListener); unsubscribe?.(); unsubscribeDebug?.(); observer?.disconnect(); modelChanges.forEach(disposable=>disposable.dispose());serverCleanup?.(); selection?.dispose(); opener?.dispose(); markers?.dispose(); instance.current?.dispose(); instance.current = null; languageCleanup?.(); models.forEach(model => {if(!model.isDisposed())model.dispose();}); setProblems([]); };
+  }, [debug, languageService, documents, files, connection?.id, connection?.permission, revision, setProblems]);
   useEffect(() => { protectedEditor.current=busy; instance.current?.updateOptions({ readOnly: !!busy }); }, [busy]);
   return <div className="fs-monaco-wrap" hidden={!state.activeEditorId}><div ref={container} className="fs-monaco" />{error && <p className="fs-editor-error" role="alert">{error}</p>}</div>;
 }
