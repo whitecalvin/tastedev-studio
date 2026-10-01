@@ -122,12 +122,13 @@ try {
     finally { $env:STUDIO_DESKTOP_EXPORT = $previousExport }
     # A phase that changes Agent persistence/transfer opts into its Release-mode tests.
     # Run after version preparation in this same common release checkout, once, before publication.
-    if ($env:TASTESTUDIO_AGENT_RELEASE_TESTS -eq '1') {
+    if ($env:TASTESTUDIO_AGENT_RELEASE_TESTS -eq '1' -or $env:TASTESTUDIO_DESKTOP_RELEASE_TESTS -eq '1') {
         $taskPreviousTarget = $env:CARGO_TARGET_DIR
         try {
             $taskAgentTarget = [IO.Path]::GetFullPath((Join-Path (Split-Path -Parent $root) 'tastedev-studio/target/release-gate'))
             $env:CARGO_TARGET_DIR = $taskAgentTarget
-            Invoke-Step 'Agent Release tests (changed transfer/persistence phase)' { & (Join-Path $env:USERPROFILE '.cargo/bin/cargo.exe') test --locked -p tastedev-agent --release }
+            if ($env:TASTESTUDIO_AGENT_RELEASE_TESTS -eq '1') { Invoke-Step 'Agent Release tests (changed transfer/persistence phase)' { & (Join-Path $env:USERPROFILE '.cargo/bin/cargo.exe') test --locked -p tastedev-agent --release } }
+            if ($env:TASTESTUDIO_DESKTOP_RELEASE_TESTS -eq '1') { Invoke-Step 'Desktop Release tests (changed native phase)' { & (Join-Path $env:USERPROFILE '.cargo/bin/cargo.exe') test --locked -p tastedev-studio --release } }
         } finally { $env:CARGO_TARGET_DIR = $taskPreviousTarget }
     }
     if (-not (Test-Path -LiteralPath (Join-Path $root '.next-desktop\index.html') -PathType Leaf)) {

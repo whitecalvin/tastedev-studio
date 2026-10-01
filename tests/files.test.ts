@@ -61,3 +61,5 @@ test('browser folder metadata has no invented absolute path and supports same fo
 test('read/create/rename/delete simulated failures preserve originals and open documents', async () => {
   const { files, host, documents } = await setup(); await documents.open('readme.md'); const before = new Map(host.entries); for (const op of ['readFile','create','rename','delete']) { host.fail.add(op); await assert.rejects(op === 'readFile' ? files.read('readme.md') : op === 'create' ? files.create('', 'new', 'file') : op === 'rename' ? files.rename('readme.md', 'other.md') : files.delete('readme.md')); host.fail.delete(op); assert.deepEqual(host.entries, before); } assert.equal(documents.snapshot().openEditors.length, 1);
 });
+
+test('ESM and CommonJS source and declaration extensions use their actual language worker',()=>{for(const file of ['main.mts','main.cts','index.d.mts','index.d.cts'])assert.equal(detectLanguage(file),'typescript');for(const file of ['main.mjs','main.cjs'])assert.equal(detectLanguage(file),'javascript');});

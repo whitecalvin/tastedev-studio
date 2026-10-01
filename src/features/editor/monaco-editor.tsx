@@ -16,7 +16,9 @@ export function loadMonaco() {
       const kind = label === 'typescript' || label === 'javascript' ? 'ts' : ['css', 'scss', 'less'].includes(label) ? 'css' : ['html', 'handlebars', 'razor'].includes(label) ? 'html' : label === 'json' ? 'json' : 'editor';
       return new Worker(paths[kind], { name: `studio-${kind}` });
     } };
-    return import('monaco-editor');
+    const monaco=await import('monaco-editor');
+    if(paths['ts-module-support'])for(const setting of [monaco.typescript.typescriptDefaults,monaco.typescript.javascriptDefaults])setting.setWorkerOptions({customWorkerPath:new URL(paths['ts-module-support'],window.location.origin).href});
+    return monaco;
   })().catch(error => { monacoPromise = undefined; throw error; });
   return monacoPromise;
 }
@@ -77,8 +79,8 @@ export function MonacoEditor() {
         void loadLanguageWorkspace(monaco,boundIndexReader(files,connectionId),connectionId,controller.signal,()=>documents.snapshot().openEditors.map(doc=>({path:doc.path,content:doc.content}))).then(language=>{
           if(!alive){language.dispose();return;}
           for(const file of language.result.files){const model=monaco.editor.getModel(workspaceUri(monaco,connectionId,file.path));if(model)retained.add(model);}
-          languageCleanup=()=>{language.dispose();for(const model of retained)if(!model.isDisposed())model.dispose();for(const setting of [monaco.typescript.typescriptDefaults,monaco.typescript.javascriptDefaults])setting.setCompilerOptions({...setting.getCompilerOptions()});};
-          if(language.result.limited)setError('Language indexing limit reached. Open additional files directly.');
+          languageCleanup=()=>{language.dispose();for(const model of retained)if(!model.isDisposed())model.dispose();};
+          if(language.warnings.length)setError(language.warnings.join(' '));else if(language.result.limited)setError('Language indexing limit reached. Open additional files directly.');
           updateProblems();
         }).catch(error=>{if(alive&&!controller.signal.aborted)setError(error instanceof Error?error.message:'Language workspace could not load.');});
       }

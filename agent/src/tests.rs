@@ -427,3 +427,19 @@ fn junction_escape_rejected() {
     assert!(workspace(root.path(), &uuid::Uuid::new_v4().to_string(), ".").is_err());
     std::fs::remove_dir(junction).unwrap();
 }
+
+#[test]
+fn compiler_environment_is_narrow_and_never_inherits_credentials() {
+    for executable in ["node", "python", "git", "cargo-other", "shell"] {
+        let keys = executor::inherited_environment(executable);
+        assert!(!keys.contains(&"LIB"));
+        assert!(!keys.contains(&"TASTEDEV_AGENT_TOKEN"));
+        assert!(!keys.contains(&"OPENAI_API_KEY"));
+    }
+    for executable in ["cargo", "rustc"] {
+        let keys = executor::inherited_environment(executable);
+        assert_eq!(keys.contains(&"LIB"), cfg!(windows));
+        assert!(!keys.contains(&"TASTEDEV_AGENT_TOKEN"));
+        assert!(!keys.contains(&"OPENAI_API_KEY"));
+    }
+}

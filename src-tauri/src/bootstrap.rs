@@ -64,7 +64,13 @@ pub struct NewFile {
 }
 pub fn environment() -> serde_json::Value {
     let root = std::env::temp_dir();
-    serde_json::json!({"git": crate::git::run_program(&root, "git", &["--version"], None).ok().and_then(|v| String::from_utf8(v).ok()).map(|v| v.trim().to_string()), "node": crate::git::run_program(&root, "node", &["--version"], None).ok().and_then(|v| String::from_utf8(v).ok()).map(|v| v.trim().to_string())})
+    let version = |name: &str| {
+        crate::git::run_program(&root, name, &["--version"], None)
+            .ok()
+            .and_then(|v| String::from_utf8(v).ok())
+            .map(|v| v.trim().to_string())
+    };
+    serde_json::json!({"git":version("git"),"node":version("node"),"python":version("python"),"cargo":version("cargo"),"rust":version("rustc")})
 }
 fn destination(target: &str) -> Result<(PathBuf, PathBuf)> {
     if target.len() > 4096

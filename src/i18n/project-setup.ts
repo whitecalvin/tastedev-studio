@@ -5,6 +5,9 @@ Register existing folder|기존 폴더 등록|Vorhandenen Ordner registrieren|Re
 Create new folder|새 폴더 생성|Neuen Ordner erstellen|Crear carpeta nueva|Créer un dossier|Crea nuova cartella|Criar nova pasta|新しいフォルダーを作成|创建新文件夹|建立新資料夾
 Template|템플릿|Vorlage|Plantilla|Modèle|Modello|Modelo|テンプレート|模板|範本
 Node starter with smoke test|Node 기본 프로젝트와 테스트|Node-Projekt mit Smoke-Test|Proyecto Node con prueba básica|Projet Node avec test de base|Progetto Node con test di base|Projeto Node com teste básico|Node 基本プロジェクトとテスト|Node 基础项目和测试|Node 基礎專案與測試
+TypeScript starter with smoke test|TypeScript 기본 프로젝트와 테스트|TypeScript-Projekt mit Smoke-Test|Proyecto TypeScript con prueba básica|Projet TypeScript avec test de base|Progetto TypeScript con test di base|Projeto TypeScript com teste básico|TypeScript 基本プロジェクトとテスト|TypeScript 基础项目和测试|TypeScript 基礎專案與測試
+Python starter with smoke test|Python 기본 프로젝트와 테스트|Python-Projekt mit Smoke-Test|Proyecto Python con prueba básica|Projet Python avec test de base|Progetto Python con test di base|Projeto Python com teste básico|Python 基本プロジェクトとテスト|Python 基础项目和测试|Python 基礎專案與測試
+Rust starter with smoke test|Rust 기본 프로젝트와 테스트|Rust-Projekt mit Smoke-Test|Proyecto Rust con prueba básica|Projet Rust avec test de base|Progetto Rust con test di base|Projeto Rust com teste básico|Rust 基本プロジェクトとテスト|Rust 基础项目和测试|Rust 基礎專案與測試
 Empty folder|빈 폴더|Leerer Ordner|Carpeta vacía|Dossier vide|Cartella vuota|Pasta vazia|空のフォルダー|空文件夹|空資料夾
 Choose parent folder|상위 폴더 선택|Übergeordneten Ordner wählen|Elegir carpeta principal|Choisir le dossier parent|Scegli cartella superiore|Escolher pasta pai|親フォルダーを選択|选择父文件夹|選擇上層資料夾
 Check local tools|로컬 도구 확인|Lokale Werkzeuge prüfen|Comprobar herramientas locales|Vérifier les outils locaux|Verifica strumenti locali|Verificar ferramentas locais|ローカルツールを確認|检查本地工具|檢查本機工具

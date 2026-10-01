@@ -15,6 +15,8 @@ for (const label of ['editor', 'json', 'css', 'html', 'ts']) {
   await writeFile(resolve(target, `${label}.worker.js`), `importScripts('./${name}');\nself.postMessage({ type: 'vscode-worker-ready' });\n`);
   manifest[label] = `/monaco/${pkg.version}/${label}.worker.js`;
 }
+await copyFile(resolve(root, 'scripts/typescript-module-worker.cjs'), resolve(target, 'ts-module-support.js'));
+manifest['ts-module-support'] = `/monaco/${pkg.version}/ts-module-support.js`;
 await copyFile(resolve(root, 'node_modules/monaco-editor/LICENSE'), resolve(target, 'LICENSE'));
 await writeFile(resolve(root, 'public/monaco/workers.json'), JSON.stringify(manifest));
 console.log(`Monaco ${pkg.version}: same-origin worker assets prepared.`);

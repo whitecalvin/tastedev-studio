@@ -121,6 +121,30 @@ pub fn decode_chunk(pending: &mut Vec<u8>, bytes: &[u8], eof: bool) -> String {
     }
     output
 }
+
+/// Native compiler include/library paths are needed for approved Rust tasks on Windows.
+/// Other parent variables, including Agent/provider credentials, remain unavailable.
+pub fn inherited_environment(executable: &str) -> Vec<&'static str> {
+    let mut keys = vec![
+        "PATH",
+        "SystemRoot",
+        "WINDIR",
+        "TEMP",
+        "TMP",
+        "HOME",
+        "USERPROFILE",
+        "PATHEXT",
+    ];
+    let compiler = Path::new(executable)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| matches!(name.trim_end_matches(".exe"), "cargo" | "rustc"));
+    if cfg!(windows) && compiler {
+        keys.extend(["LIB", "LIBPATH", "INCLUDE"]);
+    }
+    keys
+}
+
 pub fn execute(
     request: Request,
     root: &Path,
@@ -154,16 +178,7 @@ pub fn command(
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         // Credential-bearing Agent environment is never inherited by executed jobs.
-        let inherited: [&str; 8] = [
-            "PATH",
-            "SystemRoot",
-            "WINDIR",
-            "TEMP",
-            "TMP",
-            "HOME",
-            "USERPROFILE",
-            "PATHEXT",
-        ];
+        let inherited = inherited_environment(&request.executable);
         command.env_clear();
         for key in inherited {
             if let Some(value) = std::env::var_os(key) {
