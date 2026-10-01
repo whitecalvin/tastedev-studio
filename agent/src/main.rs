@@ -2,6 +2,7 @@ mod browser;
 mod executor;
 mod model;
 mod pipeline;
+mod reliability;
 mod snapshot;
 mod tree;
 use model::*;
@@ -23,6 +24,7 @@ struct Active {
     run_id: String,
     execution_id: String,
     cancel: Arc<AtomicBool>,
+    termination: Option<&'static str>,
     thread: thread::JoinHandle<Value>,
 }
 fn persist(path: &std::path::Path, value: &Value) -> Result<()> {
@@ -138,7 +140,7 @@ fn run(config: Config) -> Result<()> {
                 );
             } else {
                 let now = chrono::Utc::now().to_rfc3339();
-                let result = json!({"type":"result","protocolVersion":VERSION,"jobId":record["jobId"],"runId":run_id,"runStepId":record["runStepId"],"status":"failed","exitCode":null,"startedAt":now,"finishedAt":now,"error":"Agent restarted after interrupted execution"});
+                let result = json!({"type":"result","protocolVersion":VERSION,"jobId":record["jobId"],"runId":run_id,"runStepId":record["runStepId"],"status":"failed","exitCode":null,"startedAt":now,"finishedAt":now,"classification":"AGENT_RESTARTED","error":"Agent restarted after interrupted execution"});
                 persist(&pending, &result)?;
                 results.push(result);
             }
@@ -150,14 +152,16 @@ fn run(config: Config) -> Result<()> {
     let mut backoff = 250u64;
     let mut beat = Instant::now();
     let mut last_core = Instant::now();
-    let mut reported = std::collections::HashSet::<String>::new();
+    let mut reported = reliability::DeliveryClock::default();
+    let retry_seed = Instant::now();
     if config.log_level == "info" {
         eprintln!("tastedev-agent ready; workspace identity loaded; waiting for Core");
     }
     loop {
         if stop.load(Ordering::SeqCst) {
             pipeline::stop(&sessions);
-            if let Some(a) = &active {
+            if let Some(a) = &mut active {
+                a.termination.get_or_insert("AGENT_SHUTDOWN");
                 a.cancel.store(true, Ordering::SeqCst);
             }
             if active.is_none() {
@@ -166,7 +170,18 @@ fn run(config: Config) -> Result<()> {
         }
         if active.as_ref().is_some_and(|a| a.thread.is_finished()) {
             let a = active.take().ok_or("Execution state lost")?;
-            let result = a.thread.join().map_err(|_| "Executor panicked")?;
+            let mut result = a.thread.join().map_err(|_| "Executor panicked")?;
+            if result.get("classification").is_none() {
+                result["classification"] = json!(match result["status"].as_str() {
+                    Some("passed") => "PASSED",
+                    Some("timeout") => "TIMEOUT",
+                    Some("cancelled") => "CANCELLED",
+                    _ => "EXECUTION_ERROR",
+                });
+            }
+            if result["status"] == "cancelled" {
+                result["classification"] = json!(a.termination.unwrap_or("CANCELLED"));
+            }
             persist(&claims.join(format!("{}.pending", a.execution_id)), &result)?;
             results.push(result);
         }
@@ -189,11 +204,24 @@ fn run(config: Config) -> Result<()> {
                     ) {
                         socket = Some(ws);
                         last_core = Instant::now();
+                    } else {
+                        retry_at = Instant::now()
+                            + reliability::retry_delay(
+                                backoff,
+                                config.reconnect_max_ms,
+                                retry_seed.elapsed().as_nanos() as u64,
+                            );
+                        backoff = backoff.saturating_mul(2).min(config.reconnect_max_ms);
                     }
                 }
                 Err(_) => {
-                    retry_at = Instant::now() + Duration::from_millis(backoff);
-                    backoff = (backoff * 2).min(config.reconnect_max_ms);
+                    retry_at = Instant::now()
+                        + reliability::retry_delay(
+                            backoff,
+                            config.reconnect_max_ms,
+                            retry_seed.elapsed().as_nanos() as u64,
+                        );
+                    backoff = backoff.saturating_mul(2).min(config.reconnect_max_ms);
                 }
             }
         }
@@ -212,9 +240,9 @@ fn run(config: Config) -> Result<()> {
                         .as_str()
                         .or_else(|| result["runId"].as_str())
                         .ok_or("Invalid result")?;
-                    if !reported.contains(run_id) {
+                    if reported.due(run_id, Instant::now()) {
                         if send(ws, result.clone()) {
-                            reported.insert(run_id.into());
+                            reported.sent(run_id, Instant::now());
                         } else {
                             lost = true;
                             break;
@@ -248,7 +276,7 @@ fn run(config: Config) -> Result<()> {
                                 }
                                 ready = true;
                                 backoff = 250;
-                                reported.clear();
+                                reported.reset();
                                 beat = Instant::now() - Duration::from_millis(config.heartbeat_ms);
                             }
                             Some("execute") if ready => {
@@ -305,6 +333,7 @@ fn run(config: Config) -> Result<()> {
                                 let run_sessions = sessions.clone();
                                 let root = root.clone();
                                 let sender = tx.clone();
+                                let current_capabilities = capabilities.clone();
                                 send(
                                     ws,
                                     json!({"type":"accepted","jobId":request.job_id,"runId":run_id,"runStepId":request.run_step_id}),
@@ -313,7 +342,33 @@ fn run(config: Config) -> Result<()> {
                                     run_id,
                                     execution_id,
                                     cancel: cancelled,
+                                    termination: None,
                                     thread: thread::spawn(move || {
+                                        let started = chrono::Utc::now().to_rfc3339();
+                                        let probe_start = Instant::now();
+                                        let mut request = request;
+                                        let capability_error = executor::verify_capabilities(
+                                            &request,
+                                            current_capabilities,
+                                            &flag,
+                                        )
+                                        .err();
+                                        let elapsed = probe_start.elapsed().as_millis() as u64;
+                                        if capability_error.is_some()
+                                            || flag.load(Ordering::SeqCst)
+                                            || elapsed >= request.timeout_ms
+                                        {
+                                            let (status, classification) =
+                                                if flag.load(Ordering::SeqCst) {
+                                                    ("cancelled", "CANCELLED")
+                                                } else if elapsed >= request.timeout_ms {
+                                                    ("timeout", "TIMEOUT")
+                                                } else {
+                                                    ("failed", "CAPABILITY_MISMATCH")
+                                                };
+                                            return json!({"type":"result","protocolVersion":VERSION,"jobId":request.job_id,"runId":request.run_id,"runStepId":request.run_step_id,"status":status,"exitCode":null,"startedAt":started,"finishedAt":chrono::Utc::now().to_rfc3339(),"classification":classification,"error":capability_error});
+                                        }
+                                        request.timeout_ms -= elapsed;
                                         if request.run_step_id.is_some() {
                                             pipeline::execute(
                                                 request,
@@ -337,8 +392,9 @@ fn run(config: Config) -> Result<()> {
                                 {
                                     pipeline::stop(&sessions);
                                 }
-                                if let Some(a) = &active {
+                                if let Some(a) = &mut active {
                                     if m["runId"] == a.run_id {
+                                        a.termination.get_or_insert("CANCELLED");
                                         a.cancel.store(true, Ordering::SeqCst);
                                     }
                                 }
@@ -370,6 +426,7 @@ fn run(config: Config) -> Result<()> {
                                             r["runStepId"].as_str().or_else(|| r["runId"].as_str())
                                                 != Some(run)
                                         });
+                                        reported.acknowledged(run);
                                     }
                                 }
                             }
@@ -411,12 +468,18 @@ fn run(config: Config) -> Result<()> {
             pipeline::stop(&sessions);
             socket = None;
             ready = false;
-            reported.clear();
-            if let Some(a) = &active {
+            reported.reset();
+            if let Some(a) = &mut active {
+                a.termination.get_or_insert("CONNECTION_LOST");
                 a.cancel.store(true, Ordering::SeqCst);
             }
-            retry_at = Instant::now() + Duration::from_millis(backoff);
-            backoff = (backoff * 2).min(config.reconnect_max_ms);
+            retry_at = Instant::now()
+                + reliability::retry_delay(
+                    backoff,
+                    config.reconnect_max_ms,
+                    retry_seed.elapsed().as_nanos() as u64,
+                );
+            backoff = backoff.saturating_mul(2).min(config.reconnect_max_ms);
         }
         thread::sleep(Duration::from_millis(15));
     }

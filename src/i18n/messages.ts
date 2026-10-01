@@ -7,6 +7,9 @@ import {fragments} from './fragments.ts';
 import {interaction} from './interaction.ts';
 import {approval,matchFeedback} from './approval.ts';
 import {stateMessages} from './state-messages.ts';
+import {reliabilityMessages} from './reliability.ts';
+import {onboardingMessages} from './onboarding.ts';
+import {teamMessages} from './team.ts';
 /** English source messages remain the stable IDs; user content never enters this catalog. */
 const entries=`Language|언어
 System language|시스템 언어
@@ -746,6 +749,6 @@ const koreanExtra:Record<string,string>={
  'Run Test:':'테스트 실행:','declared. Edit':'정의됨. 편집:','in Explorer.':'탐색기에서.', 'run':'실행',
  'stdout / stderr · latest 128 KiB retained · separate from Local Terminal':'stdout / stderr · 최근 128 KiB 보관 · 로컬 터미널과 별개',
 };
-export const catalogs:Partial<Record<Language,Readonly<Record<string,string>>>>={ko:{...korean,...koreanExtra},...Object.fromEntries(Object.keys(international).map(language=>[language,{...international[language as Language],...development[language],...guidance[language],...analysisGuidance[language],...fragments[language],...interaction[language],...approval[language],...stateMessages[language]}]))};
+export const catalogs:Partial<Record<Language,Readonly<Record<string,string>>>>={ko:{...korean,...koreanExtra,...reliabilityMessages.ko,...onboardingMessages.ko,...teamMessages.ko},...Object.fromEntries(Object.keys(international).map(language=>[language,{...international[language as Language],...development[language],...guidance[language],...analysisGuidance[language],...fragments[language],...interaction[language],...approval[language],...stateMessages[language],...reliabilityMessages[language],...onboardingMessages[language],...teamMessages[language as Language]}]))};
 export function translate(language:Language,key:string,values?:Record<string,string|number>){const catalog=catalogs[language];return interpolate(catalog&&Object.hasOwn(catalog,key)?catalog[key]:key,values);}
 export function translateFeedback(language:Language,message:string){const match=matchFeedback(message);return match?translate(language,match.key,match.values):translate(language,message);}

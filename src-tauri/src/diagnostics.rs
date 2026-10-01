@@ -27,6 +27,9 @@ impl log::Log for ErrorLogger {
 }
 static ERROR_LOGGER: ErrorLogger = ErrorLogger;
 pub fn initialize(directory: &Path) -> std::io::Result<()> {
+    if LOG.get().is_some() {
+        return Ok(());
+    }
     std::fs::create_dir_all(directory)?;
     let path = directory.join("native-runtime.log");
     if path
@@ -106,6 +109,7 @@ mod tests {
     #[test]
     fn records_native_errors_logs_and_panics_without_payloads() {
         let directory = tempfile::tempdir().unwrap();
+        super::initialize(directory.path()).unwrap();
         super::initialize(directory.path()).unwrap();
         super::runtime_diagnostic(super::FrontendEvent::ConsoleWarn);
         crate::filesystem::error("not-found");

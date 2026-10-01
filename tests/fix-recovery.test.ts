@@ -1,0 +1,40 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {spawnSync} from 'node:child_process';
+import {FixService,type FixAttempt} from '../src/features/ai/fix-service.ts';
+import {CoreStore} from '../transport/storage.ts';
+import {HistoryStore} from '../transport/history.ts';
+import {Documents} from '../src/features/editor/documents.ts';
+const evidence=path.resolve('../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-4');
+function fixture(mode:'apply'|'revert',writes=1){
+ const root=path.join(evidence,'crash-'+crypto.randomUUID());fs.mkdirSync(root,{recursive:true});
+ fs.writeFileSync(path.join(root,'a.ts'),'user baseline A');fs.writeFileSync(path.join(root,'b.ts'),'user baseline B');
+ const projectId=crypto.randomUUID();const moduleUrl=(p:string)=>pathToFileURL(path.resolve(p)).href;
+ // Exit immediately after a real disk write, before returning to FixService.
+ const script=`import fs from 'node:fs';import path from 'node:path';
+import {FixService} from ${JSON.stringify(moduleUrl('src/features/ai/fix-service.ts'))};
+import {CoreStore} from ${JSON.stringify(moduleUrl('transport/storage.ts'))};
+import {HistoryStore} from ${JSON.stringify(moduleUrl('transport/history.ts'))};
+const root=${JSON.stringify(root)},projectId=${JSON.stringify(projectId)};
+const store=new CoreStore(path.join(root,'core.sqlite'),Buffer.alloc(32,7)),history=new HistoryStore(store);
+let armed=${mode==='apply'},count=0;
+const files={read:async p=>({path:p,content:fs.readFileSync(path.join(root,p),'utf8'),modified:0,size:20}),write:async(p,value,expected)=>{if(fs.readFileSync(path.join(root,p),'utf8')!==expected)throw Error('conflict');fs.writeFileSync(path.join(root,p),value);if(armed&&++count===${writes})process.exit(23);}};
+const fix=new FixService(projectId,files);fix.setPersistence({save:async a=>{await history.put(projectId,'attempt',a.id,history.get(projectId,'attempt',a.id)?.version??0,a);}});
+const a=await fix.propose({id:crypto.randomUUID(),projectId,conversationId:crypto.randomUUID(),runId:crypto.randomUUID(),model:'controlled',createdAt:new Date().toISOString(),context:[],originals:{'a.ts':'user baseline A','b.ts':'user baseline B'},result:{summary:'controlled crash fixture',observedFailure:'',candidates:[],evidence:[],uncertainty:'',relatedFiles:[],proposal:['a.ts','b.ts'].map((p,i)=>({path:p,proposed:'AI result '+(i?'B':'A'),rationale:'controlled',impact:'controlled',tests:[]}))}});
+await fix.approve(a.id,['a.ts','b.ts']);await fix.apply(a.id);armed=true;count=0;await fix.revert(a.id);process.exit(24);`;
+ const file=path.join(root,'crash.mjs');fs.writeFileSync(file,script);
+ const result=spawnSync(process.execPath,['--experimental-strip-types',file],{windowsHide:true,timeout:15000,stdio:['ignore','ignore','pipe']});assert.equal(result.status,23,'controlled child must terminate at the intended disk boundary');
+ const store=new CoreStore(path.join(root,'core.sqlite'),Buffer.alloc(32,7)),history=new HistoryStore(store);
+ const files={read:async(p:string)=>({path:p,content:fs.readFileSync(path.join(root,p),'utf8'),modified:0,size:20}),write:async(p:string,value:string,expected:string)=>{assert.equal(fs.readFileSync(path.join(root,p),'utf8'),expected);fs.writeFileSync(path.join(root,p),value);}};
+ const fix=new FixService(projectId,files);fix.restore(history.list(projectId,'attempt').map(row=>history.get(projectId,'attempt',row.id)!.value as FixAttempt));fix.setPersistence({save:async a=>{await history.put(projectId,'attempt',a.id,history.get(projectId,'attempt',a.id)?.version??0,a);}});
+ return{root,store,fix,files,id:fix.history[0].id,read:(p:string)=>fs.readFileSync(path.join(root,p),'utf8')};
+}
+test('real termination between multi-file writes restores only AI changes after reopen',async()=>{const f=fixture('apply');try{assert.equal(f.read('a.ts'),'AI result A');assert.equal(f.read('b.ts'),'user baseline B');assert.equal(f.fix.get(f.id).journal?.completedAt,undefined);await f.fix.recoverInterrupted(f.id);assert.equal(f.read('a.ts'),'user baseline A');assert.equal(f.read('b.ts'),'user baseline B');assert.equal(f.fix.get(f.id).status,'failed');assert.ok(f.fix.get(f.id).journal?.completedAt);}finally{f.store.close();}});
+test('crash after final write recognizes actual applied hashes without writing again',async()=>{const f=fixture('apply',2);try{await f.fix.recoverInterrupted(f.id);assert.equal(f.fix.get(f.id).status,'applied');assert.equal(f.read('a.ts'),'AI result A');assert.equal(f.read('b.ts'),'AI result B');}finally{f.store.close();}});
+test('interrupted Revert completes approved restoration after reopen',async()=>{const f=fixture('revert');try{assert.equal(f.fix.get(f.id).journal?.operation,'revert');assert.equal(f.read('a.ts'),'user baseline A');assert.equal(f.read('b.ts'),'AI result B');await f.fix.recoverInterrupted(f.id);assert.equal(f.fix.get(f.id).status,'reverted');assert.equal(f.read('b.ts'),'user baseline B');}finally{f.store.close();}});
+test('post-crash user edits block recovery and preserve all files',async()=>{const f=fixture('apply');try{fs.writeFileSync(path.join(f.root,'b.ts'),'later user change');await assert.rejects(f.fix.recoverInterrupted(f.id),/PATCH_CONFLICT/);assert.equal(f.read('a.ts'),'AI result A');assert.equal(f.read('b.ts'),'later user change');assert.equal(f.fix.get(f.id).status,'recovery-required');assert.equal(f.fix.get(f.id).journal?.completedAt,undefined);}finally{f.store.close();}});
+test('journal storage failure occurs before any Source write',async()=>{const disk=new Map([['a.ts','baseline']]);const fix=new FixService(crypto.randomUUID(),{read:async p=>({path:p,content:disk.get(p)!,modified:0,size:8}),write:async(p,value)=>{disk.set(p,value);}});fix.setPersistence({save:async a=>{if(a.journal)throw Error('controlled storage failure');}});const a=await fix.propose({id:crypto.randomUUID(),projectId:fix.projectId,conversationId:crypto.randomUUID(),model:'controlled',createdAt:new Date().toISOString(),context:[],originals:{'a.ts':'baseline'},result:{summary:'controlled',observedFailure:'',candidates:[],evidence:[],uncertainty:'',relatedFiles:[],proposal:[{path:'a.ts',proposed:'fixed',rationale:'controlled',impact:'controlled',tests:[]}]}});await fix.approve(a.id,['a.ts']);await assert.rejects(fix.apply(a.id),/PERSISTENCE_FAILED/);assert.equal(disk.get('a.ts'),'baseline');});
+test('dirty editor after crash blocks recovery without overwriting unsaved content',async()=>{const f=fixture('apply');try{const docs=new Documents(f.files as never);await docs.open('a.ts');const document=docs.snapshot().openEditors[0];docs.edit(document.id,'unsaved later edit');const fix=new FixService(f.fix.projectId,f.files,docs);fix.restore(f.fix.history);await assert.rejects(fix.recoverInterrupted(f.id),/DIRTY_EDITOR/);assert.equal(docs.get(document.id).content,'unsaved later edit');assert.equal(f.read('a.ts'),'AI result A');assert.equal(f.read('b.ts'),'user baseline B');}finally{f.store.close();}});

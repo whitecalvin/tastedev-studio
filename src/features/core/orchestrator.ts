@@ -27,7 +27,7 @@ export class TestOrchestrator {
       return null;
     });
   }
-  complete(runId: string, stepId: string, status: TerminalStatus, exitCode: number | null, reason?: string, revision?: SourceRevision, serviceId?: string, browserResult?:BrowserResult) {
+  complete(runId: string, stepId: string, status: TerminalStatus, exitCode: number | null, reason?: string, revision?: SourceRevision, serviceId?: string, browserResult?:BrowserResult,executionReport?:import('./domain.ts').ExecutionReport) {
     this.core.repository.transaction(tx => {
       const run = tx.runs.get(runId), step = tx.steps.get(stepId);
       if (!run || !activeRun(run) || !step || step.runId !== runId || step.status !== 'running') throw new CoreError('Unexpected pipeline result.');
@@ -36,7 +36,7 @@ export class TestOrchestrator {
       if (status === 'failed' && exitCode === 0) throw new CoreError('Failed step cannot report exit zero.');
       if (exitCode !== null && !Number.isInteger(exitCode)) throw new CoreError('Invalid step exit code.');
       step.status = status; step.exitCode = exitCode; step.finishedAt = new Date().toISOString();
-      if(browserResult)step.browserResult=browserResult;
+      if(browserResult)step.browserResult=browserResult;if(executionReport)step.executionReport=structuredClone(executionReport);
       if (serviceId) step.serviceId = serviceId;
       if (revision) {
         const source = job.payload.steps[step.order].source;

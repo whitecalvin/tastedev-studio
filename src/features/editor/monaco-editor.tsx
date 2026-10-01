@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type * as Monaco from 'monaco-editor';
 import { useFiles } from './session';
+import {useI18n} from '@/i18n/react';
 let monacoPromise: Promise<typeof Monaco> | undefined;
 export function loadMonaco() {
   monacoPromise ??= (async () => {
@@ -17,9 +18,11 @@ export function loadMonaco() {
 }
 export function MonacoEditor() {
   const { documents, editor: state, busy } = useFiles();
+  const {t}=useI18n();const ariaLabel=t('File editor');const label=useRef(ariaLabel);
   const container = useRef<HTMLDivElement>(null);
   const instance = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const [error, setError] = useState('');
+  useEffect(()=>{label.current=ariaLabel;instance.current?.updateOptions({ariaLabel});},[ariaLabel]);
   useEffect(() => {
     let alive = true;
     const models = new Map<string, Monaco.editor.ITextModel>();
@@ -29,7 +32,7 @@ export function MonacoEditor() {
     let active: string | null = null, syncing = false;
     loadMonaco().then(monaco => {
       if (!alive || !container.current) return;
-      const widget = monaco.editor.create(container.current, { model: null, automaticLayout: true, fontSize: 13, fontFamily: 'Consolas, monospace', lineNumbers: 'on', minimap: { enabled: false }, wordWrap: 'off', tabSize: 2, scrollBeyondLastLine: false, bracketPairColorization: { enabled: true }, accessibilitySupport: 'auto', ariaLabel: 'File editor', fixedOverflowWidgets: true });
+      const widget = monaco.editor.create(container.current, { model: null, automaticLayout: true, fontSize: 13, fontFamily: 'Consolas, monospace', lineNumbers: 'on', minimap: { enabled: false }, wordWrap: 'off', tabSize: 2, scrollBeyondLastLine: false, bracketPairColorization: { enabled: true }, accessibilitySupport: 'auto', ariaLabel: label.current, fixedOverflowWidgets: true });
       instance.current = widget;
       const theme = () => monaco.editor.setTheme(document.documentElement.dataset.theme === 'dark' ? 'vs-dark' : 'vs');
       theme(); observer = new MutationObserver(theme); observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });

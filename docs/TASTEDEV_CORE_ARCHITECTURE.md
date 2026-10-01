@@ -1,5 +1,15 @@
 # TASTEDEV Core Architecture — STEP9 integration
 
+## 고도화 2단계 — 2026-10-01
+
+Standalone foreground Core는 Studio가 연결을 닫아도 살아 있다. migration·state/artifact recovery가 끝난 후 listener/ready를 제공한다. 정상 종료 시 신규 배정/mutation/scheduler 중지 → durable cancellation intent → Agent cancel/result/ACK → final repository commit → timer/socket/listener/DB close. 제한 초과 unresolved claim은 보존하여 기존 reconciliation으로 조정하며 자동 replay하지 않는다. 인증된 로컬 stop과 POSIX signal handler는 기존 server/repository/orchestrator를 재사용한다.
+
+고유 Node440건 유효 PASS(첫430/431 + 실패1 재개 + 기존 Native8 보존·검증 + 신규 legacy1), 전체/변경 범위 lint·typecheck PASS. Web/Rust/Tauri 입력은 이번 작업에서 바뀌지 않아 재빌드하지 않았다. 실제 서비스 설치·제한 계정·Linux runtime은 미검증이며 단계 전체는 PARTIAL이다. 이전 NOT_STARTED 또는 memory-only 기록은 역사적 상태다.
+
+[운영 계약](../../../../resources/guides/dev-01/tastedev-studio/core-service-runtime-20261001/README.md) · [검증 결과](../../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-2/RESULT.md)
+
+고도화 2단계 PARTIAL — 실제 서비스 및 제한 계정 검증 대기
+
 ## 고도화 1단계 — 2026-10-01
 
 기본 remote Core repository는 SqliteCoreRepository이다. InMemoryCoreRepository의 transaction/observer 계약을 유지하고 SQLite commit이 성공한 뒤에만 메모리와 구독자를 갱신한다. core snapshot의 ID/Run/Step/Evidence 참조를 검증한다. 배정과 실행 ID를 먼저 저장하며 legacy acceptance·Step/Run/Job result는 원자적으로 저장한다. Pipeline browser result도 Step transaction에 포함한다.

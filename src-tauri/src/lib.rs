@@ -160,14 +160,16 @@ fn process_resize(
     state.resize(&session_id, columns, rows)
 }
 pub fn run() {
-    // All children inherit this outer kill-on-close job, including descendants born
-    // before a per-session job is attached. The OS closes its handle on app exit.
-    let app_job = job::ProcessJob::attach(unsafe {
-        windows_sys::Win32::System::Threading::GetCurrentProcess()
-    })
-    .expect("Process cleanup boundary could not initialize");
-    std::mem::forget(app_job);
-    tauri::Builder::default()
+    let context = tauri::generate_context!();
+    // Capture initialization failures as well as errors after setup. No user data
+    // or exception text is written to this diagnostic log.
+    if let Some(directory) = std::env::var_os("APPDATA") {
+        let _ = diagnostics::initialize(
+            &std::path::PathBuf::from(directory).join(&context.config().identifier),
+        );
+    }
+    diagnostics::record("native", "building-webview");
+    let app = tauri::Builder::default()
         .plugin(
             tauri::plugin::Builder::<tauri::Wry>::new("runtime-diagnostics")
                 .js_init_script(include_str!("diagnostics-init.js"))
@@ -205,15 +207,27 @@ pub fn run() {
             process_resize,
             runtime_diagnostic
         ])
-        .build(tauri::generate_context!())
-        .expect("Studio runtime initialization failed")
-        .run(|app, event| {
-            if matches!(
-                event,
-                tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
-            ) {
-                app.state::<process::Processes>().stop_all();
-                diagnostics::record("native", "stopped");
-            }
-        });
+        .build(context)
+        .expect("Studio runtime initialization failed");
+    app.run(|app, event| {
+        if matches!(event, tauri::RunEvent::Ready) {
+            // Tauri creates configured windows when the event loop starts, after
+            // Builder::build. WebView2's shared browser must not inherit our job.
+            // Later command processes retain the app/session cleanup boundaries.
+            diagnostics::record("native", "attaching-command-job");
+            let app_job = job::ProcessJob::attach(unsafe {
+                windows_sys::Win32::System::Threading::GetCurrentProcess()
+            })
+            .expect("Process cleanup boundary could not initialize");
+            std::mem::forget(app_job);
+            diagnostics::record("native", "runtime-ready");
+        }
+        if matches!(
+            event,
+            tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+        ) {
+            app.state::<process::Processes>().stop_all();
+            diagnostics::record("native", "stopped");
+        }
+    });
 }

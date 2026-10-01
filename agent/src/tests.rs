@@ -57,6 +57,72 @@ fn streaming_redaction_preserves_utf8_and_split_secrets() {
     assert_eq!(r.feed("lon", true), "lon");
 }
 #[test]
+fn capability_recheck_rejects_a_stale_advertised_runtime_before_execution() {
+    let mut request = request();
+    request.requirements.runtimes = Some([("node".into(), ">=999".into())].into());
+    let advertised = Capabilities {
+        cpu_cores: 2,
+        memory_mi_b: 1024,
+        docker: false,
+        gpu: false,
+        pty: false,
+        runtimes: [("node".into(), "999.0.0".into())].into(),
+        browsers: vec![],
+    };
+    assert!(request.matches(&advertised));
+    assert!(executor::verify_capabilities(&request, advertised, &AtomicBool::new(false)).is_err());
+}
+#[test]
+fn capability_check_observes_cancellation_before_starting_a_tool_probe() {
+    let mut request = request();
+    request.requirements.runtimes = Some([("node".into(), ">=24".into())].into());
+    let advertised = Capabilities {
+        cpu_cores: 2,
+        memory_mi_b: 1024,
+        docker: false,
+        gpu: false,
+        pty: false,
+        runtimes: [("node".into(), "24.11.1".into())].into(),
+        browsers: vec![],
+    };
+    assert_eq!(
+        executor::verify_capabilities(&request, advertised, &AtomicBool::new(true)).unwrap_err(),
+        "Capability check cancelled"
+    );
+}
+#[test]
+fn capability_probe_does_not_inherit_agent_credentials() {
+    let output = executor::probe(
+        "node",
+        &[
+            "-e",
+            "process.stdout.write(String(process.env.TASTEDEV_AGENT_TOKEN))",
+        ],
+    );
+    // Never print the captured output: if isolation regresses it could be sensitive.
+    assert!(output.as_deref().is_some_and(|text| text == "undefined"));
+}
+#[test]
+fn capability_probe_respects_task_path_instead_of_agent_path() {
+    let empty = tempfile::tempdir().unwrap();
+    let mut request = request();
+    request
+        .env
+        .insert("PATH".into(), empty.path().to_string_lossy().into());
+    request.requirements.runtimes = Some([("git".into(), ">=1".into())].into());
+    let advertised = Capabilities {
+        cpu_cores: 2,
+        memory_mi_b: 1024,
+        docker: false,
+        gpu: false,
+        pty: false,
+        runtimes: [("git".into(), "2.0.0".into())].into(),
+        browsers: vec![],
+    };
+    assert!(request.matches(&advertised));
+    assert!(executor::verify_capabilities(&request, advertised, &AtomicBool::new(false)).is_err());
+}
+#[test]
 fn source_and_health_validation() {
     let source = Source {
         provider: "git".into(),

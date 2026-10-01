@@ -55,6 +55,10 @@ test('approval dialogs translate surrounding instructions while preserving appro
  }
 });
 const technical=new Set(['2026-10-01T03:00:00+09:00','Chromium','Chromium · ','Commit SHA','FixAttempt','Git:','GitHub #','GitHub:','KiB','Linux','OS','PTY','Protocol:','TASTEDEV Protocol','URL','Windows','["dev"]','arm64','chromium','e.g. 24.11.1','e.g. node','firefox','macOS','pnpm','s','tastedev:artifact/','webkit','x86_64','· Playwright','Docker / GPU / PTY']);
+test('connection feedback is localized in every supported catalog',()=>{
+ const keys=['Not connected','Connecting to Core…','Connected to Core','Core unavailable. Retrying…','Core disconnected. Retrying…','Authentication failed.','Core protocol mismatch.','Invalid Core response. Reconnect to retry.','Core rejected the connection.','Core response exceeds limit.','Invalid Core snapshot.','Core disconnected; refresh state before retrying.','Core request timed out. Inspect state before retrying.'];
+ for(const key of keys)for(const language of languages.filter(l=>l!=='en'))assert.notEqual(translate(language,key),key,`${language}: ${key}`);
+});
 test('every static UI translation key is present in all nine catalogs',()=>{
  const files:string[]=[];function walk(dir:string){for(const entry of readdirSync(dir,{withFileTypes:true})){const file=join(dir,entry.name);if(entry.isDirectory()&&!['verification','i18n'].includes(entry.name))walk(file);else if(entry.name.endsWith('.tsx'))files.push(file);}}walk('src');
  const keys=new Set<string>();

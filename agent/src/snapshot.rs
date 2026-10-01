@@ -145,6 +145,9 @@ pub fn validate(source: &Source) -> Result<()> {
     Ok(())
 }
 pub fn prepare(request: &Request, root: &Path, cancel: Arc<AtomicBool>) -> Result<Value> {
+    if cancel.load(Ordering::SeqCst) {
+        return Err("Snapshot cancelled".into());
+    }
     let source = request.source.as_ref().ok_or("Source missing")?;
     validate(source)?;
     let s = source.snapshot.as_ref().ok_or("Snapshot missing")?;
@@ -172,6 +175,10 @@ pub fn prepare(request: &Request, root: &Path, cancel: Arc<AtomicBool>) -> Resul
             if hash(&bytes) != f.checksum {
                 return Err("Snapshot readback mismatch".into());
             }
+        }
+        // Cancellation received during the final write must not publish a source tree.
+        if cancel.load(Ordering::SeqCst) {
+            return Err("Snapshot cancelled".into());
         }
         fs::rename(&staging, &target).map_err(|_| "Snapshot commit failed")?;
         Ok(())
@@ -253,5 +260,21 @@ mod tests {
         f.path = "MAIN.JS".into();
         s.snapshot.as_mut().unwrap().files.push(f);
         assert!(validate(&s).is_err());
+    }
+    #[test]
+    fn cancelled_snapshot_does_not_create_or_publish_a_workspace() {
+        let request = serde_json::from_value::<Request>(json!({
+            "protocolVersion":1,"type":"execute","agentId":"agent",
+            "jobId":uuid::Uuid::new_v4().to_string(),
+            "runId":uuid::Uuid::new_v4().to_string(),
+            "projectId":uuid::Uuid::new_v4().to_string(),
+            "executable":"node","args":[],"cwd":".","timeoutMs":5000,
+            "requirements":{},"env":{},"source":source()
+        }))
+        .unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let result = prepare(&request, root.path(), Arc::new(AtomicBool::new(true)));
+        assert_eq!(result.unwrap_err(), "Snapshot cancelled");
+        assert_eq!(fs::read_dir(root.path()).unwrap().count(), 0);
     }
 }

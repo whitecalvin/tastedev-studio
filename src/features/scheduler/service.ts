@@ -31,9 +31,9 @@ export interface SchedulePersistence {load():ScheduleRuntime|undefined;save(stat
 export class ScheduleService {
  readonly core:CoreService;readonly repository:ScheduleRepository;readonly project:(id:string)=>Project|undefined;readonly dispatch:(p:string,j:string)=>unknown;readonly now:()=>number;
  runtimeError:string|null=null;private schedules:Schedule[];private protocols=new Map<string,ProtocolState>();private history:ScheduleRun[]=[];private identities=new Set<string>();private notifications:ScheduleNotification[]=[];private ticking=false;private firing=false;
- private pending=new Map<string,CreateJob>();private persistence?:SchedulePersistence;private committed:ScheduleRuntime;
- constructor(core:CoreService,repository:ScheduleRepository,project:(id:string)=>Project|undefined,dispatch:(p:string,j:string)=>unknown,now:()=>number=Date.now,persistence?:SchedulePersistence){
-  this.core=core;this.repository=repository;this.project=project;this.dispatch=dispatch;this.now=now;this.persistence=persistence;
+ private pending=new Map<string,CreateJob>();private persistence?:SchedulePersistence;private committed:ScheduleRuntime;private authority?:(projectId:string,scheduleId:string)=>string;
+ constructor(core:CoreService,repository:ScheduleRepository,project:(id:string)=>Project|undefined,dispatch:(p:string,j:string)=>unknown,now:()=>number=Date.now,persistence?:SchedulePersistence,authority?:(projectId:string,scheduleId:string)=>string){
+  this.core=core;this.repository=repository;this.project=project;this.dispatch=dispatch;this.now=now;this.persistence=persistence;this.authority=authority;
   const saved=persistence?.load();this.schedules=saved?[]:repository.load().map(s=>({...s,status:s.enabled?'awaiting-protocol':'disabled',nextRunAt:null}));
   if(saved)this.restore(saved);this.committed=this.state();if(persistence&&!saved)this.checkpoint();
  }
@@ -52,9 +52,9 @@ export class ScheduleService {
  private emit(type:ScheduleNotification['type'],h:ScheduleRun){this.notifications.push({type,scheduleId:h.scheduleId,historyId:h.id,timestamp:iso(this.now())});if(this.notifications.length>1000)this.notifications.shift();}
  private async queuePending(historyId:string){const input=this.pending.get(historyId),h=this.history.find(h=>h.id===historyId);if(!input||!h)return;
   // Durable intent precedes createJob. Its identity resolves a crash after Job commit.
-  const job=await this.core.createJob(h.projectId,input);h.jobId=job.id;this.pending.delete(historyId);
+  const actor=this.authority?.(h.projectId,h.scheduleId);const job=await this.core.createJob(h.projectId,input,actor);h.jobId=job.id;this.pending.delete(historyId);
   this.persist(this.schedules.map(s=>s.id===h.scheduleId?{...s,lastTriggeredAt:h.triggeredAt,updatedAt:h.triggeredAt}:s));this.emit('schedule.triggered',h);this.checkpoint();
-  this.dispatch(h.projectId,job.id);this.refresh();return structuredClone(h);
+  this.authority?.(h.projectId,h.scheduleId);this.dispatch(h.projectId,job.id);this.refresh();return structuredClone(h);
  }
  async fire(projectId:string,id:string,event:TriggerEvent){const s=this.own(projectId,id);if(!s.enabled)throw new SchedulerError('disabled');if(event.scheduleId!==id||typeof event.id!=='string'||!event.id||event.id.length>120||!Number.isFinite(Date.parse(event.scheduledAt)))throw new SchedulerError('invalid-trigger');if(event.type!=='run-now'&&event.type!==s.trigger.type)throw new SchedulerError('invalid-trigger');if(s.trigger.type==='event'&&event.type!=='run-now')throw new SchedulerError('runtime-unavailable');const key=event.type==='run-now'?id+':manual:'+event.id:id+':'+event.scheduledAt+':'+event.id;if(this.identities.has(key))throw new SchedulerError('duplicate');this.identities.add(key);if(!this.persistence&&this.identities.size>3000)this.identities.delete(this.identities.values().next().value!);
   if(this.firing){const h=this.record(s,event,'skipped','capacity');this.checkpoint();return h;}this.firing=true;let historyId:string|undefined;
@@ -66,6 +66,7 @@ export class ScheduleService {
    return (await this.queuePending(h.id))!;
   }catch(e){if(e instanceof SchedulerError&&e.code==='persistence')throw e;
    const h=historyId?this.history.find(h=>h.id===historyId)!:this.record(s,event,'error',e instanceof SchedulerError?e.code:'queue-failure');
+   if(e instanceof SchedulerError&&e.code==='disabled'){if(h.jobId&&this.core.snapshot(projectId).jobs.find(j=>j.id===h.jobId)?.status==='queued')this.core.cancelJob(projectId,h.jobId);h.status='error';h.reason='disabled';this.pending.delete(h.id);this.checkpoint();return structuredClone(h);}
    if(this.persistence&&historyId){this.runtimeError='queue-failure';return structuredClone(h);}
    h.status='error';h.reason=e instanceof SchedulerError?e.code:'queue-failure';this.pending.delete(h.id);this.emit('schedule.failed',h);this.checkpoint();return structuredClone(h);
   }finally{this.firing=false;}
@@ -73,9 +74,10 @@ export class ScheduleService {
  async runNow(projectId:string,id:string,identity:string){if(typeof identity!=='string'||!identity||identity.length>120)throw new SchedulerError('invalid-trigger');return this.fire(projectId,id,{id:identity,scheduleId:id,type:'run-now',scheduledAt:iso(Math.floor(this.now()/1000)*1000)});}
  refresh(){let changed=false;for(const h of this.history){if(!h.jobId||!['queued','running'].includes(h.status))continue;const before=JSON.stringify(h),snap=this.core.snapshot(h.projectId),run=snap.runs.find(r=>r.jobId===h.jobId);if(run){h.runId=run.id;h.agentId=run.agentId;h.status=['pending','running'].includes(run.status)?'running':run.status as ScheduleRun['status'];if(run.finishedAt&&run.startedAt)h.durationMs=Date.parse(run.finishedAt)-Date.parse(run.startedAt);if(!['queued','running'].includes(h.status))this.emit(h.status==='passed'?'schedule.completed':'schedule.failed',h);}else if(snap.jobs.find(j=>j.id===h.jobId)?.status==='cancelled')h.status='cancelled';changed ||= before!==JSON.stringify(h);}if(changed)this.checkpoint();}
  async tick(){if(this.ticking||this.firing)return;this.ticking=true;try{
-  for(const id of [...this.pending.keys()])await this.queuePending(id);
-  this.refresh();for(const h of this.history.filter(h=>h.status==='queued'&&h.jobId))this.dispatch(h.projectId,h.jobId!);
+  for(const id of [...this.pending.keys()])try{await this.queuePending(id);}catch(error){if(!(error instanceof SchedulerError)||error.code!=='disabled')throw error;const h=this.history.find(h=>h.id===id)!;h.status='error';h.reason='disabled';this.pending.delete(id);this.checkpoint();}
+  this.refresh();for(const h of this.history.filter(h=>h.status==='queued'&&h.jobId)){try{this.authority?.(h.projectId,h.scheduleId);}catch(error){if(!(error instanceof SchedulerError)||error.code!=='disabled')throw error;if(this.core.snapshot(h.projectId).jobs.find(j=>j.id===h.jobId)?.status==='queued')this.core.cancelJob(h.projectId,h.jobId!);h.status='cancelled';h.reason='disabled';this.checkpoint();continue;}this.dispatch(h.projectId,h.jobId!);}
   for(const s of [...this.schedules]){if(!s.enabled||s.status!=='enabled'||!s.nextRunAt||Date.parse(s.nextRunAt)>this.now())continue;const at=s.nextRunAt,e:TriggerEvent={id:at,scheduleId:s.id,scheduledAt:at,type:s.trigger.type};
+   try{this.authority?.(s.projectId,s.id);}catch(error){if(!(error instanceof SchedulerError)||error.code!=='disabled')throw error;this.persist(this.schedules.map(v=>v.id===s.id?{...v,enabled:false,status:'disabled',nextRunAt:null,error:'disabled'}:v));continue;}
    // On restart missed slots are consumed, never accumulated as a backlog.
    if(this.now()-Date.parse(at)>10000){this.record(s,e,'skipped','missed');this.persist(this.schedules.map(v=>v.id===s.id?{...v,nextRunAt:nextExecution(v.trigger,v.timezone,this.now())}:v));}
    else{try{await this.fire(s.projectId,s.id,e);}catch(error){if(!(error instanceof SchedulerError)||error.code!=='duplicate')throw error;}this.persist(this.schedules.map(v=>v.id===s.id?{...v,nextRunAt:nextExecution(v.trigger,v.timezone,this.now())}:v));}
