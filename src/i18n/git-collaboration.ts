@@ -1,0 +1,30 @@
+import type {Language} from './core.ts';
+const languages:Language[]=['ko','de','es','fr','it','pt','ja','zh','zh-hant'];
+const rows=`Working…|작업 중…|Wird ausgeführt…|Procesando…|Traitement…|Operazione in corso…|Processando…|処理中…|处理中…|處理中…
+Operation|작업|Vorgang|Operación|Opération|Operazione|Operação|操作|操作|操作
+Mark conflict resolved|충돌 해결 Stage|Konflikt als gelöst markieren|Marcar conflicto resuelto|Marquer le conflit résolu|Segna conflitto risolto|Marcar conflito resolvido|競合解決をステージ|暂存冲突解决|暫存衝突解決
+Git collaboration|Git 협업|Git-Zusammenarbeit|Colaboración Git|Collaboration Git|Collaborazione Git|Colaboração Git|Git コラボレーション|Git 协作|Git 協作
+Branch name|브랜치 이름|Branchname|Nombre de rama|Nom de branche|Nome del branch|Nome do branch|ブランチ名|分支名称|分支名稱
+Create branch|브랜치 생성|Branch erstellen|Crear rama|Créer une branche|Crea branch|Criar branch|ブランチ作成|创建分支|建立分支
+Switch branch|브랜치 전환|Branch wechseln|Cambiar rama|Changer de branche|Cambia branch|Mudar branch|ブランチ切り替え|切换分支|切換分支
+Remote|원격|Remote|Remoto|Distant|Remoto|Remoto|リモート|远程|遠端
+fetch|가져오기(fetch)|Abrufen|Obtener|Récupérer|Recupera|Buscar|フェッチ|获取|擷取
+pull|동기화(pull)|Aktualisieren|Sincronizar|Synchroniser|Sincronizza|Sincronizar|プル|拉取|拉取
+push|보내기(push)|Senden|Enviar|Envoyer|Invia|Enviar|プッシュ|推送|推送
+Pull only accepts fast-forward updates. Push never forces remote history.|Pull은 fast-forward만 허용하며 Push는 원격 기록을 강제로 덮어쓰지 않습니다.|Pull erlaubt nur Fast-Forward. Push erzwingt keinen Verlauf.|Pull solo permite avance rápido. Push no fuerza el historial.|Pull accepte uniquement une avance rapide. Push ne force pas l’historique.|Pull accetta solo avanzamenti rapidi. Push non forza la cronologia.|Pull aceita apenas avanço rápido. Push não força o histórico.|Pull は fast-forward のみ対応し、Push は履歴を強制上書きしません。|Pull 仅允许快进，Push 不强制覆盖远程历史。|Pull 僅允許快轉，Push 不強制覆寫遠端歷史。
+Review Git operation|Git 작업 검토|Git-Vorgang prüfen|Revisar operación Git|Vérifier l’opération Git|Rivedi operazione Git|Revisar operação Git|Git 操作の確認|审查 Git 操作|審查 Git 操作
+Approve Git operation|Git 작업 승인|Git-Vorgang genehmigen|Aprobar operación Git|Approuver l’opération Git|Approva operazione Git|Aprovar operação Git|Git 操作を承認|批准 Git 操作|核准 Git 操作
+Approval expires in 60 seconds. Changed repository state requires a new review.|승인은 60초 후 만료됩니다. 저장소 상태가 바뀌면 다시 검토해야 합니다.|Die Freigabe läuft nach60 Sekunden ab. Änderungen erfordern eine neue Prüfung.|La aprobación caduca en60 segundos. Los cambios requieren nueva revisión.|L’approbation expire après60 secondes. Toute modification exige une nouvelle vérification.|L’approvazione scade dopo60 secondi. Le modifiche richiedono una nuova revisione.|A aprovação expira em60 segundos. Alterações exigem nova revisão.|承認は60秒後に失効します。変更後は再確認が必要です。|批准在60秒后过期。仓库更改后需要重新审查。|核准於60秒後到期。儲存庫變更後須重新審查。
+Review conflict|충돌 검토|Konflikt prüfen|Revisar conflicto|Vérifier le conflit|Rivedi conflitto|Revisar conflito|競合の確認|审查冲突|審查衝突
+base|기준|Basis|Base|Base|Base|Base|基準|基准|基準
+ours|내 변경|Eigene Änderungen|Nuestros cambios|Nos modifications|Le nostre modifiche|Nossas alterações|自分の変更|我们的更改|我們的變更
+theirs|상대 변경|Andere Änderungen|Sus cambios|Leurs modifications|Le loro modifiche|Outras alterações|相手の変更|对方的更改|對方的變更
+Open file to resolve|파일을 열어 해결|Datei zum Lösen öffnen|Abrir archivo para resolver|Ouvrir pour résoudre|Apri file per risolvere|Abrir arquivo para resolver|ファイルを開いて解決|打开文件解决|開啟檔案解決
+Edit and save the resolution, then stage it explicitly. Conflict review never overwrites source.|직접 편집·저장한 뒤 명시적으로 Stage하세요. 충돌 검토는 소스를 덮어쓰지 않습니다.|Lösung bearbeiten und speichern, dann stagen. Die Prüfung überschreibt keine Quelle.|Edita y guarda la solución, luego prepárala. La revisión no sobrescribe el código.|Modifiez et enregistrez la résolution, puis indexez-la. La vérification ne remplace pas le code.|Modifica e salva la soluzione, poi preparala. La revisione non sovrascrive il codice.|Edite e salve a solução, depois prepare-a. A revisão não sobrescreve o código.|編集・保存後に明示的にステージしてください。競合確認はソースを書き換えません。|编辑并保存解决方案，然后手动暂存。冲突审查不会覆盖源码。|編輯並儲存解決方案後手動暫存。衝突審查不會覆寫原始碼。
+PR base branch|PR 기준 브랜치|PR-Basisbranch|Rama base del PR|Branche de base PR|Branch base PR|Branch base PR|PR ベースブランチ|PR 基准分支|PR 基準分支
+Prepare GitHub review|GitHub 검토 준비|GitHub-Prüfung vorbereiten|Preparar revisión GitHub|Préparer la vérification GitHub|Prepara revisione GitHub|Preparar revisão GitHub|GitHub 確認の準備|准备 GitHub 审查|準備 GitHub 審查
+Review and create PR on GitHub|GitHub에서 검토 후 PR 생성|Auf GitHub prüfen und PR erstellen|Revisar y crear PR en GitHub|Vérifier et créer un PR sur GitHub|Rivedi e crea PR su GitHub|Revisar e criar PR no GitHub|GitHub で確認して PR を作成|在 GitHub 审查并创建 PR|在 GitHub 審查並建立 PR
+GitHub opens the comparison for your review. Studio does not create a PR automatically.|GitHub 비교 화면에서 검토할 수 있습니다. Studio는 PR을 자동 생성하지 않습니다.|GitHub öffnet den Vergleich. Studio erstellt keinen PR automatisch.|GitHub abre la comparación. Studio no crea PR automáticamente.|GitHub ouvre la comparaison. Studio ne crée pas de PR automatiquement.|GitHub apre il confronto. Studio non crea PR automaticamente.|GitHub abre a comparação. Studio não cria PR automaticamente.|GitHub の比較画面を開きます。Studio は PR を自動作成しません。|GitHub 会打开比较页面。Studio 不会自动创建 PR。|GitHub 會開啟比較頁面。Studio 不會自動建立 PR。
+Save all edited files before changing Git source.|Git 소스 변경 전에 편집한 파일을 모두 저장하세요.|Vor Git-Änderungen alle Dateien speichern.|Guarda todos los archivos antes de cambiar el código Git.|Enregistrez les fichiers avant de modifier le code Git.|Salva tutti i file prima di modificare il codice Git.|Salve todos os arquivos antes de alterar o código Git.|Git ソース変更前に全ファイルを保存してください。|更改 Git 源码前请保存所有文件。|變更 Git 原始碼前請儲存所有檔案。
+Git operation completed.|Git 작업이 완료됐습니다.|Git-Vorgang abgeschlossen.|Operación Git completada.|Opération Git terminée.|Operazione Git completata.|Operação Git concluída.|Git 操作完了。|Git 操作完成。|Git 操作完成。`;
+export const gitCollaborationMessages=Object.fromEntries(languages.map((language,index)=>[language,Object.fromEntries(rows.split('\n').map(row=>{const parts=row.split('|');return[parts[0],parts[index+1]];}))])) as Partial<Record<Language,Record<string,string>>>;

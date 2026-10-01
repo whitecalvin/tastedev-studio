@@ -1,5 +1,6 @@
 mod debugger;
 mod diagnostics;
+mod git_collaboration;
 use diagnostics::runtime_diagnostic;
 mod announcements;
 mod bootstrap;
@@ -175,6 +176,18 @@ async fn workspace_file(
     .map_err(|_| error("internal"))?
 }
 #[tauri::command]
+async fn git_collaboration(
+    app: tauri::AppHandle,
+    request: git_collaboration::Request,
+) -> Result<serde_json::Value> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<git_collaboration::Collaboration>()
+            .execute(&app.state::<Workspaces>(), request)
+    })
+    .await
+    .map_err(|_| error("internal"))?
+}
+#[tauri::command]
 async fn git_operation(request: git::Request, app: tauri::AppHandle) -> Result<serde_json::Value> {
     tauri::async_runtime::spawn_blocking(move || git::execute(&app.state::<Workspaces>(), request))
         .await
@@ -287,6 +300,7 @@ pub fn run() {
         .manage(bootstrap::Operations::default())
         .manage(process::Processes::default())
         .manage(debugger::Debuggers::default())
+        .manage(git_collaboration::Collaboration::default())
         .setup(|app| {
             diagnostics::initialize(&app.path().app_data_dir()?)?;
             app.manage(update::Updates::new(
@@ -318,6 +332,7 @@ pub fn run() {
             workspace_disconnect,
             workspace_file,
             git_operation,
+            git_collaboration,
             debug_start,
             debug_action,
             debug_stop,

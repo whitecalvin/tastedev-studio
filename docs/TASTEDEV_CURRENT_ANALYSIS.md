@@ -367,3 +367,8 @@ Rust/Python/TypeScript smoke template과 native 도구 version 확인, 안전한
 ## 3차 고도화 4단계 — 로컬 Node / TypeScript 디버거 (2026-10-01)
 
 Owned Node Inspector native host, project/saved-hash validation, breakpoints/continue/pause/step-over/into/out, scoped read-only locals/call stack/bounded console, Monaco breakpoint/paused decorations, Dirty protection 및 disconnect/exit/update cleanup를 구현했다. 실제 .cjs/.ts native host 중단점·step·local value5·source integrity를 확인했다. Rust Debug/Release와 GUI 최종 결과 및 배포 상태는 resources/verification/dev-01/tasks/tastedev-studio/third-advancement/phase-4와 checkpoint.json에 기록한다. Remote Attach/arbitrary CDP/evaluate/setter는 제공하지 않으며 Node native stripping 지원만 제공한다. 실행 프로그램의 OS sandbox, transpiled source maps, Python/Rust debugger 및 Unix 실제 GUI 검증은 미지원/미검증이다. Guide: resources/guides/dev-01/tastedev-studio/THIRD_ADVANCEMENT_DEBUGGER.md.
+
+
+## 3차 고도화 5단계 — Git 협업 (2026-10-01)
+
+Branch create/switch, approved fetch/fast-forward-only pull/non-force push/commit, one-shot60s Workspace approval/fingerprint, Dirty protection 및 Filesystem/Git 직렬화를 추가했다. 실제 disposable native Git/local bare remote branch/commit/push identity/fetch/peer pull과 stale/cancel/path/injection/conflict3-way 읽기·직접 해결 Stage를 확인했다. GUI는 controlled IPC로 검증한다. GitHub credential 없는 remote의 비교 URL로 사용자 PR 검토/생성 화면에 연결하며 Studio 직접 PR 생성 API 및 실제 public PR 생성은 범위 밖이다. Detached/unborn 협업, automatic remote tracking/merge/rebase/stash/force는 제공하지 않는다. 품질·공용 배포 결과: resources/verification/dev-01/tasks/tastedev-studio/third-advancement/phase-5 및 checkpoint.json. Guide: resources/guides/dev-01/tastedev-studio/THIRD_ADVANCEMENT_GIT_COLLABORATION.md.

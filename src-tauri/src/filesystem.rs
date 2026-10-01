@@ -27,7 +27,7 @@ impl From<std::io::Error> for NativeError {
 }
 #[derive(Default)]
 pub struct Workspaces {
-    operations: Mutex<()>,
+    pub(crate) operations: Mutex<()>,
     pub roots: Mutex<HashMap<String, PathBuf>>,
     pub projects: Mutex<HashMap<String, PathBuf>>,
 }

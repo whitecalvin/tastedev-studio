@@ -228,6 +228,7 @@ fn history(root: &Path, limit: usize) -> Result<Value> {
     Ok(json!(commits))
 }
 pub fn execute(state: &Workspaces, request: Request) -> Result<Value> {
+    let _operation = state.operations.lock().map_err(|_| error("internal"))?;
     let root = state.root(
         request
             .workspace_id
