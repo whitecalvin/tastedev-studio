@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "product": {
     "id": "studio",
-    "name": "TASTEDEV Studio",
+    "name": "TASTESTUDIO",
     "version": "0.1.17",
     "documentationUrl": "https://tastedev.net/docs/studio"
   },
@@ -19,7 +19,7 @@
     "eventType": "product-release-published",
     "sourceTag": "v0.1.17",
     "distributionTag": "studio-v0.1.17",
-    "title": "TASTEDEV Studio 0.1.17",
+    "title": "TASTESTUDIO 0.1.17",
     "notesFile": "docs/releases/v0.1.17.md"
   },
   "websitePromotion": {
@@ -87,6 +87,22 @@
         "principal": "release@tastedev.net",
         "namespace": "file"
       }
+    },
+    {
+      "platform": "Linux",
+      "architecture": "x64",
+      "fileName": "tastedev-studio-0.1.17-linux-x86_64.deb",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.17-linux-x86_64.deb",
+      "codeSigned": true,
+      "signaturePublisher": "GXSOFT SSH release signing",
+      "verification": {
+        "type": "ssh",
+        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-0.1.17-linux-x86_64.deb.sig",
+        "publicKeyFromUserProfile": ".ssh/id_ed25519.pub",
+        "expectedFingerprint": "SHA256:DpGg4oWYas1GSPxa6bb0Xq3EtYbq5A2rxyfdv8O9G1k",
+        "principal": "release@tastedev.net",
+        "namespace": "file"
+      }
     }
   ],
   "releaseAssets": [
@@ -113,6 +129,14 @@
     {
       "fileName": "tastedev-studio-0.1.17-linux-x86_64.tar.gz.sig",
       "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.17-linux-x86_64.tar.gz.sig"
+    },
+    {
+      "fileName": "tastedev-studio-0.1.17-linux-x86_64.deb",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.17-linux-x86_64.deb"
+    },
+    {
+      "fileName": "tastedev-studio-0.1.17-linux-x86_64.deb.sig",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.17-linux-x86_64.deb.sig"
     },
     {
       "fileName": "SHA256SUMS.txt",
