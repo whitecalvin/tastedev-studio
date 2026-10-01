@@ -50,8 +50,20 @@ struct Session {
 pub struct Processes {
     sessions: Mutex<HashMap<String, Arc<Session>>>,
     cancelled: Mutex<HashSet<String>>,
+    updating: AtomicBool,
 }
 impl Processes {
+    pub fn prepare_update(&self) -> Result<()> {
+        let sessions = self.sessions.lock().map_err(|_| error("internal"))?;
+        if !sessions.is_empty() {
+            return Err(error("workspace-busy"));
+        }
+        self.updating.store(true, Ordering::SeqCst);
+        Ok(())
+    }
+    pub fn cancel_update(&self) {
+        self.updating.store(false, Ordering::SeqCst);
+    }
     pub fn start(
         &self,
         app: tauri::AppHandle,
@@ -64,6 +76,9 @@ impl Processes {
             return Err(error("invalid"));
         }
         let mut sessions = self.sessions.lock().map_err(|_| error("internal"))?;
+        if self.updating.load(Ordering::SeqCst) {
+            return Err(error("workspace-busy"));
+        }
         // Start and stop serialize registration, so cancellation cannot lose a spawn.
         if self
             .cancelled

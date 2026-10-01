@@ -4,6 +4,7 @@ mod filesystem;
 mod git;
 mod job;
 mod process;
+mod update;
 use filesystem::{error, Connection, Result, Workspaces};
 use tauri::{Manager, State};
 use tauri_plugin_dialog::DialogExt;
@@ -159,6 +160,38 @@ fn process_resize(
 ) -> Result<()> {
     state.resize(&session_id, columns, rows)
 }
+#[tauri::command]
+fn update_action(
+    app: tauri::AppHandle,
+    action: String,
+    enabled: Option<bool>,
+    protected: Option<bool>,
+) -> std::result::Result<update::Status, String> {
+    let processes = app.state::<process::Processes>();
+    if action == "install" {
+        if protected.unwrap_or(true) {
+            return Err("workspace-busy".into());
+        }
+        processes.prepare_update().map_err(|_| "workspace-busy")?;
+    }
+    match app
+        .state::<update::Updates>()
+        .action(&action, enabled, protected.unwrap_or(true))
+    {
+        Ok((status, quit)) => {
+            if quit {
+                app.exit(0);
+            }
+            Ok(status)
+        }
+        Err(error) => {
+            if action == "install" {
+                processes.cancel_update();
+            }
+            Err(error)
+        }
+    }
+}
 pub fn run() {
     let context = tauri::generate_context!();
     // Capture initialization failures as well as errors after setup. No user data
@@ -180,6 +213,10 @@ pub fn run() {
         .manage(process::Processes::default())
         .setup(|app| {
             diagnostics::initialize(&app.path().app_data_dir()?)?;
+            app.manage(update::Updates::new(
+                &app.path().app_data_dir()?,
+                &app.path().app_cache_dir()?,
+            ));
             let path = app.path().app_data_dir()?.join("workspaces.json");
             if path.exists() {
                 let data = std::fs::read(path)?;
@@ -205,7 +242,8 @@ pub fn run() {
             process_stop,
             process_write,
             process_resize,
-            runtime_diagnostic
+            runtime_diagnostic,
+            update_action
         ])
         .build(context)
         .expect("Studio runtime initialization failed");
@@ -215,7 +253,7 @@ pub fn run() {
             // Builder::build. WebView2's shared browser must not inherit our job.
             // Later command processes retain the app/session cleanup boundaries.
             diagnostics::record("native", "attaching-command-job");
-            let app_job = job::ProcessJob::attach(unsafe {
+            let app_job = job::ProcessJob::attach_app(unsafe {
                 windows_sys::Win32::System::Threading::GetCurrentProcess()
             })
             .expect("Process cleanup boundary could not initialize");

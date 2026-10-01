@@ -1,5 +1,6 @@
 "use client";
 import { useI18n } from '@/i18n/react';
+import { useUpdateProtection } from '../update/views';
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog } from '@/components/ui/dialog';
@@ -19,6 +20,7 @@ function useFileSession(projectId: string) {
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState('');
   const lock = useRef(false);
+  useUpdateProtection(() => documents.snapshot().dirtyEditors.length > 0 || lock.current);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [revision, setRevision] = useState(0);

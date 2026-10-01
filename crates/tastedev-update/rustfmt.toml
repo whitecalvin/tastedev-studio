@@ -1,0 +1,5 @@
+# 제품 저장소의 rustfmt 설정과 상관없이 다섯 사본이 같은 꼴로 다듬어지게 이 폴더만의 설정을 둔다.
+# 줄 끝은 파일에 있던 대로(기준 LF, 사본은 저장소의 autocrlf 관례) 둔다.
+edition = "2024"
+newline_style = "Auto"
+use_field_init_shorthand = true

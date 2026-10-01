@@ -18,6 +18,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 portable-pty = "=0.9.0"
 log = "=0.4.34"
+tastedev-update = { path = "../crates/tastedev-update" }
+reqwest = { version = "=0.13.5", features = ["blocking"] }
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]

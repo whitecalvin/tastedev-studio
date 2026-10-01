@@ -4,6 +4,7 @@ import { AIStateProvider, AISidebar, AIPanel, AIProposalArea, useAI } from '../a
 import {ScheduleProvider,ScheduleSidebar,ScheduleDetail} from '../scheduler/views';
 import { IssuesProvider, IssuesSidebar, IssueDetail } from '../issues/views';
 import { RuntimeLabel } from '@/features/runtime/label';
+import { UpdateButton } from '@/features/update/views';
 import Link from 'next/link';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Files, Search, GitBranch, Play, FlaskConical, Bot, CircleDot, Sparkles, Settings, PanelLeft, PanelRight, PanelBottom, X, ArrowLeft, Boxes, ListOrdered, History } from 'lucide-react';
@@ -79,7 +80,7 @@ function SearchView() {
 
 function SettingsView() {
   const { t } = useI18n();
- return <ViewMessage title={t("Appearance & layout")}><LanguageControl /><ThemeControl /><p>{t("Theme is shared across the application. Layout is saved separately for each project in this browser.")}</p><dl className="ws-shortcuts">{shortcuts.map(item => <div key={item.key}><dt>{t(item.label)}</dt><dd><kbd>Ctrl + Alt + {item.key.toUpperCase()}</kbd></dd></div>)}</dl></ViewMessage>; }
+ return <ViewMessage title={t("Appearance & layout")}><LanguageControl /><ThemeControl /><UpdateButton /><p>{t("Theme is shared across the application. Layout is saved separately for each project in this browser.")}</p><dl className="ws-shortcuts">{shortcuts.map(item => <div key={item.key}><dt>{t(item.label)}</dt><dd><kbd>Ctrl + Alt + {item.key.toUpperCase()}</kbd></dd></div>)}</dl></ViewMessage>; }
 export function PrimarySidebar() {
   const { t } = useI18n();
 

@@ -1,6 +1,7 @@
 'use client';
 import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useFiles } from '../editor/session';
+import { useUpdateProtection } from '../update/views';
 import { useGit } from '../git/context';
 import { useWorkspace } from '../workspace/context';
 import { BrowserConfigurationRepository, RunConfigurationService, validateConfiguration, type RunConfiguration } from './configurations';
@@ -15,6 +16,7 @@ function useRunSession(projectId: string) {
   const [list, setList] = useState<RunConfiguration[]>([]), [selectedId, select] = useState('');
   const [error, setError] = useState(''), [ready, setReady] = useState(false), [preparing, setPreparing] = useState(false);
   const lock = useRef(false), mounted = useRef(true);
+  useUpdateProtection(() => lock.current);
   const { service: gitService } = useGit();
   const files = useFiles(), { dispatch } = useWorkspace();
   const reload = () => { const next = configurations.list(projectId); setList(next); select(id => next.some(c => c.id === id) ? id : next[0]?.id ?? ''); setError(''); };

@@ -1,5 +1,6 @@
 'use client';
 import { useI18n } from '@/i18n/react';
+import { useUpdateProtection } from '../update/views';
 import {createContext,useContext,useEffect,useRef,useState} from 'react';
 import {useProtocol} from '../protocol/views';
 import {useCore} from '../core/context';
@@ -40,7 +41,7 @@ function useAIState(){
  // eslint-disable-next-line react-hooks/exhaustive-deps
  },[core.connection.connected,core.connection,core.project.id,service,fixes]);
  const [originalRunId,setOriginalRunId]=useState<string|undefined>();const [runId,setRunId]=useState<string|undefined>(),[record,setRecord]=useState<AnalysisRecord|null>(null),[proposal,setProposal]=useState<{record:AnalysisRecord;index:number}|null>(null);
- const epoch=useRef(0),busy=useRef(false);useEffect(()=>()=>{epoch.current++;service.stop();},[service]);
+ const epoch=useRef(0),busy=useRef(false);useUpdateProtection(()=>busy.current);useEffect(()=>()=>{epoch.current++;service.stop();},[service]);
  function reset(){epoch.current++;service.stop();busy.current=false;setConversation(service.newConversation());setRunId(undefined);setOriginalRunId(undefined);setRecord(null);setProposal(null);setStatus('idle');setError('');setStream('');setActivity([]);setContext('');}
  function selectRecord(value:AnalysisRecord){epoch.current++;service.stop();busy.current=false;setConversation(service.conversations.find(c=>c.id===value.conversationId)??service.newConversation());setRunId(value.runId);setOriginalRunId(undefined);setRecord(value);setProposal(null);setStatus('completed');setError('');setStream('');setActivity([]);setContext(value.context.map(c=>c.label).join('\n'));}
  async function send(question:string,includeCurrent=true,includeSelection=true){if(busy.current)return;if(core.remote&&!historyReady){setError('Wait for Core history recovery before starting AI analysis.');return;}busy.current=true;const e=++epoch.current;setStatus('generating');setError('');setStream('');setActivity([]);setRecord(null);
@@ -83,6 +84,7 @@ function FixProposalPanel(){
  const fileSummary=actual?t("Changed files:"):t("Proposed files:");
  useEffect(()=>{if(!attemptId)return;const a=ai.fixes.get(attemptId);if(!['applied','passed','failed','retesting','validating'].includes(a.status))return;let active=true;files.files.read(p.path).then(f=>{if(active){setSaved(f.content);setActual(true);}},()=>{if(active)setMessage('Saved source unavailable. Reconnect the matching folder.');});return()=>{active=false;};},[attemptId,ai.fixes,files.files,p.path]);
 
+ useUpdateProtection(()=>busy);
  async function operation(action:()=>Promise<void>){if(busy)return;setBusy(true);setMessage('');try{if(!ai.historyReady)throw new Error('Wait for Core history recovery before modifying source.');await action();await ai.fixes.flush();}catch(e){setMessage(e instanceof Error?e.message:'Fix operation failed');}finally{setBusy(false);}}
  async function apply(){await operation(async()=>{let id=attemptId;if(!id){id=(await ai.fixes.propose(value.record,[value.index])).id;setAttemptId(id);}const a=ai.fixes.get(id);const choice=await files.ask({title:'Approve source changes',message:`Proposal ${a.proposalId}\nFiles: ${a.patches.map(p=>p.path).join(', ')}\nApply exactly the reviewed change? Test execution requires a separate action.`,choices:[{value:'approve',label:'Approve and Apply'},{value:'reject',label:'Reject'},{value:'cancel',label:'Cancel'}]});if(choice!=='approve'){if(choice==='reject')ai.fixes.reject(id);else ai.fixes.cancel(id);return;}await ai.fixes.approve(id,a.patches.map(p=>p.path));await ai.fixes.execute('apply_patch',{projectId:core.project.id,attemptId:id});files.refresh();await git.service.refresh();setSaved((await files.files.read(p.path)).content);setActual(true);setMessage('Approved patch applied. Review actual disk diff before validation.');});}
  async function revert(){await operation(async()=>{if(!attemptId)return;await ai.fixes.revert(attemptId);files.refresh();await git.service.refresh();setActual(false);setMessage('AI changes reverted; earlier user baseline restored.');});}

@@ -4,6 +4,12 @@ pub struct ProcessJob(isize);
 #[cfg(windows)]
 impl ProcessJob {
     pub fn attach(handle: std::os::windows::io::RawHandle) -> Result<Self> {
+        Self::attach_with_breakaway(handle, false)
+    }
+    pub fn attach_app(handle: std::os::windows::io::RawHandle) -> Result<Self> {
+        Self::attach_with_breakaway(handle, true)
+    }
+    fn attach_with_breakaway(handle: std::os::windows::io::RawHandle, allow: bool) -> Result<Self> {
         use windows_sys::Win32::{Foundation::CloseHandle, System::JobObjects::*};
         // SAFETY: initialized job information, valid borrowed child handle, owned job
         // handle closed exactly once. The child handle is never closed here.
@@ -14,6 +20,9 @@ impl ProcessJob {
             }
             let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
             info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            if allow {
+                info.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_BREAKAWAY_OK;
+            }
             if SetInformationJobObject(
                 job,
                 JobObjectExtendedLimitInformation,
