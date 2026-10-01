@@ -13,6 +13,7 @@ import {useRun} from '../process/context';
 import {connectionReadiness} from './onboarding';
 import {jobCreationKey} from './form-drafts';
 import {CoreAccessNotice} from './access-notice';
+import {ConnectionManagement} from './connection-management';
 const date=(value:string|null,locale:string)=>value?new Date(value).toLocaleString(locale):translate(systemLanguage([locale]),'Not reported');
 const reason=(error:unknown)=>error instanceof Error?error.message:'Core operation failed.';
 export function CoreSidebar({activity}:{activity:Activity}) {
@@ -70,7 +71,7 @@ function ConnectionForm(){
   const { t } = useI18n();
  const {connection,project,setMessage,snapshot,connectionDraft:draft,setConnectionDraft,connectionToken,setConnectionToken,draftError}=useCore();const protocol=useProtocol(),local=useRun();
  const checks=connectionReadiness(connection.phase,snapshot,{loading:protocol.loading,status:protocol.state.status});
- return <section className="core-onboarding" aria-label={t("Connection guide")}><form className="core-connection" onSubmit={e=>{e.preventDefault();try{connection.connect(draft.endpoint,connectionToken,project);setMessage('');}catch(error){setMessage(reason(error));}}}>
+ return <section className="core-onboarding" aria-label={t("Connection guide")}><ConnectionManagement key={project.id+connection.connectionKey}/><form className="core-connection" onSubmit={e=>{e.preventDefault();try{connection.connect(draft.endpoint,connectionToken,project);setMessage('');}catch(error){setMessage(reason(error));}}}>
  <strong>{t("Core connection")}</strong><span role="status" aria-live="polite">{t(connection.status)}</span>
  <label>{t("Connection mode")}<select value={draft.mode} onChange={e=>setConnectionDraft({...draft,mode:e.target.value as 'local'|'team'})}><option value="local">{t("Local Core")}</option><option value="team">{t("Team Core")}</option></select></label>
  <label>{t("Endpoint")}<input name="endpoint" type="url" required value={draft.endpoint} onChange={e=>setConnectionDraft({...draft,endpoint:e.target.value})}/></label>

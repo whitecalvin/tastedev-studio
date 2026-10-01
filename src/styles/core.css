@@ -35,3 +35,4 @@
 .protocol-view button:focus-visible,.protocol-view summary:focus-visible,.protocol-status:focus-visible { outline:2px solid var(--studio-accent); outline-offset:2px; }
 .protocol-status { cursor:pointer; white-space:nowrap; }
 .protocol-heading button { flex-shrink:0; white-space:nowrap; }
+.core-profiles label{display:flex;flex-direction:column;gap:6px;max-width:520px;margin:12px 0}.core-profiles input,.core-profiles select{width:100%;min-width:0;background:var(--studio-bg);color:var(--studio-text);border:1px solid var(--studio-line);border-radius:3px;padding:8px;font:inherit}.core-profiles details{margin-top:16px}.core-profiles summary{cursor:pointer}.core-profiles p{margin:8px 0}.core-profiles ul{grid-template-columns:1fr}.core-profiles li{display:flex;align-items:center;gap:12px;flex-wrap:wrap}

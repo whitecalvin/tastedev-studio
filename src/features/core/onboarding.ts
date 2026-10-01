@@ -1,10 +1,11 @@
 import type {CoreSnapshot} from './domain.ts';
 import type {ConnectionPhase} from './remote-client.ts';
+import {coreEndpoint} from './connection-profiles.ts';
 export interface ConnectionDraft {endpoint:string;mode:'local'|'team'}
 export const defaultConnectionDraft:ConnectionDraft={endpoint:'ws://127.0.0.1:4340/studio',mode:'local'};
 export function connectionDraft(value:unknown):ConnectionDraft{
  if(!value||typeof value!=='object')return {...defaultConnectionDraft};
- const draft=value as Partial<ConnectionDraft>;try{const url=new URL(draft.endpoint??'');if(!['ws:','wss:'].includes(url.protocol)||url.username||url.password||url.search||url.hash||url.pathname!=='/studio'||url.href.length>2048)throw Error('Invalid endpoint');return {endpoint:url.href,mode:draft.mode==='team'?'team':'local'};}catch{return {...defaultConnectionDraft};}
+ const draft=value as Partial<ConnectionDraft>;try{return {endpoint:coreEndpoint(draft.endpoint??''),mode:draft.mode==='team'?'team':'local'};}catch{return {...defaultConnectionDraft};}
 }
 export type ReadinessState='ready'|'loading'|'empty'|'unavailable'|'error'|'recovering';
 export interface ReadinessCheck {label:string;state:ReadinessState;detail:string}

@@ -19,6 +19,18 @@ async function fixture(){
  return{core,team,a,b,connect,rpc,http,owner,close:async()=>{for(const s of sockets)s.terminate();await core.close();}};
 }
 async function wait(check:()=>boolean){const deadline=Date.now()+4000;while(!check()){if(Date.now()>deadline)throw Error('Boundary fixture timeout');await new Promise(r=>setTimeout(r,10));}}
+test('Owner grants scoped Agent credentials, stale revoke conflicts and live revocation closes transport',async()=>{const f=await fixture();let agent:WebSocket|undefined;try{
+ const developer=await f.connect('developer');assert.match(String((await f.rpc(developer,'team',['agents'])).error),/TEAM_FORBIDDEN/);
+ assert.match(String((await f.rpc(f.owner,'team',['register-agent',{id:'new-agent',tokenHash:teamTokenHash(token('new-agent')),groups:['group-1']}])).error),/INPUT_INVALID/);
+ const added=await f.rpc(f.owner,'team',['register-agent',{id:'new-agent',tokenHash:teamTokenHash(token('new-agent')),groups:['group-0']}]);assert.ok(!added.error);assert.ok(!JSON.stringify(added.value).includes('tokenHash'));
+ const row=(added.value as {agents:{id:string;etag:string}[]}).agents.find(a=>a.id==='new-agent')!;
+ assert.match(String((await f.rpc(f.owner,'team',['revoke-agent',row.id,'stale'])).error),/CONFLICT/);
+ agent=new WebSocket(`ws://127.0.0.1:${f.core.port}/agent`);const messages:Record<string,unknown>[]=[];agent.on('message',raw=>messages.push(JSON.parse(raw.toString())));await new Promise<void>((resolve,reject)=>{agent!.once('open',resolve);agent!.once('error',reject);});
+ agent.send(JSON.stringify({type:'register',protocolVersion:1,agentId:'new-agent',token:token('new-agent'),agentVersion:'test',name:'Controlled Agent',platform:'linux',architecture:'x86_64',capabilities:{cpuCores:1,memoryMiB:1024,docker:false,gpu:false,pty:false,runtimes:{},browsers:[]}}));
+ await wait(()=>f.core.service.repository.read().agents.some(a=>a.id==='new-agent'&&a.status==='idle'));
+ const revoked=await f.rpc(f.owner,'team',['revoke-agent',row.id,row.etag]);assert.ok(!revoked.error);await wait(()=>agent!.readyState!==WebSocket.OPEN);assert.equal(f.core.service.repository.read().agents.find(a=>a.id===row.id)!.status,'offline');
+ assert.equal((revoked.value as {agents:{disabled:boolean}[]}).agents.find(a=>a.disabled)?.disabled,true);
+}finally{agent?.terminate();await f.close();}});
 test('team WebSocket enforces identity, role and project switching',async()=>{const f=await fixture();try{
  const viewer=await f.connect('viewer');assert.equal((viewer.messages.find(m=>m.type==='snapshot')!.access as {role:string}).role,'Viewer');
  assert.match(String((await f.rpc(viewer,'registerAgent',[{}])).error),/TEAM_FORBIDDEN/);

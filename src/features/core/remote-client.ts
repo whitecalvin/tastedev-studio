@@ -1,5 +1,6 @@
 'use client';
-import {coreAccess,accessFeedback,type CoreAccess} from './access.ts';
+import {coreAccess,accessFeedback,sessionExpiredMessage,type CoreAccess} from './access.ts';
+import {coreEndpoint} from './connection-profiles.ts';
 import type { Agent, Artifact, CoreSnapshot } from './domain';
 import type { Project } from '../projects/types/project';
 import type { CreateJob } from './service';
@@ -13,11 +14,12 @@ export class RemoteCoreClient {
   access:CoreAccess|null=null;phase:ConnectionPhase='disabled';lastError='';snapshotReceivedAt:string|null=null;
   private state=empty();private version=0;private listeners=new Set<()=>void>();private ws:WebSocket|null=null;private timer:ReturnType<typeof setTimeout>|undefined;private retry=500;private token='';private endpoint='';private project:Project|null=null;
   private pending=new Map<string,{resolve:(value:unknown)=>void;reject:(error:Error)=>void;timer:ReturnType<typeof setTimeout>}>();
+  get connectionKey(){return this.endpoint+'\0'+(this.project?.id??'');}
   readonly repository={subscribe:(fn:()=>void)=>{this.listeners.add(fn);return()=>{this.listeners.delete(fn);};},revision:()=>this.version,read:()=>this.state};
   private changed(){this.version++;for(const fn of this.listeners)fn();}
   snapshot(projectId:string){const s=this.state;const runs=s.runs.filter(r=>r.projectId===projectId);const ids=new Set(runs.map(r=>r.id));return {...s,jobs:s.jobs.filter(j=>j.projectId===projectId),runs,steps:s.steps.filter(s=>ids.has(s.runId)),artifacts:s.artifacts.filter(a=>ids.has(a.runId)),events:s.events.filter(e=>!e.projectId||e.projectId===projectId)};}
-  connect(endpoint:string,token:string,project:Project){const url=new URL(endpoint);if(!['ws:','wss:'].includes(url.protocol)||url.username||url.password||url.search||url.hash||url.href.length>2048||url.pathname!=='/studio')throw new Error('Use a ws:// or wss:// Core /studio endpoint.');if(token.length<16)throw new Error('Enter the configured Studio token.');this.disconnect();this.enabled=true;this.endpoint=url.href;this.token=token;this.project=project;this.retry=500;this.open();}
-  reconnect(){if(!this.enabled||!this.project)return;clearTimeout(this.timer);const ws=this.ws;this.ws=null;ws?.close();this.connected=false;for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(new Error('Core disconnected; refresh state before retrying.'));}this.pending.clear();this.open();}
+  connect(endpoint:string,token:string,project:Project){const url=new URL(coreEndpoint(endpoint));if(token.length<16||token.length>512||/[\r\n\0]/.test(token))throw new Error('Enter the configured Studio token.');this.disconnect();this.enabled=true;this.endpoint=url.href;this.token=token;this.project=project;this.retry=500;this.open();}
+  reconnect(){if(!this.enabled||!this.project)return;if(!this.token){this.status=sessionExpiredMessage;this.lastError=this.status;this.phase='authentication';this.changed();return;}clearTimeout(this.timer);const ws=this.ws;this.ws=null;ws?.close();this.connected=false;for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(new Error('Core disconnected; refresh state before retrying.'));}this.pending.clear();this.open();}
   private open(){if(!this.enabled)return;this.phase=this.snapshotReceivedAt?'recovering':'connecting';this.status='Connecting to Core…';this.changed();const ws=new WebSocket(this.endpoint);this.ws=ws;
     ws.onopen=()=>{if(this.ws===ws)ws.send(JSON.stringify({type:'subscribe',protocolVersion:1,token:this.token,project:this.project}));};
     ws.onmessage=event=>{if(this.ws!==ws)return;try{if(typeof event.data!=='string'||event.data.length>4000000)throw new Error('Core response exceeds limit.');const m=JSON.parse(event.data);if(m.protocolVersion!==1)throw new Error('Core protocol mismatch.');if(m.type==='snapshot'){
@@ -27,7 +29,7 @@ export class RemoteCoreClient {
     else if(m.type==='error'){this.status=typeof m.error==='string'?accessFeedback(m.error):'Core rejected the connection.';this.lastError=this.status;this.phase=/auth|token|forbidden|TEAM_/i.test(String(m.error))?'authentication':/protocol/i.test(this.status)?'protocol-error':'error';this.changed();}
     }catch(error){this.lastError=error instanceof Error?error.message:'Invalid Core response.';this.phase='protocol-error';this.status='Invalid Core response. Reconnect to retry.';ws.close();}};
     ws.onerror=()=>{if(this.ws!==ws)return;this.phase='unavailable';this.lastError='Core unavailable. Retrying…';this.status=this.lastError;this.changed();};
-    ws.onclose=event=>{if(this.ws!==ws)return;this.connected=false;const blocked=this.phase==='authentication'||this.phase==='protocol-error'||event.code===1008;if(event.code===1008&&this.phase!=='protocol-error'){this.phase='authentication';this.lastError=this.lastError||'Core rejected the connection.';}if(!blocked){this.phase=this.snapshotReceivedAt?'recovering':'unavailable';this.status='Core disconnected. Retrying…';}for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(new Error('Core disconnected; refresh state before retrying.'));}this.pending.clear();this.changed();if(this.enabled&&!blocked){this.timer=setTimeout(()=>this.open(),this.retry);this.retry=Math.min(this.retry*2,10000);}};
+    ws.onclose=event=>{if(this.ws!==ws)return;this.connected=false;const blocked=this.phase==='authentication'||this.phase==='protocol-error'||event.code===1008;if(event.code===1008&&this.phase!=='protocol-error'){this.phase='authentication';this.lastError=/expired|revoked/i.test(event.reason)?sessionExpiredMessage:(this.lastError||'Core rejected the connection.');this.status=this.lastError;this.token='';}if(!blocked){this.phase=this.snapshotReceivedAt?'recovering':'unavailable';this.status='Core disconnected. Retrying…';}for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(new Error('Core disconnected; refresh state before retrying.'));}this.pending.clear();this.changed();if(this.enabled&&!blocked){this.timer=setTimeout(()=>this.open(),this.retry);this.retry=Math.min(this.retry*2,10000);}};
   }
   setProject(project:Project){this.project=project;if(this.ws?.readyState===WebSocket.OPEN)this.ws.send(JSON.stringify({type:'subscribe',protocolVersion:1,project}));}
   disconnect(){this.enabled=false;this.connected=false;clearTimeout(this.timer);const ws=this.ws;this.ws=null;ws?.close();for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(new Error('Core disconnected.'));}this.pending.clear();this.state=empty();this.logs={};this.access=null;this.token='';this.phase='disabled';this.lastError='';this.snapshotReceivedAt=null;this.status='Not connected';this.changed();}
@@ -40,6 +42,7 @@ export class RemoteCoreClient {
   createJob(_projectId:string,input:CreateJob){return this.call<CoreSnapshot['jobs'][number]>('createJob',[input]);}
   cancelJob(_projectId:string,id:string){return this.call<CoreSnapshot['jobs'][number]>('cancelJob',[id]);}
   retryJob(_projectId:string,id:string){return this.call<CoreSnapshot['jobs'][number]>('retryJob',[id]);}
+  teamRequest<T>(action:string,...args:unknown[]){return this.call<T>('team',[action,...args]);}
   schedulerRequest<T>(action:string,...args:unknown[]){return this.call<T>('scheduler',[action,...args]);}
   async historyRequest<T>(body:unknown,projectId:string):Promise<T>{
     if(!this.connected||this.project?.id!==projectId)throw new Error('Core connection required for durable history.');

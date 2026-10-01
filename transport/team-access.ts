@@ -68,7 +68,27 @@ export class TeamAccess {
   catch(error){this.record(identity,projectId,action,'denied',target);throw error;}
  }
  permits(identity:TeamIdentity,projectId:string,action:TeamAction){try{const user=this.current(identity);return roleActions[user.role].includes(action)&&user.projects.includes(projectId)&&this.state.configuration.projects.some(p=>p.id===projectId);}catch{return false;}}
- describe(identity:TeamIdentity,projectId:string){const user=this.require(identity,projectId,'read');return{mode:'team' as const,userId:user.id,role:user.role,projectId,actions:roleActions[user.role].filter(a=>this.permits(identity,projectId,a)),revision:this.state.revision};}
+ describe(identity:TeamIdentity,projectId:string){const user=this.require(identity,projectId,'read');const expiresAt=this.state.configuration.sessions.find(session=>session.id===identity.sessionId)!.expiresAt;return{mode:'team' as const,userId:user.id,role:user.role,projectId,actions:roleActions[user.role].filter(a=>this.permits(identity,projectId,a)),revision:this.state.revision,expiresAt};}
+ private agentOwner(identity:TeamIdentity,projectId:string){this.require(identity,projectId,'agent-manage');this.require(identity,null,'access-manage');}
+ private agentTag(agent:TeamAgent){return createHash('sha256').update(JSON.stringify(agent)).digest('hex');}
+ agentOverview(identity:TeamIdentity,projectId:string){this.agentOwner(identity,projectId);const project=this.state.configuration.projects.find(row=>row.id===projectId)!;return{groups:[...project.agentGroups],agents:this.state.configuration.agents.filter(agent=>agent.groups.some(group=>project.agentGroups.includes(group))).map(agent=>({id:agent.id,groups:[...agent.groups],disabled:!!agent.disabled,etag:this.agentTag(agent)}))};}
+ registerCredential(identity:TeamIdentity,projectId:string,input:unknown){
+  this.agentOwner(identity,projectId);
+  if(!input||typeof input!=='object'||Object.keys(input).some(key=>!['id','tokenHash','groups'].includes(key)))throw new TeamAccessError('TEAM_AGENT_INPUT_INVALID');
+  const row=input as Pick<TeamAgent,'id'|'tokenHash'|'groups'>,project=this.state.configuration.projects.find(value=>value.id===projectId)!;
+  if(!identifier(row.id)||typeof row.tokenHash!=='string'||!hash(row.tokenHash)||!Array.isArray(row.groups)||!row.groups.length||row.groups.some(group=>!project.agentGroups.includes(group))||new Set(row.groups).size!==row.groups.length)throw new TeamAccessError('TEAM_AGENT_INPUT_INVALID');
+  if(this.state.configuration.agents.some(agent=>agent.id===row.id))throw new TeamAccessError('TEAM_AGENT_ALREADY_EXISTS');
+  const configuration=validConfiguration({...this.state.configuration,agents:[...this.state.configuration.agents,{id:row.id,tokenHash:row.tokenHash,groups:[...row.groups],labels:{}}]});
+  this.commit({...this.state,configuration,revision:this.state.revision+1});this.record(identity,projectId,'agent-manage','allowed',row.id);
+  return this.agentOverview(identity,projectId);
+ }
+ revokeCredential(identity:TeamIdentity,projectId:string,id:unknown,etag:unknown){
+  this.agentOwner(identity,projectId);const agent=this.state.configuration.agents.find(row=>row.id===id),project=this.state.configuration.projects.find(row=>row.id===projectId)!;
+  if(!agent||!agent.groups.some(group=>project.agentGroups.includes(group)))throw new TeamAccessError();
+  if(typeof etag!=='string'||this.agentTag(agent)!==etag)throw new TeamAccessError('TEAM_AGENT_CONFLICT');
+  const configuration=validConfiguration({...this.state.configuration,agents:this.state.configuration.agents.map(row=>row.id===id?{...row,disabled:true}:row)});
+  this.commit({...this.state,configuration,revision:this.state.revision+1});this.record(identity,projectId,'agent-manage','allowed',agent.id);return this.agentOverview(identity,projectId);
+ }
  update(identity:TeamIdentity,configuration:TeamConfiguration){this.require(identity,null,'access-manage');const next=validConfiguration(configuration);if(!next.users.some(u=>u.id===identity.userId&&u.role==='Owner'&&!u.disabled)||!next.sessions.some(s=>s.id===identity.sessionId&&s.userId===identity.userId&&!s.revokedAt&&Date.parse(s.expiresAt)>this.now()))throw new TeamAccessError('TEAM_LAST_OWNER_PROTECTION');this.commit({...this.state,configuration:next,revision:this.state.revision+1});}
  configuration(identity:TeamIdentity){this.require(identity,null,'access-manage');return structuredClone(this.state.configuration);}
  audit(identity:TeamIdentity,projectId:string|null){this.require(identity,projectId,'audit');const user=this.current(identity);return structuredClone(this.state.audit.filter(r=>user.role==='Owner'||r.projectId!==null&&user.projects.includes(r.projectId)));}
