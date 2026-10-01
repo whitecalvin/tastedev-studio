@@ -1,3 +1,4 @@
+import {sourceInventory,transferSource} from './source-transfer.ts';
 import {snapshotDelta} from '../src/features/core/snapshot-delta.ts';
 import type {CoreSnapshot} from '../src/features/core/domain.ts';
 import {executionReport} from './execution-report.ts';
@@ -71,9 +72,10 @@ export async function startCoreServer(options:ServerOptions) {
   const orphanedAgents=new Set<string>();
   const orchestrator=new TestOrchestrator(service);
   const scheduler=new ScheduleService(service,options.schedulePath?new FileScheduleRepository(options.schedulePath):new MemoryScheduleRepository(),id=>projects.get(id),(p,j)=>{if(team){const scheduleId=scheduler.list(p).history.find(h=>h.jobId===j)?.scheduleId;if(!scheduleId)throw new SchedulerError('disabled');scheduleAuthority!(p,scheduleId);const identity=manualScheduleGrants.get(scheduleId)??scheduleGrants.get(scheduleId)!;grantJobs([j],identity,!manualScheduleGrants.has(scheduleId));}return dispatch(p,j);},Date.now,store?{load:()=>store.get('scheduler'),save:value=>store.put('scheduler',value)}:undefined,scheduleAuthority);
-  const artifacts=artifactGateway(service,options.artifactRoot??path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../../../resources/artifacts/tastedev-studio'),options.studioToken,origins,store?{load:()=>store.get('artifact-grants')??[],save:value=>store.put('artifact-grants',value)}:undefined);
+  const artifacts=artifactGateway(service,options.artifactRoot??path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../../../resources/artifacts/tastedev-studio'),options.studioToken,origins,store?{load:()=>store.get('artifact-grants')??[],save:value=>store.put('artifact-grants',value)}:undefined,fields=>event('info','artifact.upload.progress',fields));
   const artifactAudit:{id:string;status:string}[]=[];for(const a of service.repository.read().artifacts){if(!a.location.startsWith('/artifacts/'))continue;if(a.deletedAt){try{await artifacts.store.purge(a.runId,a.id);artifactAudit.push({id:a.id,status:'deleted'});}catch{artifactAudit.push({id:a.id,status:'purge-pending'});}continue;}try{const value=await artifacts.store.get(a.runId,a.id);if(value.meta.checksum!==a.checksum||value.meta.size!==a.size)throw Error('Mismatch');artifactAudit.push({id:a.id,status:'available'});}catch{artifactAudit.push({id:a.id,status:'missing-or-invalid'});}}
   const runTimers=new Map<string,ReturnType<typeof setTimeout>>();
+  const sourceCaches=new Map<string,Set<string>>();
   function restoreDeadline(runId:string,ws:WebSocket){
     const snap=service.repository.read(),run=snap.runs.find(r=>r.id===runId),job=snap.jobs.find(j=>j.id===run?.jobId);
     if(!run||!activeRun(run)||!job?.payload.testPlan||runTimers.has(runId))return;
@@ -89,7 +91,9 @@ export async function startCoreServer(options:ServerOptions) {
     restoreDeadline(runId,ws);
     // Cleanup has its own bounded allowance beyond the overall deadline.
     if(command.stage==='cleanup'){clearTimeout(runTimers.get(runId));runTimers.delete(runId);}
-    send(ws,{type:'execute',agentId:run.agentId,jobId:job.id,runId,runStepId:step.id,projectId:run.projectId,requirements:job.requirements,executable:command.executable,args:command.args,cwd:command.cwd,env:command.env??{},timeoutMs:command.timeoutMs??60000,stage:command.stage,...(command.browser?{browser:command.browser,artifactTransfer:artifacts.grant(runId,step.id,options.artifactBaseUrl??`http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`)}:{}),...(command.source?{source:command.source}:{}),...(command.healthcheck?{healthcheck:command.healthcheck}:{})});
+    const source=command.source?transferSource(command.source,run.projectId,sourceCaches.get(run.agentId)):undefined;
+    if(source?.provider==='snapshot')event('info','source.transfer',{runId,projectId:run.projectId,files:source.snapshot.files.length,reusedFiles:source.snapshot.files.filter(file=>(file as unknown as {cached?:boolean}).cached).length,transferredBytes:source.snapshot.files.reduce((n,file)=>n+Buffer.byteLength(file.content),0)});
+    send(ws,{type:'execute',agentId:run.agentId,jobId:job.id,runId,runStepId:step.id,projectId:run.projectId,requirements:job.requirements,executable:command.executable,args:command.args,cwd:command.cwd,env:command.env??{},timeoutMs:command.timeoutMs??60000,stage:command.stage,...(command.browser?{browser:command.browser,artifactTransfer:{...artifacts.grant(runId,step.id,options.artifactBaseUrl??`http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`),...(sourceCaches.has(run.agentId)?{resumable:true}:{})}}:{}),...(source?{source}:{}),...(command.healthcheck?{healthcheck:command.healthcheck}:{})});
   }
   const providerName=process.env.TASTEDEV_AI_PROVIDER??'codex';
   if(!['codex','openai'].includes(providerName))throw new Error('TASTEDEV_AI_PROVIDER must be codex or openai.');
@@ -112,7 +116,7 @@ export async function startCoreServer(options:ServerOptions) {
   })();
   const server=createServer((req,res)=>{
     const json=(code:number,value:unknown)=>{res.writeHead(code,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(value)+'\n');};
-    if(team&&req.method!=='OPTIONS'&&!['/health/live','/health/ready','/runtime'].includes(req.url??'')&&!(req.url?.startsWith('/artifacts/')&&req.method==='PUT')){
+    if(team&&req.method!=='OPTIONS'&&!['/health/live','/health/ready','/runtime'].includes(req.url??'')&&!(req.url?.startsWith('/artifacts/')&&['PUT','HEAD'].includes(req.method??''))){
       try{if(req.headers.origin&&!origins.includes(req.headers.origin))throw new TeamAccessError();const identity=team.authenticate(req.headers.authorization?.replace(/^Bearer /,''));requestIdentities.set(req,identity);
         if(req.url==='/runtime/stop')team.require(identity,null,'access-manage');else team.require(identity,String(req.headers['x-project-id']??''),'read');
         if(req.url?.startsWith('/artifacts/'))authorizeHTTP(req,String(req.headers['x-project-id']??''),req.method==='DELETE'?'history-write':'read');
@@ -147,7 +151,7 @@ export async function startCoreServer(options:ServerOptions) {
   let publishTimer:ReturnType<typeof setTimeout>|undefined;
   const schedule=()=>{publishTimer??=setTimeout(()=>{publishTimer=undefined;publish();},40)};
   const unsubscribe=service.repository.subscribe(schedule);cleanup.push(unsubscribe);cleanup.push(()=>{clearTimeout(publishTimer);for(const timer of runTimers.values())clearTimeout(timer);});
-    function lose(id:string,ws:WebSocket){if(agents.get(id)?.socket!==ws)return;agents.delete(id);agentSessionHashes.delete(id);try{service.observeAgent(id,false);}catch{/* Connection is gone; persistent ownership stays reserved until recovery. */}}
+    function lose(id:string,ws:WebSocket){if(agents.get(id)?.socket!==ws)return;agents.delete(id);sourceCaches.delete(id);agentSessionHashes.delete(id);try{service.observeAgent(id,false);}catch{/* Connection is gone; persistent ownership stays reserved until recovery. */}}
     function revokeAgentConnections(){if(!team)return;for(const [id,connection] of agents){if(team.validAgentSession(id,agentSessionHashes.get(id)??''))continue;try{for(const run of service.repository.read().runs.filter(row=>row.agentId===id&&activeRun(row))){service.cancelJob(run.projectId,run.jobId);send(connection.socket,{type:'cancel',runId:run.id});}}catch{event('error','agent.revocation_cancel_failed');}finally{lose(id,connection.socket);connection.socket.close(1008,'Agent access revoked');}}}
   function failRun(id:string,summary:string){const run=service.repository.read().runs.find(r=>r.id===id);if(!run||!activeRun(run))return;service.finishRun(run.projectId,run.id,'failed',null,summary);if(!agents.has(run.agentId))service.observeAgent(run.agentId,false);}
   function orchestratorSafeFinish(id:string){const snap=service.repository.read(),run=snap.runs.find(r=>r.id===id);return run&&snap.jobs.find(j=>j.id===run.jobId)?.payload.testPlan?orchestrator.finish(id):null;}
@@ -194,6 +198,7 @@ export async function startCoreServer(options:ServerOptions) {
             if(team)agentSessionHashes.set(agentId,teamTokenHash(m.token as string));
             if(typeof m.agentVersion!=='string'||m.agentVersion.length>40)throw new CoreError('Invalid Agent version.');
             const input=validateAgent({name:m.name,platform:m.platform,architecture:m.architecture,capabilities:m.capabilities} as Parameters<typeof validateAgent>[0]);
+            const inventory=sourceInventory(m.sourceCache);if(inventory)sourceCaches.set(agentId,inventory);
             service.connectAgent(agentId,input);agents.set(agentId,{socket:ws,seen:Date.now()});authenticated=true;
             const active=service.repository.read().runs.filter(r=>r.agentId===agentId&&activeRun(r));
             for(const run of active){if(run.id!==m.activeRunId){if(!orchestratorSafeFinish(run.id))failRun(run.id,'Interrupted execution: Agent has no matching durable claim; no automatic replay.');}else{
@@ -214,7 +219,7 @@ export async function startCoreServer(options:ServerOptions) {
         if(!agentId){if(m.type==='subscribe'){const p=m.project as Project;if(!p||typeof p.name!=='string'||p.name.length>120)throw new CoreError('Invalid Project reference.');identifier(p.id);if(team)team.require(studioIdentities.get(ws)!,p.id,'read');if(!team||!projects.has(p.id)){if(team)team.require(studioIdentities.get(ws)!,p.id,'agent-manage');rememberProject(p);}studios.set(ws,p.id);published.delete(ws);publish();}else if(m.type==='rpc')await rpc(ws,m);else throw new CoreError('Invalid Studio message.');return;}
         const connection=agents.get(agentId);if(connection?.socket!==ws)throw new CoreError('Stale connection.');
         if(team&&!team.validAgentSession(agentId,agentSessionHashes.get(agentId)??'')){revokeAgentConnections();return;}
-        if(m.type==='heartbeat'){if(m.agentId!==agentId||!['idle','busy'].includes(m.status as string))throw new CoreError('Invalid heartbeat.');timestamp(m.timestamp);connection.seen=Date.now();if(orphanedAgents.has(agentId)){service.repository.transaction(tx=>{const a=tx.agents.get(agentId!)!;a.lastSeenAt=new Date().toISOString();a.status='error';});}else service.observeAgent(agentId,true);return;}
+        if(m.type==='heartbeat'){if(m.agentId!==agentId||!['idle','busy'].includes(m.status as string))throw new CoreError('Invalid heartbeat.');timestamp(m.timestamp);const inventory=sourceInventory(m.sourceCache);if(inventory)sourceCaches.set(agentId,inventory);connection.seen=Date.now();if(orphanedAgents.has(agentId)){service.repository.transaction(tx=>{const a=tx.agents.get(agentId!)!;a.lastSeenAt=new Date().toISOString();a.status='error';});}else service.observeAgent(agentId,true);return;}
         const runId=identifier(m.runId);const run=service.repository.read().runs.find(r=>r.id===runId);
         if(!run)throw new CoreError('Unknown Run; result retained by Agent for reconciliation.');
         if(run.agentId!==agentId||m.jobId!==run.jobId)throw new CoreError('Run ownership mismatch.');
@@ -242,6 +247,7 @@ export async function startCoreServer(options:ServerOptions) {
               let summary:ReturnType<typeof browserResult>|undefined;try{summary=m.browserResult?browserResult(m.browserResult,Object.values(pipelineJob.payload.steps[step.order].env??{})):undefined;}catch{throw new CoreError('Invalid browser result.');}
               orchestrator.complete(runId,stepId,status as TerminalStatus,m.type==='rejected'?null:m.exitCode as number|null,m.type==='rejected'?'Agent rejected step.':status==='passed'?undefined:(summary?.failures[0]?.message??`${step.name} ${status}.`),m.revision as SourceRevision|undefined,typeof m.serviceId==='string'?m.serviceId:undefined,summary,executionReport(m));
             } catch(error) {if(!(error instanceof CoreError))throw error;orchestrator.complete(runId,stepId,'failed',null,'Agent returned an invalid step result.');send(ws,{type:'cancel',runId});}
+            if(pipelineJob.payload.steps[step.order].stage==='source'&&status!=='passed')sourceCaches.delete(agentId);
             artifacts.revoke(stepId);send(ws,{type:'ack',runId,runStepId:stepId});advance(runId);schedule();return;
           }
           throw new CoreError('Unknown pipeline message.');

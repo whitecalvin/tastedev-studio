@@ -1,4 +1,4 @@
-use crate::model::{Request, Result, Source};
+use crate::model::{no_links, Request, Result, Source};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -17,6 +17,8 @@ pub struct File {
     pub path: String,
     pub content: String,
     pub checksum: String,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub cached: bool,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -30,6 +32,9 @@ pub struct Snapshot {
     pub changed_files: Vec<String>,
     pub files: Vec<File>,
     pub checksum: String,
+}
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 fn hash(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
@@ -110,7 +115,16 @@ pub fn validate(source: &Source) -> Result<()> {
         safe(&f.path)?;
         if !seen.insert(f.path.to_ascii_lowercase())
             || f.content.contains('\0')
-            || hash(f.content.as_bytes()) != f.checksum
+            || if f.cached {
+                !f.content.is_empty()
+                    || f.checksum.len() != 64
+                    || !f
+                        .checksum
+                        .bytes()
+                        .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+            } else {
+                hash(f.content.as_bytes()) != f.checksum
+            }
         {
             return Err("Snapshot integrity failed".into());
         }
@@ -144,6 +158,52 @@ pub fn validate(source: &Source) -> Result<()> {
     }
     Ok(())
 }
+fn bounded_read(path: &Path) -> Result<Vec<u8>> {
+    no_links(path)?;
+    let meta = fs::metadata(path).map_err(|_| "Snapshot file unavailable")?;
+    if !meta.is_file() || meta.len() > 24000 {
+        return Err("Snapshot file limit".into());
+    }
+    fs::read(path).map_err(|_| "Snapshot file read failed".into())
+}
+fn verify_tree(root: &Path, files: &[File]) -> Result<()> {
+    let mut pending = vec![root.to_path_buf()];
+    let mut count = 0;
+    let mut seen = HashSet::new();
+    while let Some(dir) = pending.pop() {
+        no_links(&dir)?;
+        for entry in fs::read_dir(&dir).map_err(|_| "Snapshot tree unavailable")? {
+            let entry = entry.map_err(|_| "Snapshot tree unavailable")?;
+            count += 1;
+            if count > 1000 {
+                return Err("Snapshot tree limit".into());
+            }
+            let path = entry.path();
+            no_links(&path)?;
+            if path.is_dir() {
+                pending.push(path);
+                continue;
+            }
+            let name = path
+                .strip_prefix(root)
+                .map_err(|_| "Snapshot tree escape")?
+                .to_string_lossy()
+                .replace('\\', "/");
+            let expected = files
+                .iter()
+                .find(|f| f.path == name)
+                .ok_or("Unexpected source file")?;
+            if hash(&bounded_read(&path)?) != expected.checksum {
+                return Err("Snapshot tree integrity".into());
+            }
+            seen.insert(name);
+        }
+    }
+    if seen.len() != files.len() {
+        return Err("Snapshot tree incomplete".into());
+    }
+    Ok(())
+}
 pub fn prepare(request: &Request, root: &Path, cancel: Arc<AtomicBool>) -> Result<Value> {
     if cancel.load(Ordering::SeqCst) {
         return Err("Snapshot cancelled".into());
@@ -157,21 +217,76 @@ pub fn prepare(request: &Request, root: &Path, cancel: Arc<AtomicBool>) -> Resul
     let run = crate::pipeline::cwd(root, &request.run_id, ".")?;
     let staging = run.join("snapshot-staging");
     let target = run.join("source");
-    if staging.exists() || target.exists() {
-        return Err("Snapshot workspace already exists".into());
+    let checkpoint = run.join("source-transfer.json");
+    no_links(&checkpoint)?;
+    no_links(&staging)?;
+    no_links(&target)?;
+    let identity =
+        json!({"snapshotId":s.snapshot_id,"projectId":s.project_id,"checksum":s.checksum});
+    if checkpoint.exists() {
+        let saved: Value = serde_json::from_slice(&bounded_read(&checkpoint)?)
+            .map_err(|_| "Source checkpoint invalid")?;
+        if saved != identity {
+            return Err("Source checkpoint conflict".into());
+        }
+    } else {
+        if staging.exists() || target.exists() {
+            return Err("Unowned source workspace".into());
+        }
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&checkpoint)
+            .map_err(|_| "Source checkpoint write failed")?;
+        use std::io::Write;
+        file.write_all(identity.to_string().as_bytes())
+            .and_then(|_| file.sync_all())
+            .map_err(|_| "Source checkpoint sync failed")?;
     }
-    fs::create_dir(&staging).map_err(|_| "Snapshot staging unavailable")?;
+    if target.exists() {
+        verify_tree(&target, &s.files)?;
+    } else {
+        fs::create_dir_all(&staging).map_err(|_| "Snapshot staging unavailable")?;
+    }
+    let already_complete = target.exists();
     let outcome = (|| -> Result<()> {
+        let mut materialized = 0usize;
         for f in &s.files {
             if cancel.load(Ordering::SeqCst) {
                 return Err("Snapshot cancelled".into());
             }
-            let path = staging.join(&f.path);
+            let path = if already_complete {
+                target.join(&f.path)
+            } else {
+                staging.join(&f.path)
+            };
+            no_links(&path)?;
             if let Some(parent) = path.parent() {
                 fs::create_dir_all(parent).map_err(|_| "Snapshot directory failed")?;
             }
-            fs::write(&path, f.content.as_bytes()).map_err(|_| "Snapshot write failed")?;
-            let bytes = fs::read(&path).map_err(|_| "Snapshot readback failed")?;
+            let bytes = if already_complete {
+                bounded_read(&path)?
+            } else if f.cached {
+                match bounded_read(&path) {
+                    Ok(bytes) if hash(&bytes) == f.checksum => bytes,
+                    _ => crate::source_cache::read(root, &s.project_id, &f.checksum)?,
+                }
+            } else {
+                f.content.as_bytes().to_vec()
+            };
+            materialized += bytes.len();
+            if materialized > 24000 || bytes.contains(&0) || std::str::from_utf8(&bytes).is_err() {
+                return Err("Materialized snapshot limit".into());
+            }
+            let _ = crate::source_cache::save(root, &s.project_id, &f.checksum, &bytes);
+            if !already_complete
+                && bounded_read(&path)
+                    .map(|old| hash(&old) != f.checksum)
+                    .unwrap_or(true)
+            {
+                fs::write(&path, &bytes).map_err(|_| "Snapshot write failed")?;
+            }
+            let bytes = bounded_read(&path)?;
             if hash(&bytes) != f.checksum {
                 return Err("Snapshot readback mismatch".into());
             }
@@ -180,10 +295,13 @@ pub fn prepare(request: &Request, root: &Path, cancel: Arc<AtomicBool>) -> Resul
         if cancel.load(Ordering::SeqCst) {
             return Err("Snapshot cancelled".into());
         }
-        fs::rename(&staging, &target).map_err(|_| "Snapshot commit failed")?;
+        verify_tree(if already_complete { &target } else { &staging }, &s.files)?;
+        if !already_complete {
+            fs::rename(&staging, &target).map_err(|_| "Snapshot commit failed")?;
+        }
         Ok(())
     })();
-    if outcome.is_err() {
+    if outcome.is_err() && cancel.load(Ordering::SeqCst) {
         let _ = fs::remove_dir_all(&staging);
     }
     outcome?;
@@ -201,6 +319,7 @@ mod tests {
             path: "main.js".into(),
             content: "console.log(1);".into(),
             checksum: hash(b"console.log(1);"),
+            cached: false,
         };
         let mut s = Snapshot {
             provider: "snapshot".into(),
@@ -276,5 +395,38 @@ mod tests {
         let result = prepare(&request, root.path(), Arc::new(AtomicBool::new(true)));
         assert_eq!(result.unwrap_err(), "Snapshot cancelled");
         assert_eq!(fs::read_dir(root.path()).unwrap().count(), 0);
+    }
+    #[test]
+    fn cached_snapshot_reuses_verified_bytes_and_resumes_same_identity() {
+        let source = source();
+        let snapshot = source.snapshot.as_ref().unwrap();
+        let project = snapshot.project_id.clone();
+        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/third-advancement/phase-2/rust");
+        fs::create_dir_all(&base).unwrap();
+        let root = tempfile::tempdir_in(base).unwrap();
+        let mut request=serde_json::from_value::<Request>(json!({"protocolVersion":1,"type":"execute","agentId":"agent","jobId":uuid::Uuid::new_v4().to_string(),"runId":uuid::Uuid::new_v4().to_string(),"projectId":project,"executable":"node","args":[],"cwd":".","timeoutMs":5000,"requirements":{},"env":{},"source":source})).unwrap();
+        prepare(&request, root.path(), Arc::new(AtomicBool::new(false))).unwrap();
+        let file = request
+            .source
+            .as_mut()
+            .unwrap()
+            .snapshot
+            .as_mut()
+            .unwrap()
+            .files
+            .first_mut()
+            .unwrap();
+        file.content.clear();
+        file.cached = true;
+        assert!(validate(request.source.as_ref().unwrap()).is_ok());
+        prepare(&request, root.path(), Arc::new(AtomicBool::new(false))).unwrap();
+        request.run_id = uuid::Uuid::new_v4().to_string();
+        prepare(&request, root.path(), Arc::new(AtomicBool::new(false))).unwrap();
+        let target = crate::pipeline::cwd(root.path(), &request.run_id, ".")
+            .unwrap()
+            .join("source/main.js");
+        assert_eq!(fs::read_to_string(&target).unwrap(), "console.log(1);");
+        fs::write(target, "user modification").unwrap();
+        assert!(prepare(&request, root.path(), Arc::new(AtomicBool::new(false))).is_err());
     }
 }

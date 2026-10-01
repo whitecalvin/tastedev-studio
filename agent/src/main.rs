@@ -4,6 +4,7 @@ mod model;
 mod pipeline;
 mod reliability;
 mod snapshot;
+mod source_cache;
 mod tree;
 use model::*;
 use serde_json::{json, Value};
@@ -140,7 +141,12 @@ fn run(config: Config) -> Result<()> {
                 );
             } else {
                 let now = chrono::Utc::now().to_rfc3339();
-                let result = json!({"type":"result","protocolVersion":VERSION,"jobId":record["jobId"],"runId":run_id,"runStepId":record["runStepId"],"status":"failed","exitCode":null,"startedAt":now,"finishedAt":now,"classification":"AGENT_RESTARTED","error":"Agent restarted after interrupted execution"});
+                let mut result = json!({"type":"result","protocolVersion":VERSION,"jobId":record["jobId"],"runId":run_id,"runStepId":record["runStepId"],"status":"failed","exitCode":null,"startedAt":now,"finishedAt":now,"classification":"AGENT_RESTARTED","error":"Agent restarted after interrupted execution"});
+                if let Some(summary) =
+                    browser::resume_evidence(&root, &record, tx.clone(), stop.clone())
+                {
+                    result["browserResult"] = summary;
+                }
                 persist(&pending, &result)?;
                 results.push(result);
             }
@@ -200,7 +206,7 @@ fn run(config: Config) -> Result<()> {
                 Ok(mut ws) => {
                     if send(
                         &mut ws,
-                        json!({"type":"register","token":token,"agentId":id,"name":config.name,"agentVersion":env!("CARGO_PKG_VERSION"),"platform":platform(),"architecture":architecture(),"capabilities":capabilities,"activeRunId":active.as_ref().map(|a|a.run_id.as_str()).or_else(||results.first().and_then(|r|r["runId"].as_str()))}),
+                        json!({"type":"register","token":token,"agentId":id,"name":config.name,"agentVersion":env!("CARGO_PKG_VERSION"),"sourceCache":source_cache::inventory(&root),"platform":platform(),"architecture":architecture(),"capabilities":capabilities,"activeRunId":active.as_ref().map(|a|a.run_id.as_str()).or_else(||results.first().and_then(|r|r["runId"].as_str()))}),
                     ) {
                         socket = Some(ws);
                         last_core = Instant::now();
@@ -230,7 +236,7 @@ fn run(config: Config) -> Result<()> {
             if ready && beat.elapsed() >= Duration::from_millis(config.heartbeat_ms) {
                 lost = !send(
                     ws,
-                    json!({"type":"heartbeat","agentId":id,"timestamp":chrono::Utc::now().to_rfc3339(),"status":if active.is_some(){"busy"}else{"idle"},"activeRunId":active.as_ref().map(|a|&a.run_id)}),
+                    json!({"type":"heartbeat","sourceCache":source_cache::inventory(&root),"agentId":id,"timestamp":chrono::Utc::now().to_rfc3339(),"status":if active.is_some(){"busy"}else{"idle"},"activeRunId":active.as_ref().map(|a|&a.run_id)}),
                 );
                 beat = Instant::now();
             }
@@ -301,7 +307,7 @@ fn run(config: Config) -> Result<()> {
                                 if valid.is_err() || active.is_some() || !results.is_empty() {
                                     send(
                                         ws,
-                                        json!({"type":"rejected","runId":request.run_id,"runStepId":request.run_step_id,"jobId":request.job_id,"reason":"Invalid, incompatible or busy Agent"}),
+                                        json!({"type":"rejected","runId":request.run_id,"projectId":request.project_id,"runStepId":request.run_step_id,"jobId":request.job_id,"reason":"Invalid, incompatible or busy Agent"}),
                                     );
                                     continue;
                                 }
@@ -320,7 +326,7 @@ fn run(config: Config) -> Result<()> {
                                     continue;
                                 };
                                 file.write_all(
-                                    json!({"runId":request.run_id,"runStepId":request.run_step_id,"jobId":request.job_id})
+                                    json!({"runId":request.run_id,"projectId":request.project_id,"runStepId":request.run_step_id,"jobId":request.job_id})
                                         .to_string()
                                         .as_bytes(),
                                 )

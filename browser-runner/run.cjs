@@ -1,6 +1,5 @@
-const fs=require('fs'),path=require('path'),{spawn}=require('child_process'),{randomUUID,createHash}=require('crypto');
+const fs=require('fs'),path=require('path'),{spawn}=require('child_process');
 const {sanitizer}=require('./sanitize.cjs');
-const mime={screenshot:'image/png',trace:'application/zip','test-report':'application/json','browser-console':'application/json','page-errors':'application/json','network-log':'application/json'};
 (async()=>{
  const input=JSON.parse(fs.readFileSync(process.argv[2],'utf8')),dir=path.dirname(process.argv[2]),cwd=process.cwd();
  const config=path.resolve(cwd,input.browser.config);if(!config.startsWith(cwd+path.sep)||!fs.existsSync(config))throw Error('Browser config unavailable');
@@ -22,8 +21,7 @@ const mime={screenshot:'image/png',trace:'application/zip','test-report':'applic
   try{
    const real=fs.realpathSync.native(a.path);if(!real.startsWith(fs.realpathSync.native(dir)+path.sep))throw Error('Unsafe artifact path');
    const size=fs.statSync(real).size;if(size<1||size>32*1024*1024)throw Error('Artifact exceeds size limit');
-   const bytes=fs.readFileSync(real),id=randomUUID(),checksum=createHash('sha256').update(bytes).digest('hex');let ok=false,last='unknown';
-   for(let attempt=0;attempt<2&&!ok;attempt++){try{const response=await fetch(`${input.transfer.url}/${id}`,{method:'PUT',redirect:'error',headers:{Authorization:`Bearer ${input.transfer.token}`,'Content-Type':mime[a.type],'X-Artifact-Type':a.type,'X-Artifact-Name':`${input.runStepId}-${id}.${a.type==='screenshot'?'png':a.type==='trace'?'zip':'json'}`,'X-Artifact-Size':String(size),'X-Artifact-Checksum':checksum},body:bytes,signal:AbortSignal.timeout(10000)});ok=response.ok;last=String(response.status);}catch(e){last=e.cause?.code??e.name;}}if(!ok)throw Error('Transfer '+last);
+   await require('./upload.cjs').uploadArtifact({bytes:fs.readFileSync(real),type:a.type,input,dir});
   }catch(e){manifest.summary.evidenceWarnings.push(`Artifact transfer failed: ${a.type} (${e.message})`);}
  }
  const summary=clean(manifest.summary);fs.writeFileSync(path.join(dir,'result.json'),JSON.stringify(summary));console.log(`Browser tests: ${summary.passed} passed, ${summary.failed} failed; evidence warnings: ${summary.evidenceWarnings.length}`);process.exitCode=exit;

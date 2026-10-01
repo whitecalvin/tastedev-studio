@@ -5,7 +5,7 @@ export function aiPath(value:unknown){
 export function allowedPath(value:string){try{aiPath(value);return true;}catch{return false;}}
 export function mask(text:string,secrets:string[]=[]){
  let result=text.replace(/\x1b\[[0-9;]*m/g,'');for(const secret of secrets.filter(Boolean).sort((a,b)=>b.length-a.length))result=result.split(secret).join('[redacted]');
- result=result.replace(/https?:\/\/[^\s"'<>`\\]+/g,raw=>{try{const u=new URL(raw);u.username='';u.password='';u.search=u.search?'?[redacted]':'';u.hash='';return u.href;}catch{return '[url]';}});
+ result=result.replace(/https?:\/\/[^\s"'<>`\\]+/g,raw=>{try{const u=new URL(raw);if(!u.username&&!u.password&&!u.search&&!u.hash)return raw;u.username='';u.password='';u.search=u.search?'?[redacted]':'';u.hash='';return u.href;}catch{return '[url]';}});
  return result.replace(/\bsk-[A-Za-z0-9_-]{12,}/g,'[redacted]').replace(/(authorization|password|token|secret|api[_-]?key)(["']?\s*[:=]\s*["']?)(?:Bearer\s+)?[^\s,"'}]+/gi,'$1$2[redacted]');
 }
 export function uuid(value:unknown){if(typeof value!=='string'||!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value))throw new AIError('tool-failure');return value;}

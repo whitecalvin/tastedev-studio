@@ -120,6 +120,16 @@ try {
         if (-not $reusedExport) { Invoke-Step '화면 정적 내보내기(.next-desktop)' { & node node_modules/next/dist/bin/next build } }
     }
     finally { $env:STUDIO_DESKTOP_EXPORT = $previousExport }
+    # A phase that changes Agent persistence/transfer opts into its Release-mode tests.
+    # Run after version preparation in this same common release checkout, once, before publication.
+    if ($env:TASTESTUDIO_AGENT_RELEASE_TESTS -eq '1') {
+        $taskPreviousTarget = $env:CARGO_TARGET_DIR
+        try {
+            $taskAgentTarget = [IO.Path]::GetFullPath((Join-Path (Split-Path -Parent $root) 'tastedev-studio/target/release-gate'))
+            $env:CARGO_TARGET_DIR = $taskAgentTarget
+            Invoke-Step 'Agent Release tests (changed transfer/persistence phase)' { & (Join-Path $env:USERPROFILE '.cargo/bin/cargo.exe') test --locked -p tastedev-agent --release }
+        } finally { $env:CARGO_TARGET_DIR = $taskPreviousTarget }
+    }
     if (-not (Test-Path -LiteralPath (Join-Path $root '.next-desktop\index.html') -PathType Leaf)) {
         throw '.next-desktop\index.html 이 없습니다 — Tauri 앱에 담을 화면을 내보내지 못했습니다.'
     }

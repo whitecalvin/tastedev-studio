@@ -1,3 +1,5 @@
+import path from 'node:path';
+import {ArtifactUploads} from './artifact-uploads.ts';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { randomBytes, timingSafeEqual, createHash } from 'node:crypto';
 import type { CoreService } from '../src/features/core/service.ts';
@@ -6,8 +8,8 @@ import { LocalArtifactStore, artifactId, artifactMime, ARTIFACT_LIMIT } from './
 const equal=(a:string,b:string)=>timingSafeEqual(createHash('sha256').update(a).digest(),createHash('sha256').update(b).digest());
 export interface ArtifactGrant {runId:string;stepId:string;projectId:string;expires:number}
 export interface GrantPersistence {load():[string,ArtifactGrant][];save(grants:[string,ArtifactGrant][]):void}
-export function artifactGateway(service:CoreService,root:string,studioToken:string,origins:string[],persistence?:GrantPersistence){
- const store=new LocalArtifactStore(root),grants=new Map<string,ArtifactGrant>(persistence?.load()??[]);
+export function artifactGateway(service:CoreService,root:string,studioToken:string,origins:string[],persistence?:GrantPersistence,progress?:(fields:{runId:string;stepId:string;artifactId:string;offset:number;size:number})=>void){
+ const store=new LocalArtifactStore(root),uploads=new ArtifactUploads(path.resolve(root)+'-transfers',store),grants=new Map<string,ArtifactGrant>(persistence?.load()??[]);
  function commit(next:Map<string,ArtifactGrant>){persistence?.save([...next]);grants.clear();for(const [key,value]of next)grants.set(key,value);}
  function grant(runId:string,stepId:string,base:string){const next=new Map(grants);for(const [key,value]of next)if(value.expires<Date.now())next.delete(key);const run=service.repository.read().runs.find(r=>r.id===runId)!;const token=randomBytes(32).toString('hex');next.set(token,{runId,stepId,projectId:run.projectId,expires:Date.now()+3700000});commit(next);return{url:`${base}/artifacts/${runId}/${stepId}`,token};}
  function revoke(stepId:string){const next=new Map(grants);for(const [key,value]of next)if(value.stepId===stepId)next.delete(key);if(next.size!==grants.size)commit(next);}
@@ -20,15 +22,21 @@ export function artifactGateway(service:CoreService,root:string,studioToken:stri
    if(req.method==='OPTIONS'){res.setHeader('Access-Control-Allow-Methods','GET,DELETE,PUT,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Authorization,X-Project-Id,Range,If-Match,Content-Type,X-Artifact-Type,X-Artifact-Name,X-Artifact-Size,X-Artifact-Checksum');res.writeHead(204).end();return;}
    const parts=(req.url??'').split('/');if(parts[1]!=='artifacts'){res.writeHead(404).end();return;}
    const runId=artifactId(parts[2]),token=(req.headers.authorization??'').replace(/^Bearer /,'');
-   if(req.method==='PUT'&&parts.length===5){
+   if(['PUT','HEAD'].includes(req.method??'')&&parts.length===5){
     const stepId=artifactId(parts[3]),id=artifactId(parts[4]),g=grants.get(token);const snapshot=service.repository.read();
     if(!g||g.expires<Date.now()||g.runId!==runId||g.stepId!==stepId||snapshot.steps.find(s=>s.id===stepId)?.status!=='running'){res.writeHead(403).end();return;}
     const size=Number(req.headers['x-artifact-size']);if(!Number.isSafeInteger(size)||size<1||size>ARTIFACT_LIMIT){res.writeHead(413).end();return;}
     const type=String(req.headers['x-artifact-type']);if(!Object.hasOwn(artifactMime,type)){res.writeHead(400).end();return;}
     req.setTimeout(15000,()=>req.destroy());
-    const meta=await store.put({id,runId,runStepId:stepId,projectId:g.projectId,type:type as keyof typeof artifactMime,name:String(req.headers['x-artifact-name']),mimeType:artifactMime[type as keyof typeof artifactMime],size,checksum:String(req.headers['x-artifact-checksum']),createdAt:new Date().toISOString(),location:''},req);
-    service.repository.transaction(tx=>{if(tx.steps.get(stepId)?.status==='running')tx.artifacts.save(meta);});
-    res.writeHead(201,{'Content-Type':'application/json'}).end(JSON.stringify({id:meta.id,size:meta.size,checksum:meta.checksum}));return;
+    const input={id,runId,runStepId:stepId,projectId:g.projectId,type:type as keyof typeof artifactMime,name:String(req.headers['x-artifact-name']),mimeType:artifactMime[type as keyof typeof artifactMime],size,checksum:String(req.headers['x-artifact-checksum']),createdAt:new Date().toISOString(),location:''};
+    if(!/^[A-Za-z0-9_.-]{1,120}$/.test(input.name)||!/^[a-f0-9]{64}$/.test(input.checksum)){res.writeHead(400).end();return;}
+    if(req.method==='HEAD'){res.writeHead(200,{'X-Upload-Offset':await uploads.progress(input),'X-Upload-Protocol':'chunk-v1'}).end();return;}
+    let meta;
+    if(req.headers['x-upload-offset']!==undefined){const raw=String(req.headers['x-upload-offset']);if(!/^\d+$/.test(raw))throw Error('Upload offset invalid.');const chunkHash=String(req.headers['x-upload-chunk-checksum']);if(!/^[a-f0-9]{64}$/.test(chunkHash))throw Error('Upload chunk checksum invalid.');const chunk=await uploads.append(input,Number(raw),req,chunkHash);try{progress?.({runId,stepId,artifactId:id,offset:chunk.offset,size:input.size});}catch{/* Telemetry cannot revoke an acknowledged prefix. */}if(!chunk.meta){res.writeHead(202,{'X-Upload-Offset':chunk.offset,'X-Upload-Protocol':'chunk-v1'}).end();return;}meta=chunk.meta;}
+    else meta=await store.put(input,req);
+    const registered=service.repository.transaction(tx=>{if(tx.steps.get(stepId)?.status!=='running')return false;tx.artifacts.save(meta);return true;});if(!registered)throw Error('Step ended before evidence registration.');
+    if(req.headers['x-upload-offset']!==undefined)await uploads.finish(meta);
+    res.writeHead(201,{'Content-Type':'application/json','X-Upload-Offset':meta.size}).end(JSON.stringify({id:meta.id,size:meta.size,checksum:meta.checksum}));return;
    }
    if(!equal(token,studioToken)){res.writeHead(403).end();return;}
    const id=artifactId(parts[3]);if(parts.length!==4){res.writeHead(404).end();return;}
@@ -52,7 +60,7 @@ export function artifactGateway(service:CoreService,root:string,studioToken:stri
    res.writeHead(405).end();
   }catch(e){if(!res.headersSent)res.writeHead((e as NodeJS.ErrnoException).code==='ENOENT'?404:400,{'Content-Type':'application/json'});res.end(JSON.stringify({error:'Artifact operation failed: check identity, integrity, storage and limits.'}));}
  }
- return {handle,grant,revoke,store};
+ return {handle,grant,revoke,store,uploads};
 }
 export function browserResult(input:unknown,secrets:string[]):BrowserResult{
  if(!input||typeof input!=='object'||JSON.stringify(input).length>32768)throw Error('Invalid browser result');

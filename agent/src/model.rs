@@ -133,6 +133,8 @@ pub struct BrowserTest {
 pub struct ArtifactTransfer {
     pub url: String,
     pub token: String,
+    #[serde(default)]
+    pub resumable: bool,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

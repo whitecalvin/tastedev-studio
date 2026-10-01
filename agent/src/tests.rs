@@ -41,6 +41,7 @@ fn browser_request_requires_capabilities_and_safe_config() {
     r.artifact_transfer = Some(ArtifactTransfer {
         url: "http://127.0.0.1:4340/artifacts/run/step".into(),
         token: "a".repeat(64),
+        resumable: false,
     });
     assert!(r.validate("test-agent").is_ok());
     r.browser.as_mut().unwrap().config = "../escape.ts".into();
