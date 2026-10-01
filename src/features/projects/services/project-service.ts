@@ -50,6 +50,14 @@ export class ProjectService {
       return updated;
     });
   }
+  async setRepository(id: string, repositoryUrl: string, defaultBranch: string | null) {
+    return this.exclusive(async () => {
+      const project = await this.get(id); if (!project || !project.workspacePath) throw new ProjectError('Project not found.');
+      const { validateClone } = await import('../utils/validation.ts');
+      validateClone({ repositoryUrl, workspacePath: project.workspacePath, branch: defaultBranch ?? '' });
+      await this.repository.save({ ...project, repositoryUrl, defaultBranch, gitEnabled: true });
+    });
+  }
   async attachWorkspace(id: string, workspacePath: string): Promise<void> {
     return this.exclusive(async () => {
       const project = await this.get(id); if (!project) throw new ProjectError('Project not found.');

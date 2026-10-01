@@ -31,7 +31,7 @@ pub struct Workspaces {
     pub roots: Mutex<HashMap<String, PathBuf>>,
     pub projects: Mutex<HashMap<String, PathBuf>>,
 }
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Connection {
     id: String,
@@ -80,9 +80,12 @@ impl Workspaces {
     }
 }
 pub fn display_path(path: &Path) -> String {
-    path.to_string_lossy()
-        .trim_start_matches(r"\\?\")
-        .to_string()
+    let text = path.to_string_lossy();
+    if let Some(network) = text.strip_prefix(r"\\?\UNC\") {
+        format!(r"\\{}", network)
+    } else {
+        text.trim_start_matches(r"\\?\").to_string()
+    }
 }
 pub fn relative(path: &str, allow_root: bool) -> Result<()> {
     if path.is_empty() && allow_root {

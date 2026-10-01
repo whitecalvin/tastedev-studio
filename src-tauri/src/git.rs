@@ -17,17 +17,38 @@ pub struct Request {
     pub limit: Option<usize>,
 }
 fn git(root: &Path, args: &[&str]) -> Result<Vec<u8>> {
-    let mut command = Command::new("git");
-    command
-        .current_dir(root)
-        .args([
+    run(root, args, None)
+}
+pub(crate) fn run(
+    root: &Path,
+    args: &[&str],
+    cancelled: Option<&std::sync::atomic::AtomicBool>,
+) -> Result<Vec<u8>> {
+    run_program(root, "git", args, cancelled)
+}
+pub(crate) fn run_program(
+    root: &Path,
+    executable: &str,
+    args: &[&str],
+    cancelled: Option<&std::sync::atomic::AtomicBool>,
+) -> Result<Vec<u8>> {
+    if !["git", "node"].contains(&executable) {
+        return Err(error("invalid"));
+    }
+    let mut command = Command::new(executable);
+    if executable == "git" {
+        command.args([
             "--no-pager",
             "--literal-pathspecs",
             "-c",
             "core.quotepath=false",
-        ])
+        ]);
+    }
+    command
+        .current_dir(root)
         .args(args)
         .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GCM_INTERACTIVE", "never")
         .stdin(Stdio::null());
     #[cfg(windows)]
     {
@@ -82,17 +103,18 @@ fn git(root: &Path, args: &[&str]) -> Result<Vec<u8>> {
         Box::new(child.stderr.take().ok_or_else(|| error("git"))?),
         32768,
     );
-    let deadline = Instant::now() + Duration::from_secs(30);
+    let deadline = Instant::now() + Duration::from_secs(if cancelled.is_some() { 120 } else { 30 });
     let status = loop {
         if let Some(status) = child.try_wait()? {
             break status;
         }
-        if exceeded.load(Ordering::SeqCst) || Instant::now() > deadline {
+        let stopped = cancelled.is_some_and(|c| c.load(Ordering::SeqCst));
+        if stopped || exceeded.load(Ordering::SeqCst) || Instant::now() > deadline {
             job.terminate();
             let _ = child.wait();
             let _ = stdout.join();
             let _ = stderr.join();
-            return Err(error("git-limit"));
+            return Err(error(if stopped { "cancelled" } else { "git-limit" }));
         }
         std::thread::sleep(Duration::from_millis(10));
     };

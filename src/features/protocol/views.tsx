@@ -8,9 +8,11 @@ import { protocolFiles, type ProtocolState } from './domain';
 import { initializeProtocol, loadProtocol, workspaceReader } from './loader';
 import { resolveProtocol, resolveTestPlan } from './resolver';
 import { planPayload } from '../core/test-plan';
+import { buildSnapshot } from '../ai/snapshot';
+import { withWorkspaceSnapshot } from './workspace-test';
 
 function useProtocolState() {
-  const { files, connection, ready, revision, editor, refresh } = useFiles();
+  const { files, connection, ready, revision, editor, refresh, ask, documents } = useFiles();
   const core = useCore();
   const { dispatch } = useWorkspace();
   const [state, setState] = useState<ProtocolState>({ status: 'Not Configured', issues: [] });
@@ -56,7 +58,17 @@ function useProtocolState() {
       const fresh = await loadProtocol(workspaceReader(files.host, connection.id));
       if (current !== generation.current || files.connection?.id !== connection.id) throw new Error('The workspace changed. Reload Protocol before queuing.');
       setState(fresh);
-      const plan = kind === 'test' ? resolveTestPlan(fresh, core.project.id, name) : null;
+      let plan = kind === 'test' ? resolveTestPlan(fresh, core.project.id, name) : null;
+      if (plan && fresh.status === 'Valid' && !fresh.definition.source) {
+        if (documents.snapshot().dirtyEditors.length) throw Error('Save current edits before taking a snapshot.');
+        const choice = await ask({ title: 'Approve validation and remote retest', message: `Run Protocol Test ${name} on an eligible Agent using a secret-filtered saved workspace snapshot?`, choices: [{ value: 'run', label: 'Approve Retest' }, { value: 'cancel', label: 'Cancel' }] });
+        if (choice !== 'run') return;
+        const d = fresh.definition;
+        const secrets = [...Object.values(d.environment), ...Object.values(d.environments).flatMap(Object.values), ...Object.values(d.tasks).flatMap(task => Object.values(task.env)), ...Object.values(d.tests).flatMap(test => Object.values(test.env ?? {}))];
+        const { snapshot } = await buildSnapshot(files, { projectId: core.project.id, proposalId: plan.id, attempt: 1, baseRevision: 'working-tree', changedFiles: [] }, secrets);
+        if (current !== generation.current || files.connection?.id !== connection.id || documents.snapshot().dirtyEditors.length) throw Error('The workspace changed. Reload Protocol before queuing.');
+        plan = withWorkspaceSnapshot(plan, snapshot);
+      }
       const input = plan ? { name:`test: ${name}`, requirements:plan.requirements, payload:planPayload(plan) } : resolveProtocol(fresh, kind, name);
       const job = await core.service.createJob(core.project.id, input);
       core.select({ kind: 'job', id: job.id });
@@ -102,7 +114,7 @@ export function ProtocolView({ tests = false }: { tests?: boolean }) {
         {p.dirty && <p role="status">{t("Save Protocol edits before queuing. The view reflects saved files.")}</p>}
         {!p.connected && <p>{t("Connect to Core in Agents to queue a task.")}</p>}
         <p>{t("Assign the queued job to a compatible Agent to execute it.")}</p>
-        {tests && <p>{d.source ? `Remote tests use Git revision ${d.source.revision}. Unsaved or uncommitted local changes are not included.` : t("No source provider declared. Tasks run in an empty Agent workspace.")}</p>}
+        {tests && <p>{d.source ? `Remote tests use Git revision ${d.source.revision}. Unsaved or uncommitted local changes are not included.` : t('Without a Git source, tests use an approved, secret-filtered snapshot of saved workspace files.')}</p>}
       </>}
     </>}
   </section>;

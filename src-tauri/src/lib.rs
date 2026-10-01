@@ -1,14 +1,38 @@
 mod diagnostics;
 use diagnostics::runtime_diagnostic;
 mod announcements;
+mod bootstrap;
 mod filesystem;
 mod git;
 mod job;
 mod process;
 mod update;
+#[tauri::command]
+async fn project_environment() -> Result<serde_json::Value> {
+    tauri::async_runtime::spawn_blocking(bootstrap::environment)
+        .await
+        .map_err(|_| error("internal"))
+}
 use filesystem::{error, Connection, Result, Workspaces};
 use tauri::{Manager, State};
 use tauri_plugin_dialog::DialogExt;
+#[tauri::command]
+fn project_begin(id: String, state: State<bootstrap::Operations>) -> Result<()> {
+    state.begin(&id)
+}
+#[tauri::command]
+fn project_cancel(id: String, state: State<bootstrap::Operations>) -> Result<()> {
+    state.cancel(&id)
+}
+#[tauri::command]
+async fn project_prepare(request: bootstrap::Request, app: tauri::AppHandle) -> Result<Connection> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<bootstrap::Operations>()
+            .execute(request, &app.state::<Workspaces>())
+    })
+    .await
+    .map_err(|_| error("internal"))?
+}
 fn save_projects(app: &tauri::AppHandle, state: &Workspaces) -> Result<()> {
     let path = app.path().app_data_dir().map_err(|_| error("storage"))?;
     std::fs::create_dir_all(&path)?;
@@ -221,6 +245,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_dialog::init())
         .manage(Workspaces::default())
+        .manage(bootstrap::Operations::default())
         .manage(process::Processes::default())
         .setup(|app| {
             diagnostics::initialize(&app.path().app_data_dir()?)?;
@@ -241,6 +266,10 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            project_begin,
+            project_prepare,
+            project_cancel,
+            project_environment,
             workspace_select,
             workspace_restore,
             workspace_bind,

@@ -61,7 +61,7 @@ export function ProjectManager() {
         <RuntimeNote />
       </aside>
     </div>
-    {form && <ProjectForm mode={form} onClose={() => setForm(null)} onCreated={async (name) => { await refresh(); setNotice(`${name} added to Recent Projects. No folders or source files were created.`); }} />}
+    {form && <ProjectForm mode={form} onClose={() => setForm(null)} onCreated={async () => { await refresh(); setNotice(t('Project ready. Open it from Recent Projects.')); }} />}
   </>;
 }
 
