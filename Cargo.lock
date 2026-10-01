@@ -3771,7 +3771,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tastedev-agent"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "chrono",
  "ctrlc",
@@ -3788,7 +3788,7 @@ dependencies = [
 
 [[package]]
 name = "tastedev-studio"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "log",
  "portable-pty",

@@ -21,8 +21,10 @@ export interface FixPersistence {save(attempt:FixAttempt):Promise<void>}
 /** The model proposes data; only an explicitly approved immutable attempt can write. */
 export class FixService {
  readonly history:FixAttempt[]=[];private busy=false;private persistence?:FixPersistence;private saves:Promise<void>=Promise.resolve();private persistenceFailed=false;
- readonly projectId:string;readonly files:Pick<WorkspaceFileService,'read'|'write'>;readonly documents?:Documents;readonly maximumAttempts:number;
- constructor(projectId:string,files:Pick<WorkspaceFileService,'read'|'write'>,documents?:Documents,maximumAttempts=3){this.projectId=projectId;this.files=files;this.documents=documents;this.maximumAttempts=maximumAttempts;uuid(projectId);if(!Number.isInteger(maximumAttempts)||maximumAttempts<1||maximumAttempts>10)throw new FixError('INVALID_LIMIT');}
+ readonly projectId:string;readonly files:Pick<WorkspaceFileService,'read'|'write'>;readonly documents?:Documents;private attemptLimit:number;
+ get maximumAttempts(){return this.attemptLimit;}
+ setMaximumAttempts(value:number){if(this.busy)throw new FixError('BUSY');if(!Number.isInteger(value)||value<1||value>10)throw new FixError('INVALID_LIMIT');this.attemptLimit=value;}
+ constructor(projectId:string,files:Pick<WorkspaceFileService,'read'|'write'>,documents?:Documents,maximumAttempts=3){this.projectId=projectId;this.files=files;this.documents=documents;this.attemptLimit=maximumAttempts;uuid(projectId);if(!Number.isInteger(maximumAttempts)||maximumAttempts<1||maximumAttempts>10)throw new FixError('INVALID_LIMIT');}
  setPersistence(persistence:FixPersistence|undefined){this.persistence=persistence;this.persistenceFailed=false;}
  restore(history:FixAttempt[]){if(this.busy)throw new FixError('BUSY');if(history.some(a=>a.projectId!==this.projectId))throw new FixError('PROJECT_BOUNDARY');this.history.splice(0,this.history.length,...structuredClone(history));}
  private changed(a:FixAttempt){
