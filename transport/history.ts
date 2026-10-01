@@ -1,4 +1,5 @@
 import type {IncomingMessage,ServerResponse} from 'node:http';
+import {pageHistory} from '../src/features/core/history-query.ts';
 import {TeamAccessError} from './team-access.ts';
 import {createHash,timingSafeEqual} from 'node:crypto';
 import type {AnalysisRecord} from '../src/features/ai/domain.ts';
@@ -15,6 +16,7 @@ export class HistoryStore {
  private key(project:string,kind:HistoryKind,id:string){return `history:${project}:${kind}:${id}`;}
  list(project:string,kind:HistoryKind){const prefix=`history:${project}:${kind}:`,names=this.store?this.store.names(prefix):[...this.memory.keys()].filter(k=>k.startsWith(prefix));return names.map(name=>({id:name.slice(prefix.length),version:(this.store?.get<HistoryRow>(name)??this.memory.get(name))!.version}));}
  get(project:string,kind:HistoryKind,id:string){return structuredClone(this.store?.get<HistoryRow>(this.key(project,kind,id))??this.memory.get(this.key(project,kind,id)));}
+ page(project:string,kind:HistoryKind,query:unknown){return pageHistory(this.list(project,kind).map(entry=>{const row=this.get(project,kind,entry.id)!;return {...entry,createdAt:row.value.createdAt,name:kind==='analysis'?(row.value as AnalysisRecord).result.summary.slice(0,160):row.value.id,status:kind==='attempt'?(row.value as FixAttempt).status:'analysis'};}),query);}
  async put(project:string,kind:HistoryKind,id:string,expectedVersion:number,value:AnalysisRecord|FixAttempt){
   uuid(id);if(value.id!==id||value.projectId!==project||!Number.isSafeInteger(expectedVersion)||expectedVersion<0||!Number.isFinite(Date.parse(value.createdAt)))throw Error('Invalid history record.');
   if(kind==='attempt'){
@@ -41,8 +43,8 @@ export function historyGateway(store:HistoryStore,token:string,origins:string[],
  if(origin&&!origins.includes(origin)){res.statusCode=403;res.end('{"error":"permission"}');return;}if(origin){res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Vary','Origin');}res.setHeader('Access-Control-Allow-Headers','Authorization, Content-Type, X-Project-Id');if(req.method==='OPTIONS'){res.end();return;}
  try{const actual=req.headers.authorization?.slice(7)??'';if(!req.headers.authorization?.startsWith('Bearer ')||!timingSafeEqual(createHash('sha256').update(actual).digest(),createHash('sha256').update(token).digest())){res.statusCode=401;throw Error('Authentication required.');}
   const p=String(req.headers['x-project-id']??'');if(!project(p))throw Error('Project boundary.');if(req.method!=='POST'||req.url!=='/history/request')throw Error('Invalid history request.');req.setTimeout(15000,()=>req.destroy());const chunks:Buffer[]=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>1048576)throw Error('History record exceeds safe limit.');chunks.push(Buffer.from(chunk));}
-  const input=JSON.parse(Buffer.concat(chunks).toString('utf8')) as {action:string;kind:HistoryKind;id:string;version:number;value:AnalysisRecord|FixAttempt};if(!['analysis','attempt'].includes(input.kind))throw Error('Invalid history kind.');let value:unknown;
+  const input=JSON.parse(Buffer.concat(chunks).toString('utf8')) as {action:string;kind:HistoryKind;id:string;version:number;value:AnalysisRecord|FixAttempt;query:unknown};if(!['analysis','attempt'].includes(input.kind))throw Error('Invalid history kind.');let value:unknown;
   authorize?.(req,p,input.action,input.kind,input.value);
-  if(input.action==='list')value=store.list(p,input.kind);else{uuid(input.id);if(input.action==='get')value=store.get(p,input.kind,input.id)??null;else if(input.action==='put')value=await store.put(p,input.kind,input.id,input.version,input.value);else throw Error('Invalid history action.');}res.end(JSON.stringify({value}));
+  if(input.action==='page')value=store.page(p,input.kind,input.query);else if(input.action==='list')value=store.list(p,input.kind);else{uuid(input.id);if(input.action==='get')value=store.get(p,input.kind,input.id)??null;else if(input.action==='put')value=await store.put(p,input.kind,input.id,input.version,input.value);else throw Error('Invalid history action.');}res.end(JSON.stringify({value}));
  }catch(e){if(e instanceof TeamAccessError){res.statusCode=403;if(!res.destroyed)res.end(JSON.stringify({error:'TEAM_FORBIDDEN'}));return;}if(res.statusCode===200)res.statusCode=e instanceof Error&&e.message==='HISTORY_CONFLICT'?409:400;if(!res.destroyed)res.end(JSON.stringify({error:e instanceof Error&&/^(HISTORY_CONFLICT|Invalid (history|attempt|stored patch|approval scope|analysis)|History identity|Analysis is immutable|Reviewed proposal|Authentication required|Project boundary|Core storage write failed|History record exceeds)/.test(e.message)?e.message:'History persistence failed.'}));}
 };}

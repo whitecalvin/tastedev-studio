@@ -35,6 +35,8 @@ test('team WebSocket enforces identity, role and project switching',async()=>{co
  const viewer=await f.connect('viewer');assert.equal((viewer.messages.find(m=>m.type==='snapshot')!.access as {role:string}).role,'Viewer');
  assert.match(String((await f.rpc(viewer,'registerAgent',[{}])).error),/TEAM_FORBIDDEN/);
  assert.match(String((await f.rpc(viewer,'createJob',[{}])).error),/TEAM_FORBIDDEN/);
+ assert.ok(!(await f.rpc(viewer,'records',['page',{limit:25}])).error);
+ assert.match(String((await f.rpc(viewer,'records',['policy-save',1])).error),/TEAM_FORBIDDEN/);
  const count=viewer.messages.filter(m=>m.type==='snapshot').length;viewer.socket.send(JSON.stringify({type:'subscribe',protocolVersion:1,project:{id:f.b,name:'Forged project'}}));await wait(()=>viewer.messages.some(m=>m.error==='TEAM_FORBIDDEN'));assert.equal(viewer.messages.filter(m=>m.type==='snapshot').length,count);
  const denied=await f.connect('developer',f.b);assert.equal(denied.messages[0].error,'TEAM_FORBIDDEN');
 }finally{await f.close();}});

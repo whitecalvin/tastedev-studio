@@ -37,4 +37,6 @@ export class LocalArtifactStore implements ArtifactStore {
   }
   async get(run:string,id:string){const file=this.location(run,id);await this.safe(path.dirname(file));for(const p of [file,`${file}.json`])if((await fs.lstat(p)).isSymbolicLink())throw new Error('Artifact link forbidden.');const meta=JSON.parse(await fs.readFile(`${file}.json`,'utf8')) as StoredArtifact;const bytes=await fs.readFile(file);if(bytes.length!==meta.size||createHash('sha256').update(bytes).digest('hex')!==meta.checksum)throw new Error('Stored artifact integrity failure.');return {meta,bytes};}
   async delete(run:string,id:string){const file=this.location(run,id);await this.get(run,id);await fs.unlink(`${file}.json`);await fs.unlink(file);}
+  /** Called only after a durable metadata tombstone. Repeat after interrupted purge. */
+  async purge(run:string,id:string){const file=this.location(run,id);await this.safe(path.dirname(file));for(const target of [`${file}.json`,file]){try{if((await fs.lstat(target)).isSymbolicLink())throw Error('Artifact link forbidden.');await fs.unlink(target);}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}}}
 }

@@ -41,5 +41,11 @@ export class RunLogs {
     while(this.data.size>100||retained()>524288){const first=this.data.keys().next().value!;this.data.delete(first);for(const key of this.last.keys())if(key===first||key.startsWith(first+'/'))this.last.delete(key);}
   }
   read(runIds:string[]) {return Object.fromEntries(runIds.map(id=>[id,this.data.get(id)??[]]));}
+  since(id:string,cursors:unknown){
+    if(!cursors||typeof cursors!=='object'||Array.isArray(cursors)||Object.keys(cursors).length>100||Object.entries(cursors).some(([key,value])=>key.length>100||!Number.isSafeInteger(value)||(value as number)<0))throw new CoreError('Invalid log resume cursor.');
+    const input=cursors as Record<string,number>,rows=this.data.get(id)??[],keys=new Set([...rows.map(r=>r.runStepId??''),...Object.keys(input)]);
+    const next:Record<string,number>={},gaps:string[]=[];for(const key of keys){const retained=rows.filter(r=>(r.runStepId??'')===key),last=this.last.get(key?`${id}/${key}`:id)??0;next[key]=last;const oldest=retained[0]?.sequence;if((input[key]??0)>last||last>(input[key]??0)&&(!oldest||oldest>(input[key]??0)+1))gaps.push(key);}
+    return {chunks:rows.filter(r=>r.sequence>(input[r.runStepId??'']??0)),cursors:next,gaps,partial:gaps.length>0};
+  }
 }
 
