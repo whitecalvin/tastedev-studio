@@ -213,6 +213,12 @@
           "markdownDescription": "Enables the runtime_diagnostic command without any pre-configured scope."
         },
         {
+          "description": "Enables the update_action command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-update-action",
+          "markdownDescription": "Enables the update_action command without any pre-configured scope."
+        },
+        {
           "description": "Enables the workspace_bind command without any pre-configured scope.",
           "type": "string",
           "const": "allow-workspace-bind",
@@ -289,6 +295,12 @@
           "type": "string",
           "const": "deny-runtime-diagnostic",
           "markdownDescription": "Denies the runtime_diagnostic command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the update_action command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-update-action",
+          "markdownDescription": "Denies the update_action command without any pre-configured scope."
         },
         {
           "description": "Denies the workspace_bind command without any pre-configured scope.",

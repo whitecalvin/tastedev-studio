@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import { UpdateService, type UpdateStatus } from '../src/features/update/service.ts';
 import { languages } from '../src/i18n/core.ts';
@@ -27,5 +28,17 @@ test('concurrent clicks serialize; command failures are recoverable and sanitize
   const failed = new UpdateService(true, async () => { throw 'private diagnostic'; }); await failed.action('check'); assert.equal(failed.snapshot().pending, false); assert.doesNotMatch(failed.snapshot().error, /private/);
 });
 test('all supported languages have update messages', () => {
-  for (const language of languages.filter(l => l !== 'en')) { assert.equal(Object.keys(updateMessages[language]!).length, 22); for (const value of Object.values(updateMessages[language]!)) assert.ok(value.trim()); }
+  for (const language of languages.filter(l => l !== 'en')) { assert.equal(Object.keys(updateMessages[language]!).length, 24); for (const value of Object.values(updateMessages[language]!)) assert.ok(value.trim()); }
+});
+
+
+test('native update bridge has generated permission and a local main-window capability',()=>{
+ const build=readFileSync(new URL('../src-tauri/build.rs',import.meta.url),'utf8'),capability=JSON.parse(readFileSync(new URL('../src-tauri/capabilities/main.json',import.meta.url),'utf8'));
+ assert.match(build,/"update_action"/);assert.deepEqual(capability.windows,['main']);assert(capability.permissions.includes('allow-update-action'));assert(!capability.remote);
+});
+test('initial native failure can recover on reopening without leaving controls permanently busy',async()=>{
+ let fail=true;const service=new UpdateService(true,async()=>{if(fail)throw 'update_action not allowed';return initial;});await service.start();assert.equal(service.snapshot().status,null);assert.equal(service.snapshot().pending,false);assert.match(service.snapshot().error,/Reinstall/);fail=false;service.show();await new Promise(resolve=>setImmediate(resolve));assert.equal(service.snapshot().status?.currentVersion,initial.currentVersion);assert.equal(service.snapshot().error,'');assert.equal(service.snapshot().pending,false);
+});
+test('network failure gets actionable safe feedback without exposing arbitrary diagnostics',async()=>{
+ const service=new UpdateService(true,async()=>{throw 'network';});await service.action('check');assert.match(service.snapshot().error,/connection/);
 });

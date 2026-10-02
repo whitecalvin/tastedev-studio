@@ -14,6 +14,7 @@ fn main() {
             "process_write",
             "process_resize",
             "runtime_diagnostic",
+            "update_action",
         ]),
     ))
     .expect("Tauri build configuration failed");

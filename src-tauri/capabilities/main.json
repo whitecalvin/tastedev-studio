@@ -19,6 +19,7 @@
     "allow-process-stop",
     "allow-process-write",
     "allow-process-resize",
-    "allow-runtime-diagnostic"
+    "allow-runtime-diagnostic",
+    "allow-update-action"
   ]
 }
