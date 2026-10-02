@@ -59,9 +59,7 @@
     "icon": "resources/branding/tastedev-studio-desktop/icons/icon.png",
     "desktopCategories": "Development;IDE;",
     "startupWmClass": "com.gxsoft.tastedev.studio",
-    "packageFormats": [
-      "deb"
-    ],
+    "packageFormats": ["deb", "appimage"],
     "rpmLicense": "MIT OR Apache-2.0"
   },
   "ssh": {
