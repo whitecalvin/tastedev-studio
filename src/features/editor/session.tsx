@@ -24,6 +24,7 @@ function useFileSession(projectId: string) {
   useUpdateProtection(() => documents.snapshot().dirtyEditors.length > 0 || lock.current);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [languageNotices, setLanguageNotices] = useState<{monaco:string[];server:string[]}>({monaco:[],server:[]});
   const [revision, setRevision] = useState(0);
   const [problems, setProblems] = useState<EditorProblem[]>([]);
   const [pending, setPending] = useState<Pending | null>(null);
@@ -69,7 +70,7 @@ function useFileSession(projectId: string) {
     await run('Closing editor…', async () => { await documents.close(id, choice); });
   };
   const save = () => run('Saving file…', async () => { const id = documents.snapshot().activeEditorId; if (id) { await documents.save(id); setNotice('File saved to the connected folder.'); } });
-  return { projectId, files, documents, editor, connection, ready, busy, error, notice, setError, setNotice, revision, problems, setProblems, refresh: () => setRevision(n => n + 1), pending, ask, answer, run, protect, connect, disconnect, close, save, saveAll, requestAccess: () => run('Requesting access…', async () => { setConnection(await files.requestAccess()); setRevision(n => n + 1); }) };
+  return { projectId, files, documents, editor, connection, ready, busy, error, notice, setError, setNotice, languageNotices, setLanguageNotices, revision, problems, setProblems, refresh: () => setRevision(n => n + 1), pending, ask, answer, run, protect, connect, disconnect, close, save, saveAll, requestAccess: () => run('Requesting access…', async () => { setConnection(await files.requestAccess()); setRevision(n => n + 1); }) };
 }
 type Session = ReturnType<typeof useFileSession>;
 const Context = createContext<Session | null>(null);

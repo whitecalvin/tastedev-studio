@@ -1,6 +1,12 @@
 import type {Language} from './core.ts';
 const locales:Language[]=['ko','de','es','fr','it','pt','ja','zh','zh-hant'];
-const rows=`Connection profiles|연결 프로필|Verbindungsprofile|Perfiles de conexión|Profils de connexion|Profili di connessione|Perfis de conexão|接続プロファイル|连接配置|連線設定
+const rows=`Language index notice|언어 색인 안내|Sprachindex-Hinweis|Aviso del índice de lenguaje|Avis d’indexation linguistique|Avviso indice linguistico|Aviso de índice de linguagem|言語索引のお知らせ|语言索引提示|語言索引提示
+Language indexing limit reached. Open additional files directly.|언어 색인 한도에 도달했습니다. 필요한 파일을 직접 열어주세요.|Sprachindexlimit erreicht. Öffnen Sie weitere Dateien direkt.|Límite de indexación alcanzado. Abra otros archivos directamente.|Limite d’indexation atteinte. Ouvrez les autres fichiers directement.|Limite di indicizzazione raggiunto. Apri direttamente altri file.|Limite de indexação atingido. Abra outros arquivos diretamente.|言語索引の上限に達しました。必要なファイルを直接開いてください。|已达语言索引上限。请直接打开其他文件。|已達語言索引上限。請直接開啟其他檔案。
+Folder|폴더|Ordner|Carpeta|Dossier|Cartella|Pasta|フォルダー|文件夹|資料夾
+Connection settings|연결 설정|Verbindungseinstellungen|Configuración de conexión|Paramètres de connexion|Impostazioni di connessione|Configurações de conexão|接続設定|连接设置|連線設定
+Core disconnected|Core 연결 끊김|Core getrennt|Core desconectado|Core déconnecté|Core disconnesso|Core desconectado|Core 未接続|Core 已断开|Core 已中斷
+Reconnecting to Core…|Core 재연결 중…|Core wird erneut verbunden…|Reconectando a Core…|Reconnexion à Core…|Riconnessione a Core…|Reconectando ao Core…|Core に再接続中…|正在重新连接 Core…|正在重新連線 Core…
+Connection profiles|연결 프로필|Verbindungsprofile|Perfiles de conexión|Profils de connexion|Profili di connessione|Perfis de conexão|接続プロファイル|连接配置|連線設定
 Profiles save addresses only. Tokens must be entered for each connection.|주소만 저장합니다. 연결할 때 token을 입력하세요.|Nur Adressen werden gespeichert. Token bei jeder Verbindung eingeben.|Solo se guardan direcciones. Introduzca el token en cada conexión.|Seules les adresses sont enregistrées. Saisissez le jeton à chaque connexion.|Si salvano solo gli indirizzi. Inserisci il token per ogni connessione.|Somente endereços são salvos. Informe o token a cada conexão.|アドレスのみ保存します。接続ごとにトークンを入力してください。|仅保存地址，每次连接需输入令牌。|僅儲存位址，每次連線需輸入權杖。
 Load profiles|프로필 불러오기|Profile laden|Cargar perfiles|Charger les profils|Carica profili|Carregar perfis|プロファイルを読み込む|加载配置|載入設定
 Saved profile|저장된 프로필|Gespeichertes Profil|Perfil guardado|Profil enregistré|Profilo salvato|Perfil salvo|保存済みプロファイル|已保存配置|已儲存設定

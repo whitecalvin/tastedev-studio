@@ -1,5 +1,6 @@
 "use client";
 import {WorkflowBar} from './workflow-bar';
+import {LanguageIndexStatus} from '../editor/language-status';
 import {DebugProvider,DebugView} from '../debugger/views';
 import { useI18n, LanguageControl } from '@/i18n/react';
 import { AIStateProvider, AISidebar, AIPanel, AIProposalArea, useAI } from '../ai/views';
@@ -24,6 +25,7 @@ import { gitDecoration, statusLetters } from '../git/service';
 import { RunProvider } from '../process/context';
 import { RunView, RunStatus, TerminalView, OutputView } from '../process/views';
 import { CoreProvider } from '../core/context';
+import {CoreConnectionIndicator,CoreConnectionToast} from '../core/connection-indicator';
 import { CoreSidebar, CoreDetail } from '../core/views';
 import { ProtocolProvider, ProtocolStatus, ProtocolView } from '../protocol/views';
 import { bottomTabs, shortcuts, type Activity, type Panel } from './state';
@@ -69,7 +71,7 @@ export function TitleBar({ project }: { project: Project }) {
   const { t } = useI18n();
 
   const { state } = useWorkspace();
-  return <header className="ws-titlebar"><Link href="/" className="ws-brand" title={t("Return to Project Manager")}><Boxes size={18} /><span>TASTESTUDIO</span></Link><span className="ws-divider" /><strong className="ws-project-name" title={project.name}>{project.name}</strong><span className="ws-breadcrumb">/ {t(activities.find(item => item.id === state.activeActivity)?.label ?? "")}</span><span className="ws-metadata"><ConnectionStatus /></span><div className="ws-title-actions"><AnnouncementsButton /><LanguageControl /><ThemeControl /><PanelToggle panel="primarySidebarVisible" label={t("Primary sidebar")}><PanelLeft size={17} /></PanelToggle><PanelToggle panel="bottomPanelVisible" label={t("Bottom panel")}><PanelBottom size={17} /></PanelToggle><PanelToggle panel="secondaryPanelVisible" label={t("Secondary panel")}><PanelRight size={17} /></PanelToggle><Link href="/" className="ws-manager-link"><ArrowLeft size={14} />{t("Projects")}</Link></div></header>;
+  return <header className="ws-titlebar"><Link href="/" className="ws-brand" title={t("Return to Project Manager")}><Boxes size={18} /><span>TASTESTUDIO</span></Link><span className="ws-divider" /><strong className="ws-project-name" title={project.name}>{project.name}</strong><span className="ws-breadcrumb">/ {t(activities.find(item => item.id === state.activeActivity)?.label ?? "")}</span><span className="ws-metadata">{t("Folder")}: <ConnectionStatus /></span><CoreConnectionIndicator compact/><div className="ws-title-actions"><AnnouncementsButton /><LanguageControl /><ThemeControl /><PanelToggle panel="primarySidebarVisible" label={t("Primary sidebar")}><PanelLeft size={17} /></PanelToggle><PanelToggle panel="bottomPanelVisible" label={t("Bottom panel")}><PanelBottom size={17} /></PanelToggle><PanelToggle panel="secondaryPanelVisible" label={t("Secondary panel")}><PanelRight size={17} /></PanelToggle><Link href="/" className="ws-manager-link"><ArrowLeft size={14} />{t("Projects")}</Link></div></header>;
 }
 export function ActivityBar() {
   const { t } = useI18n();
@@ -117,11 +119,11 @@ export function BottomPanel() {
 }
 export function StatusBar({ project }: { project: Project }) {
   const { t } = useI18n();
- const { connection, editor } = useFiles(); const active = editor.openEditors.find(d => d.id === editor.activeEditorId); return <footer className="ws-status"><span><RuntimeLabel /></span><span className="ws-status-path" title={connection?.workspacePath ?? project.workspacePath ?? undefined}>{connection?.name ?? project.workspacePath ?? t("No folder connected")}</span><span><ConnectionStatus /></span><span>{active?.language ?? t("No open file")}</span><span>{editor.dirtyEditors.length} {t("unsaved")}</span><ProtocolStatus /><RunStatus /><GitStatus /></footer>; }
+ const { connection, editor } = useFiles(); const active = editor.openEditors.find(d => d.id === editor.activeEditorId); return <footer className="ws-status"><span><RuntimeLabel /></span><span className="ws-status-path" title={connection?.workspacePath ?? project.workspacePath ?? undefined}>{connection?.name ?? project.workspacePath ?? t("No folder connected")}</span><span>{t("Folder")}: <ConnectionStatus /></span><CoreConnectionIndicator/><span>{active?.language ?? t("No open file")}</span><span>{editor.dirtyEditors.length} {t("unsaved")}</span><LanguageIndexStatus/><ProtocolStatus /><RunStatus /><GitStatus /></footer>; }
 export function WorkspaceShell({ project }: { project: Project }) { return <DebugProvider><ProtocolProvider><AIStateProvider><IssuesProvider><ScheduleProvider><WorkspaceContent project={project} /></ScheduleProvider></IssuesProvider></AIStateProvider></ProtocolProvider></DebugProvider>; }
 function WorkspaceContent({ project }: { project: Project }) {
   const { t } = useI18n();
- const ai=useAI(); const { state } = useWorkspace(); const coreActive = ['agents','queue','runs'].includes(state.activeActivity),issuesActive=state.activeActivity==='issues',schedulerActive=state.activeActivity==='scheduler'; return <div className="ws-shell" style={{ '--ws-bottom-height': `${state.bottomHeight}px`, '--ws-secondary-width': `${state.secondaryWidth}px` } as CSSProperties}><a href="#main-content" className="skip-link">{t("Skip to editor")}</a><TitleBar project={project} /><WorkflowBar/><FileFeedback /><div className="ws-main"><ActivityBar /><PrimarySidebar /><div className="ws-editor-host" hidden={coreActive||issuesActive||schedulerActive||state.activeActivity==='ai'||!!ai.proposal}><GitEditorArea /></div>{!ai.proposal&&coreActive && <CoreDetail activity={state.activeActivity} />}{!ai.proposal&&issuesActive&&<IssueDetail />}{!ai.proposal&&schedulerActive&&<ScheduleDetail />}<AIProposalArea /><SecondaryPanel /></div><BottomPanel /><StatusBar project={project} /></div>; }
+ const ai=useAI(); const { state } = useWorkspace(); const coreActive = ['agents','queue','runs'].includes(state.activeActivity),issuesActive=state.activeActivity==='issues',schedulerActive=state.activeActivity==='scheduler'; return <div className="ws-shell" style={{ '--ws-bottom-height': `${state.bottomHeight}px`, '--ws-secondary-width': `${state.secondaryWidth}px` } as CSSProperties}><a href="#main-content" className="skip-link">{t("Skip to editor")}</a><TitleBar project={project} /><CoreConnectionToast/><WorkflowBar/><FileFeedback /><div className="ws-main"><ActivityBar /><PrimarySidebar /><div className="ws-editor-host" hidden={coreActive||issuesActive||schedulerActive||state.activeActivity==='ai'||!!ai.proposal}><GitEditorArea /></div>{!ai.proposal&&coreActive && <CoreDetail activity={state.activeActivity} />}{!ai.proposal&&issuesActive&&<IssueDetail />}{!ai.proposal&&schedulerActive&&<ScheduleDetail />}<AIProposalArea /><SecondaryPanel /></div><BottomPanel /><StatusBar project={project} /></div>; }
 
 
 

@@ -27,7 +27,7 @@ export function loadMonaco() {
 }
 export function MonacoEditor() {
   const debug=useDebugService();const languageService=useLanguageService();
-  const { documents, editor: state, busy, files, connection, revision, setProblems } = useFiles();
+  const { documents, editor: state, busy, files, connection, revision, setProblems, setLanguageNotices } = useFiles();
   const {t}=useI18n();const ariaLabel=t('File editor');const label=useRef(ariaLabel);
   const container = useRef<HTMLDivElement>(null);
   const instance = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -88,13 +88,13 @@ export function MonacoEditor() {
           if(!alive){language.dispose();return;}
           for(const file of language.result.files){const model=monaco.editor.getModel(workspaceUri(monaco,connectionId,file.path));if(model)retained.add(model);}
           languageCleanup=()=>{language.dispose();for(const model of retained)if(!model.isDisposed())model.dispose();};
-          if(language.warnings.length)setError(language.warnings.join(' '));else if(language.result.limited)setError('Language indexing limit reached. Open additional files directly.');
+          setLanguageNotices(previous=>({...previous,monaco:[...language.warnings,...(language.result.limited?['Language indexing limit reached. Open additional files directly.']:[])]}));
           updateProblems();
         }).catch(error=>{if(alive&&!controller.signal.aborted)setError(error instanceof Error?error.message:'Language workspace could not load.');});
       }
     }).catch(error => { if (alive) setError(error instanceof Error ? error.message : 'The editor could not be loaded.'); });
-    return () => { alive = false; controller.abort(); if(actionListener)window.removeEventListener('tastestudio.editor.action',actionListener); unsubscribe?.(); unsubscribeDebug?.(); observer?.disconnect(); modelChanges.forEach(disposable=>disposable.dispose());serverCleanup?.(); selection?.dispose(); opener?.dispose(); markers?.dispose(); instance.current?.dispose(); instance.current = null; languageCleanup?.(); models.forEach(model => {if(!model.isDisposed())model.dispose();}); setProblems([]); };
-  }, [debug, languageService, documents, files, connection, revision, setProblems]);
+    return () => { alive = false; controller.abort(); if(actionListener)window.removeEventListener('tastestudio.editor.action',actionListener); unsubscribe?.(); unsubscribeDebug?.(); observer?.disconnect(); modelChanges.forEach(disposable=>disposable.dispose());serverCleanup?.(); selection?.dispose(); opener?.dispose(); markers?.dispose(); instance.current?.dispose(); instance.current = null; languageCleanup?.(); models.forEach(model => {if(!model.isDisposed())model.dispose();}); setProblems([]); setLanguageNotices(previous=>({...previous,monaco:[]})); };
+  }, [debug, languageService, documents, files, connection, revision, setProblems, setLanguageNotices]);
   useEffect(() => { protectedEditor.current=busy; instance.current?.updateOptions({ readOnly: !!busy }); }, [busy]);
   return <div className="fs-monaco-wrap" hidden={!state.activeEditorId}><div ref={container} className="fs-monaco" />{error && <p className="fs-editor-error" role="alert">{error}</p>}</div>;
 }
