@@ -6,8 +6,8 @@ export const UPLOAD_CHUNK=1048576,UPLOAD_COUNT=16,UPLOAD_TTL=86400000;
 interface Checkpoint {meta:StoredArtifact;offset:number;updatedAt:number}
 /** Acknowledged prefix is fsynced before an atomic checkpoint. A crash tail is truncated on resume. */
 export class ArtifactUploads {
- private root:string;private store:LocalArtifactStore;private busy=new Set<string>();private creating=false;
- constructor(root:string,store:LocalArtifactStore){this.root=path.resolve(root);this.store=store;}
+ private root:string;private store:Pick<LocalArtifactStore,'put'>;private busy=new Set<string>();private creating=false;
+ constructor(root:string,store:Pick<LocalArtifactStore,'put'>){this.root=path.resolve(root);this.store=store;}
  private async safe(file:string){for(let cursor=file;;cursor=path.dirname(cursor)){try{if((await fs.lstat(cursor)).isSymbolicLink())throw Error('Upload links forbidden.');}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}if(path.dirname(cursor)===cursor)break;}await fs.mkdir(this.root,{recursive:true});}
  private file(meta:StoredArtifact){artifactId(meta.runId);artifactId(meta.runStepId);artifactId(meta.id);return path.join(this.root,meta.runId+'-'+meta.id);}
  private identity(meta:StoredArtifact){return JSON.stringify([meta.id,meta.runId,meta.runStepId,meta.projectId,meta.type,meta.name,meta.size,meta.checksum,meta.mimeType]);}

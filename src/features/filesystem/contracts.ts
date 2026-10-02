@@ -16,6 +16,7 @@ export interface FileSystemHost {
   disconnect(projectId: string, connectionId: string): Promise<void>;
   readDirectory(connectionId: string, path: string): Promise<FileEntry[]>;
   readFile(connectionId: string, path: string): Promise<FileSnapshot>;
+  readBytes?(connectionId:string,path:string):Promise<Uint8Array>;
   writeFile(connectionId: string, path: string, content: string, expected: string): Promise<void>;
   createFile(connectionId: string, path: string): Promise<void>;
   createDirectory(connectionId: string, path: string): Promise<void>;

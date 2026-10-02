@@ -19,10 +19,16 @@ pub struct File {
     pub checksum: String,
     #[serde(default, skip_serializing_if = "is_false")]
     pub cached: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub encoding: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub size: Option<u64>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Snapshot {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub schema_version: Option<u32>,
     pub provider: String,
     pub snapshot_id: String,
     pub project_id: String,
@@ -32,6 +38,8 @@ pub struct Snapshot {
     pub changed_files: Vec<String>,
     pub files: Vec<File>,
     pub checksum: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transfer: Option<crate::snapshot_download::Transfer>,
 }
 fn is_false(value: &bool) -> bool {
     !*value
@@ -39,10 +47,11 @@ fn is_false(value: &bool) -> bool {
 fn hash(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
-fn safe(path: &str) -> Result<()> {
+pub(crate) fn safe(path: &str) -> Result<()> {
     if path.is_empty()
         || path.len() > 240
-        || path.contains(['\\', ':', '\0'])
+        || path.contains(['\\', ':', '\0', '%'])
+        || path.chars().any(|c| c.is_ascii_control())
         || path.starts_with('/')
     {
         return Err("Snapshot path escape".into());
@@ -95,6 +104,9 @@ fn safe(path: &str) -> Result<()> {
 }
 pub fn validate(source: &Source) -> Result<()> {
     let s = source.snapshot.as_ref().ok_or("Snapshot missing")?;
+    if s.schema_version == Some(2) {
+        return crate::snapshot_download::validate_reference(source);
+    }
     for id in [&s.snapshot_id, &s.project_id, &s.proposal_id] {
         uuid::Uuid::parse_str(id).map_err(|_| "Invalid snapshot identity")?;
     }
@@ -106,6 +118,11 @@ pub fn validate(source: &Source) -> Result<()> {
         || !(1..=10).contains(&s.attempt)
         || s.files.is_empty()
         || s.files.len() > 100
+        || s.schema_version.is_some()
+        || s.transfer.is_some()
+        || s.files
+            .iter()
+            .any(|f| f.encoding.is_some() || f.size.is_some())
     {
         return Err("Invalid snapshot".into());
     }
@@ -161,10 +178,20 @@ pub fn validate(source: &Source) -> Result<()> {
 fn bounded_read(path: &Path) -> Result<Vec<u8>> {
     no_links(path)?;
     let meta = fs::metadata(path).map_err(|_| "Snapshot file unavailable")?;
-    if !meta.is_file() || meta.len() > 24000 {
+    if !meta.is_file() || meta.len() > crate::snapshot_download::FILE_LIMIT as u64 {
         return Err("Snapshot file limit".into());
     }
-    fs::read(path).map_err(|_| "Snapshot file read failed".into())
+    use std::io::Read;
+    let mut bytes = Vec::new();
+    fs::File::open(path)
+        .map_err(|_| "Snapshot file read failed")?
+        .take(crate::snapshot_download::FILE_LIMIT as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| "Snapshot file read failed")?;
+    if bytes.len() > crate::snapshot_download::FILE_LIMIT {
+        return Err("Snapshot file grew beyond limit".into());
+    }
+    Ok(bytes)
 }
 fn verify_tree(root: &Path, files: &[File]) -> Result<()> {
     let mut pending = vec![root.to_path_buf()];
@@ -175,7 +202,13 @@ fn verify_tree(root: &Path, files: &[File]) -> Result<()> {
         for entry in fs::read_dir(&dir).map_err(|_| "Snapshot tree unavailable")? {
             let entry = entry.map_err(|_| "Snapshot tree unavailable")?;
             count += 1;
-            if count > 1000 {
+            if count
+                > if files.iter().any(|f| f.encoding.is_some()) {
+                    30000
+                } else {
+                    1000
+                }
+            {
                 return Err("Snapshot tree limit".into());
             }
             let path = entry.path();
@@ -210,7 +243,19 @@ pub fn prepare(request: &Request, root: &Path, cancel: Arc<AtomicBool>) -> Resul
     }
     let source = request.source.as_ref().ok_or("Source missing")?;
     validate(source)?;
-    let s = source.snapshot.as_ref().ok_or("Snapshot missing")?;
+    let downloaded = if source
+        .snapshot
+        .as_ref()
+        .is_some_and(|s| s.schema_version == Some(2))
+    {
+        Some(crate::snapshot_download::manifest(request, &cancel)?)
+    } else {
+        None
+    };
+    let s = downloaded
+        .as_ref()
+        .or(source.snapshot.as_ref())
+        .ok_or("Snapshot missing")?;
     if s.project_id != request.project_id {
         return Err("Snapshot project mismatch".into());
     }
@@ -266,6 +311,11 @@ pub fn prepare(request: &Request, root: &Path, cancel: Arc<AtomicBool>) -> Resul
             }
             let bytes = if already_complete {
                 bounded_read(&path)?
+            } else if s.schema_version == Some(2) {
+                match crate::source_cache::read(root, &s.project_id, &f.checksum) {
+                    Ok(bytes) if bytes.len() as u64 == f.size.unwrap_or(0) => bytes,
+                    _ => crate::snapshot_download::file(request, root, f, &cancel)?,
+                }
             } else if f.cached {
                 match bounded_read(&path) {
                     Ok(bytes) if hash(&bytes) == f.checksum => bytes,
@@ -275,7 +325,15 @@ pub fn prepare(request: &Request, root: &Path, cancel: Arc<AtomicBool>) -> Resul
                 f.content.as_bytes().to_vec()
             };
             materialized += bytes.len();
-            if materialized > 24000 || bytes.contains(&0) || std::str::from_utf8(&bytes).is_err() {
+            if materialized
+                > if s.schema_version == Some(2) {
+                    crate::snapshot_download::TOTAL_LIMIT as usize
+                } else {
+                    24000
+                }
+                || s.schema_version != Some(2)
+                    && (bytes.contains(&0) || std::str::from_utf8(&bytes).is_err())
+            {
                 return Err("Materialized snapshot limit".into());
             }
             let _ = crate::source_cache::save(root, &s.project_id, &f.checksum, &bytes);
@@ -320,8 +378,12 @@ mod tests {
             content: "console.log(1);".into(),
             checksum: hash(b"console.log(1);"),
             cached: false,
+            encoding: None,
+            size: None,
         };
         let mut s = Snapshot {
+            schema_version: None,
+            transfer: None,
             provider: "snapshot".into(),
             snapshot_id: uuid::Uuid::new_v4().to_string(),
             project_id: uuid::Uuid::new_v4().to_string(),
@@ -343,6 +405,7 @@ mod tests {
         ]);
         s.checksum = hash(manifest.to_string().as_bytes());
         Source {
+            trusted_core: None,
             provider: "snapshot".into(),
             repository: format!("snapshot:{}", s.snapshot_id),
             revision: "main".into(),

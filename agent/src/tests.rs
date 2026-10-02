@@ -62,6 +62,7 @@ fn capability_recheck_rejects_a_stale_advertised_runtime_before_execution() {
     let mut request = request();
     request.requirements.runtimes = Some([("node".into(), ">=999".into())].into());
     let advertised = Capabilities {
+        source_snapshot: Some(2),
         cpu_cores: 2,
         memory_mi_b: 1024,
         docker: false,
@@ -78,6 +79,7 @@ fn capability_check_observes_cancellation_before_starting_a_tool_probe() {
     let mut request = request();
     request.requirements.runtimes = Some([("node".into(), ">=24".into())].into());
     let advertised = Capabilities {
+        source_snapshot: Some(2),
         cpu_cores: 2,
         memory_mi_b: 1024,
         docker: false,
@@ -112,6 +114,7 @@ fn capability_probe_respects_task_path_instead_of_agent_path() {
         .insert("PATH".into(), empty.path().to_string_lossy().into());
     request.requirements.runtimes = Some([("git".into(), ">=1".into())].into());
     let advertised = Capabilities {
+        source_snapshot: Some(2),
         cpu_cores: 2,
         memory_mi_b: 1024,
         docker: false,
@@ -126,6 +129,7 @@ fn capability_probe_respects_task_path_instead_of_agent_path() {
 #[test]
 fn source_and_health_validation() {
     let source = Source {
+        trusted_core: None,
         provider: "git".into(),
         repository: "https://example.org/project.git".into(),
         revision: "main".into(),
@@ -331,6 +335,7 @@ fn workspace_boundary_and_duplicate() {
 fn capability_matching() {
     let r = request();
     let c = Capabilities {
+        source_snapshot: Some(2),
         cpu_cores: 2,
         memory_mi_b: 4096,
         docker: false,

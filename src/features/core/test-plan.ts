@@ -1,4 +1,5 @@
 import type {WorkspaceSnapshot} from '../ai/snapshot.ts';
+import {verifyProjectReference,type ProjectSnapshot} from '../ai/project-snapshot.ts';
 import type { JobPayload, JobRequirement } from './domain.ts';
 
 export type TestType = 'unit' | 'integration' | 'api' | 'browser' | 'e2e';
@@ -33,7 +34,7 @@ export function validateSource(source: GitSource): GitSource;
 export function validateSource(source: SnapshotSource): SnapshotSource;
 export function validateSource(source: GitSource | SnapshotSource): GitSource | SnapshotSource;
 export function validateSource(source: GitSource | SnapshotSource) {
- if(source.provider==='snapshot'){const s=source.snapshot;if(!s||s.provider!=='snapshot'||source.repository!=='snapshot:'+s.snapshotId||source.revision!==s.baseRevision||!Array.isArray(s.files)||s.files.length>100||JSON.stringify(source).length>52000)throw new Error('Invalid snapshot source.');return structuredClone(source);}
+ if(source.provider==='snapshot'){const s=source.snapshot;if(!s||s.provider!=='snapshot'||source.repository!=='snapshot:'+s.snapshotId||source.revision!==s.baseRevision||!Array.isArray(s.files)||s.files.length>100||JSON.stringify(source).length>52000)throw new Error('Invalid snapshot source.');if(s.schemaVersion===2)verifyProjectReference(s as ProjectSnapshot);return structuredClone(source);}
 
   let url: URL;
   try { url = new URL(source.repository); } catch { throw new Error('Source requires an absolute Git URL.'); }

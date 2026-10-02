@@ -1,5 +1,5 @@
 import { DatabaseSync, backup } from 'node:sqlite';
-import { createCipheriv, createDecipheriv, randomBytes, createHmac, createHash } from 'node:crypto';
+import { createCipheriv, createDecipheriv, randomBytes, createHmac } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
@@ -7,7 +7,7 @@ import { InMemoryCoreRepository } from '../src/features/core/repository.ts';
 import {historyQuery} from '../src/features/core/history-query.ts';
 import type { CoreSnapshot } from '../src/features/core/domain.ts';
 
-export const STORAGE_VERSION = 2;
+export const STORAGE_VERSION = 3;
 export class StorageError extends Error {constructor(){super('Core storage write failed; no success was committed.');this.name='StorageError';}}
 /** Server-only encrypted units of work. Provider credentials are never store inputs.
  * FULL SQLite transactions are the authority; callers publish only after put succeeds.
@@ -74,18 +74,45 @@ export class CoreStore {
   historyKey(value: string) { return createHmac('sha256',this.key).update('run-history-v1:'+value).digest('hex'); }
   prepareRunHistory() {
     this.db.exec('CREATE TABLE IF NOT EXISTS run_history (id TEXT PRIMARY KEY, project TEXT NOT NULL, status TEXT NOT NULL, created TEXT NOT NULL, payload BLOB NOT NULL); CREATE INDEX IF NOT EXISTS run_history_page ON run_history(project,created DESC,id DESC); CREATE INDEX IF NOT EXISTS run_history_status ON run_history(project,status,created DESC,id DESC); CREATE TABLE IF NOT EXISTS run_history_terms (run_id TEXT NOT NULL REFERENCES run_history(id) ON DELETE CASCADE, term TEXT NOT NULL, PRIMARY KEY(term,run_id)); CREATE INDEX IF NOT EXISTS run_history_terms_run ON run_history_terms(run_id);');
+    if(!this.db.prepare('PRAGMA table_info(run_history)').all().some(r=>r.name==='elapsed_ms'))this.db.exec('ALTER TABLE run_history ADD COLUMN elapsed_ms INTEGER');
+    this.db.exec('CREATE TABLE IF NOT EXISTS artifact_usage (id TEXT PRIMARY KEY, project TEXT NOT NULL, run_id TEXT NOT NULL, created TEXT NOT NULL, size INTEGER NOT NULL, deleted INTEGER NOT NULL); CREATE INDEX IF NOT EXISTS artifact_usage_project ON artifact_usage(project,created,run_id);');
   }
   saveRunHistory(before: Map<string,RunHistoryRow>, state: CoreSnapshot) {
     const after=historyRows(state);
-    const save=this.db.prepare('INSERT INTO run_history VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET project=excluded.project,status=excluded.status,created=excluded.created,payload=excluded.payload');
+    const save=this.db.prepare('INSERT INTO run_history(id,project,status,created,payload,elapsed_ms) VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET project=excluded.project,status=excluded.status,created=excluded.created,payload=excluded.payload,elapsed_ms=excluded.elapsed_ms');
     const remove=this.db.prepare('DELETE FROM run_history WHERE id=?');
     for(const id of before.keys())if(!after.has(id))remove.run(id);
     const deleteTerms=this.db.prepare('DELETE FROM run_history_terms WHERE run_id=?'),term=this.db.prepare('INSERT INTO run_history_terms VALUES (?,?)');
     for(const [id,value] of after)if(JSON.stringify(before.get(id))!==JSON.stringify(value)){
-      save.run(id,this.historyKey(value.projectId),this.historyKey(value.status),value.createdAt,this.encode(value));deleteTerms.run(id);
+      const elapsed=value.startedAt&&value.finishedAt?Date.parse(value.finishedAt)-Date.parse(value.startedAt):NaN;
+      save.run(id,this.historyKey(value.projectId),this.historyKey(value.status),value.createdAt,this.encode(value),Number.isSafeInteger(elapsed)&&elapsed>=0?elapsed:null);deleteTerms.run(id);
       for(const token of grams(value.name+' '+id))term.run(id,this.historyKey('search:'+token));
     }
     return after;
+  }
+  /** Aggregate the whole scoped projection, without decrypting Source/Job bodies. */
+  runStatistics(projectId:string,from:string,to:string) {
+    historyQuery({from,to});const p=this.historyKey(projectId),pass=this.historyKey('passed'),fail=this.historyKey('failed'),timeout=this.historyKey('timeout');
+    const counts=this.db.prepare('SELECT count(*) total, sum(CASE WHEN status=? THEN 1 ELSE 0 END) passed, sum(CASE WHEN status IN (?,?) THEN 1 ELSE 0 END) failed, avg(elapsed_ms) mean FROM run_history WHERE project=? AND julianday(created)>=julianday(?) AND julianday(created)<=julianday(?)').get(pass,fail,timeout,p,from,to)!;
+    const total=Number(counts.total),passed=Number(counts.passed??0),failed=Number(counts.failed??0);
+    const days=this.db.prepare('SELECT date(created) day,count(*) total,sum(CASE WHEN status=? THEN 1 ELSE 0 END) passed,sum(CASE WHEN status IN (?,?) THEN 1 ELSE 0 END) failed FROM run_history WHERE project=? AND julianday(created)>=julianday(?) AND julianday(created)<=julianday(?) GROUP BY date(created) ORDER BY day').all(pass,fail,timeout,p,from,to).map(r=>({day:String(r.day),total:Number(r.total),passed:Number(r.passed),failed:Number(r.failed)}));
+    return{sampleCount:total,total,limited:false,passed,failed,passRate:passed+failed?passed/(passed+failed):null,meanElapsedMs:counts.mean===null?null:Number(counts.mean),days};
+  }
+  saveArtifactUsage(before:Map<string,ArtifactUsageRow>,state:CoreSnapshot){
+    const after=artifactUsageRows(state),save=this.db.prepare('INSERT INTO artifact_usage VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET project=excluded.project,run_id=excluded.run_id,created=excluded.created,size=excluded.size,deleted=excluded.deleted'),remove=this.db.prepare('DELETE FROM artifact_usage WHERE id=?');
+    for(const id of before.keys())if(!after.has(id))remove.run(id);
+    for(const [id,r] of after)if(JSON.stringify(before.get(id))!==JSON.stringify(r))save.run(id,this.historyKey(r.projectId),r.runId,r.createdAt,r.size,r.deleted?1:0);
+    return after;
+  }
+  evidenceUsage(projectId:string,cutoff:string){
+    if(!Number.isFinite(Date.parse(cutoff)))throw Error('Invalid retention cutoff.');
+    const p=this.historyKey(projectId),terminal=['passed','failed','cancelled','timeout'].map(s=>this.historyKey(s));
+    const usage=this.db.prepare('SELECT sum(CASE WHEN deleted=0 THEN size ELSE 0 END) bytes,sum(deleted) deleted FROM artifact_usage WHERE project=?').get(p)!;
+    const where='a.project=? AND r.project=? AND a.deleted=0 AND julianday(a.created)<julianday(?) AND r.status IN (?,?,?,?)';
+    const params=[p,p,cutoff,...terminal],candidates=this.db.prepare('SELECT count(*) n,sum(a.size) bytes FROM artifact_usage a JOIN run_history r ON r.id=a.run_id WHERE '+where).get(...params)!;
+    const ids=this.db.prepare('SELECT a.id FROM artifact_usage a JOIN run_history r ON r.id=a.run_id WHERE '+where+' ORDER BY a.created,a.id LIMIT 100').all(...params).map(r=>String(r.id));
+    const runCount=Number(this.db.prepare('SELECT count(*) n FROM run_history WHERE project=?').get(p)?.n??0);
+    return{retainedBytes:Number(usage.bytes??0),deletedCount:Number(usage.deleted??0),candidateCount:Number(candidates.n),candidateBytes:Number(candidates.bytes??0),runCount,ids};
   }
   pageRuns(projectId: string,input: unknown) {
     const q=historyQuery(input),params: (string|number)[]=[this.historyKey(projectId)],where=['project=?'];
@@ -141,7 +168,6 @@ export function storageKey(filename:string){
 const coreKinds=['agents','jobs','runs','steps','artifacts','events'] as const;
 interface CoreManifest {revision:number;ids:Record<keyof CoreSnapshot,string[]>}
 function entityUnits(state:CoreSnapshot){const values=new Map<string,string>();for(const kind of coreKinds)for(const row of state[kind])values.set('core-row:'+kind+':'+row.id,JSON.stringify(row));return values;}
-function digests(values:Map<string,string>){return new Map([...values].map(([name,value])=>[name,createHash('sha256').update(value).digest('hex')]));}
 function manifest(state:CoreSnapshot,revision:number):CoreManifest {const ids={} as CoreManifest['ids'];for(const kind of coreKinds)ids[kind]=state[kind].map(row=>row.id);return {revision,ids};}
 function loadCore(store:CoreStore){
  const saved=store.get<CoreManifest>('core-manifest-v1');if(!saved)return store.get<{state:CoreSnapshot;revision:number}>('core');
@@ -149,27 +175,29 @@ function loadCore(store:CoreStore){
  const state={} as CoreSnapshot;for(const kind of coreKinds)Object.assign(state,{[kind]:saved.ids[kind].map(id=>{const row=store.get<{id:string}>('core-row:'+kind+':'+id);if(!row||row.id!==id)throw Error('Missing stored Core entity.');return row;})});
  return {state,revision:saved.revision};
 }
-export class SqliteCoreRepository extends InMemoryCoreRepository {
+export class EagerSqliteCoreRepository extends InMemoryCoreRepository {
   constructor(store: CoreStore) {
     const record = loadCore(store);
     if (record && (!Number.isSafeInteger(record.revision) || !coreKinds.every(k => Array.isArray(record.state[k])))) throw new Error('Invalid stored Core state.');
     if(record)validateReferences(record.state);
     store.prepareRunHistory();
-    let previous=digests(entityUnits(record?.state??{agents:[],jobs:[],runs:[],steps:[],artifacts:[],events:[]})),previousHistory=historyRows(record?.state);
+    let previousHistory=historyRows(record?.state),previousUsage=artifactUsageRows(record?.state);
     // Migrate the encrypted monolith and rebuild derived indexes in one transaction.
     const legacy=record&&!store.get('core-manifest-v1');
-    if(legacy||store.get<number>('run-history-revision')!==(record?.revision??0)||store.get<number>('run-history-index-format')!==2||Number(store.db.prepare('PRAGMA user_version').get()?.user_version)<2){
-      const units: [string,unknown][]=[['run-history-revision',record?.revision??0],['run-history-index-format',2]];
+    if(legacy||store.get<number>('run-history-revision')!==(record?.revision??0)||store.get<number>('run-history-index-format')!==4||store.get<number>('artifact-usage-format')!==1||Number(store.db.prepare('PRAGMA user_version').get()?.user_version)<3){
+      const units: [string,unknown][]=[['run-history-revision',record?.revision??0],['run-history-index-format',4],['artifact-usage-format',1]];
       if(legacy){for(const [name,value] of entityUnits(record.state))units.push([name,JSON.parse(value)]);units.push(['core-manifest-v1',manifest(record.state,record.revision)]);}
-      store.putMany(units,()=>{store.db.exec('DELETE FROM run_history');store.saveRunHistory(new Map(),record?.state??{agents:[],jobs:[],runs:[],steps:[],artifacts:[],events:[]});store.db.exec('INSERT OR IGNORE INTO migrations VALUES (2, CURRENT_TIMESTAMP); PRAGMA user_version=2;');},legacy?['core']:[]);
+      store.putMany(units,()=>{const state=record?.state??{agents:[],jobs:[],runs:[],steps:[],artifacts:[],events:[]};store.db.exec('DELETE FROM run_history; DELETE FROM artifact_usage');store.saveRunHistory(new Map(),state);store.saveArtifactUsage(new Map(),state);store.db.exec('INSERT OR IGNORE INTO migrations VALUES (2, CURRENT_TIMESTAMP); INSERT OR IGNORE INTO migrations VALUES (3,CURRENT_TIMESTAMP); PRAGMA user_version=3;');},legacy?['core']:[]);
     }
-    super(record?.state, (state, revision) => {
+    super(record?.state, (state, revision,before) => {
       validateReferences(state);
-      const next=entityUnits(state),nextDigests=digests(next),values: [string,unknown][]=[['core-manifest-v1',manifest(state,revision)],['run-history-revision',revision]],removed=[...previous.keys()].filter(name=>!next.has(name));
-      for(const [name,value] of next)if(previous.get(name)!==nextDigests.get(name))values.push([name,JSON.parse(value)]);
-      let nextHistory=previousHistory;
-      store.putMany(values,()=>{nextHistory=store.saveRunHistory(previousHistory,state);},removed);
-      previous=nextDigests;previousHistory=nextHistory;
+      const values: [string,unknown][]=[['core-manifest-v1',manifest(state,revision)],['run-history-revision',revision]],removed:string[]=[];
+      // Unchanged entity references survive draft sealing. Do not serialize/hash
+      // unrelated job Source payloads for a heartbeat or a single Step update.
+      for(const kind of coreKinds){const prior=new Map(before[kind].map(row=>[row.id,row])),ids=new Set(state[kind].map(row=>row.id));for(const row of state[kind])if(prior.get(row.id)!==row)values.push(['core-row:'+kind+':'+row.id,row]);for(const id of prior.keys())if(!ids.has(id))removed.push('core-row:'+kind+':'+id);}
+      let nextHistory=previousHistory,nextUsage=previousUsage;
+      store.putMany(values,()=>{nextHistory=store.saveRunHistory(previousHistory,state);nextUsage=store.saveArtifactUsage(previousUsage,state);},removed);
+      previousHistory=nextHistory;previousUsage=nextUsage;
     }, record?.revision);
   }
 }
@@ -182,7 +210,11 @@ function validateReferences(state:CoreSnapshot){
   const identities=state.jobs.filter(j=>j.idempotencyKey).map(j=>j.projectId+':'+j.idempotencyKey);if(new Set(identities).size!==identities.length)throw new Error('Core storage has duplicate dispatch identities.');
 }
 
-interface RunHistoryRow {id:string;projectId:string;createdAt:string;status:string;name:string;agentId:string;finishedAt:string|null}
-function historyRows(state?:CoreSnapshot){const jobs=new Map(state?.jobs.map(j=>[j.id,j])??[]);return new Map(state?.runs.map(r=>[r.id,{id:r.id,projectId:r.projectId,createdAt:r.createdAt,status:r.status,name:jobs.get(r.jobId)?.name??r.id,agentId:r.agentId,finishedAt:r.finishedAt}])??[]);}
+interface RunHistoryRow {id:string;projectId:string;createdAt:string;status:string;name:string;agentId:string;startedAt:string|null;finishedAt:string|null}
+export function historyRows(state?:CoreSnapshot){const jobs=new Map(state?.jobs.map(j=>[j.id,j])??[]);return new Map(state?.runs.map(r=>[r.id,{id:r.id,projectId:r.projectId,createdAt:r.createdAt,status:r.status,name:jobs.get(r.jobId)?.name??r.id,agentId:r.agentId,startedAt:r.startedAt,finishedAt:r.finishedAt}])??[]);}
 
 function grams(value:string){const text=value.toLowerCase(),result=new Set<string>();for(let i=0;i<=text.length-3;i++)result.add(text.slice(i,i+3));return result;}
+interface ArtifactUsageRow {projectId:string;runId:string;createdAt:string;size:number;deleted:boolean}
+export function artifactUsageRows(state?:CoreSnapshot){const runs=new Map(state?.runs.map(r=>[r.id,r])??[]);return new Map(state?.artifacts.map(a=>{if(!Number.isSafeInteger(a.size)||a.size<0||!runs.has(a.runId))throw Error('Invalid Evidence usage metadata.');return[a.id,{projectId:runs.get(a.runId)!.projectId,runId:a.runId,createdAt:a.createdAt,size:a.size,deleted:!!a.deletedAt}];})??[]);}
+
+export {SqliteCoreRepository} from './lazy-core-repository.ts';

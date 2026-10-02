@@ -4,6 +4,7 @@ mod model;
 mod pipeline;
 mod reliability;
 mod snapshot;
+mod snapshot_download;
 mod source_cache;
 mod tree;
 use model::*;
@@ -287,7 +288,7 @@ fn run(config: Config) -> Result<()> {
                             }
                             Some("execute") if ready => {
                                 let parsed = serde_json::from_value::<Request>(m.clone());
-                                let request = match parsed {
+                                let mut request = match parsed {
                                     Ok(r) => r,
                                     Err(_) => {
                                         send(
@@ -297,6 +298,9 @@ fn run(config: Config) -> Result<()> {
                                         continue;
                                     }
                                 };
+                                if let Some(source) = request.source.as_mut() {
+                                    source.trusted_core = Some(config.endpoint.clone());
+                                }
                                 let valid = request.validate(&id).and_then(|_| {
                                     if request.matches(&capabilities) {
                                         Ok(())

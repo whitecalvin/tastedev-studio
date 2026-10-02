@@ -21,6 +21,7 @@ export class WorkspaceFileService {
   async disconnect(projectId: string) { if (this.connection) await this.host.disconnect(projectId, this.connection.id); this.connection = null; }
   async list(path = '', showHidden = false) { return (await this.host.readDirectory(this.id(), normalizePath(path))).filter(entry => showHidden || !hiddenNames.has(entry.name)); }
   async read(path: string) { return this.host.readFile(this.id(), nonRoot(path)); }
+  async readBytes(path:string){return this.host.readBytes?this.host.readBytes(this.id(),nonRoot(path)):new TextEncoder().encode((await this.read(path)).content);}
   async write(path: string, content: string, expected: string) { return this.host.writeFile(this.id(), nonRoot(path), content, expected); }
   async create(parent: string, name: string, kind: 'file' | 'directory') { const path = childPath(parent, name); if (await this.host.exists(this.id(), path)) throw new FileError('duplicate', 'A file or folder with this name already exists.'); if (kind === 'file') await this.host.createFile(this.id(), path); else await this.host.createDirectory(this.id(), path); return path; }
   async rename(path: string, name: string) { const source = nonRoot(path), destination = childPath(parentPath(source), name); if (source === destination) return source; if (await this.host.exists(this.id(), destination)) throw new FileError('duplicate', 'A file or folder with this name already exists.'); await this.host.rename(this.id(), source, destination); return destination; }

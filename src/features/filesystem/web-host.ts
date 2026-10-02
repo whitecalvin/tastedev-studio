@@ -73,6 +73,7 @@ export class WebFileSystemHost implements FileSystemHost {
     const file = await (await this.file(id, path)).getFile(); checkFile(path, file.size);
     return { content: decodeText(path, new Uint8Array(await file.arrayBuffer())), size: file.size, modified: file.lastModified };
   }
+  async readBytes(id:string,path:string){const file=await(await this.file(id,path)).getFile();if(file.size>8*1024*1024)throw new FileError('large','Snapshot file exceeds 8 MiB.');const bytes=new Uint8Array(await file.arrayBuffer());if(bytes.length>8*1024*1024)throw new FileError('large','Snapshot file grew beyond 8 MiB.');return bytes;}
   async writeFile(id: string, path: string, content: string, expected: string) {
     checkFile(path, new TextEncoder().encode(content).length);
     if ((await this.readFile(id, path)).content !== expected) throw new FileError('conflict', 'The file changed on disk. Your edits are preserved. Reload from disk or reconcile the changes before saving.');

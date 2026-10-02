@@ -71,6 +71,8 @@ impl Config {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Capabilities {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_snapshot: Option<u32>,
     pub cpu_cores: u64,
     pub memory_mi_b: u64,
     pub docker: bool,
@@ -82,6 +84,8 @@ pub struct Capabilities {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Requirements {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_snapshot: Option<u32>,
     pub platform: Option<String>,
     pub architecture: Option<String>,
     pub cpu_cores: Option<u64>,
@@ -139,6 +143,8 @@ pub struct ArtifactTransfer {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Source {
+    #[serde(skip)]
+    pub trusted_core: Option<String>,
     pub provider: String,
     pub repository: String,
     pub revision: String,
@@ -189,6 +195,14 @@ impl Request {
             return Err("Step identity required".into());
         }
         if let Some(source) = &self.source {
+            if source
+                .snapshot
+                .as_ref()
+                .is_some_and(|s| s.schema_version == Some(2))
+                && self.requirements.source_snapshot != Some(2)
+            {
+                return Err("Source capability required".into());
+            }
             crate::pipeline::validate_source(source)?;
         }
         if let Some(health) = &self.healthcheck {
@@ -270,7 +284,9 @@ impl Request {
     }
     pub fn matches(&self, c: &Capabilities) -> bool {
         let r = &self.requirements;
-        r.platform.as_ref().is_none_or(|v| v == platform())
+        r.source_snapshot
+            .is_none_or(|v| v == 2 && c.source_snapshot == Some(2))
+            && r.platform.as_ref().is_none_or(|v| v == platform())
             && r.architecture.as_ref().is_none_or(|v| v == architecture())
             && r.cpu_cores.is_none_or(|v| c.cpu_cores >= v)
             && r.memory_mi_b.is_none_or(|v| c.memory_mi_b >= v)

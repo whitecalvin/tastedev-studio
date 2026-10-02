@@ -1,0 +1,20 @@
+import {projectManifestRecord,projectReference,verifyProjectSnapshot,verifyProjectReference,snapshotBytes,type ProjectSnapshot} from '../ai/project-snapshot.ts';
+import {bytesHash,projectSnapshotLimits as limits} from '../ai/snapshot-bytes.ts';
+export interface SourceUploadProgress {state:'manifest'|'uploading'|'complete';files:number;totalFiles:number;transferredBytes:number;totalBytes:number;cachedFiles:number}
+export type SourceRequest=(path:string,init:RequestInit)=>Promise<Response>;
+/** Only transport changes here. Approval remains with the existing Retest flow;
+ * the returned reference binds the complete manifest and all original bytes. */
+export async function uploadProjectSnapshot(snapshot:ProjectSnapshot,request:SourceRequest,signal?:AbortSignal,onProgress?:(progress:SourceUploadProgress)=>void){
+ await verifyProjectSnapshot(snapshot);const progress:SourceUploadProgress={state:'manifest',files:0,totalFiles:snapshot.files.length,transferredBytes:0,totalBytes:snapshot.files.reduce((n,f)=>n+f.size!,0),cachedFiles:0};
+ const update=()=>{try{onProgress?.({...progress});}catch{/* Rendering cannot change upload identity. */}};
+ const checked=async(path:string,init:RequestInit)=>{signal?.throwIfAborted();const response=await request(path,{...init,signal});if(!response.ok)throw Error(response.status===403?'Source transfer permission denied.':response.status===409?'Source transfer conflict.':'Source transfer failed; retry to resume saved bytes.');return response;};
+ update();await checked('/sources/manifests',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(projectManifestRecord(snapshot))});progress.state='uploading';update();
+ for(const file of snapshot.files){signal?.throwIfAborted();const base=`/sources/uploads/${snapshot.snapshotId}/${file.checksum}`,bytes=snapshotBytes(file);let offset=0;
+  const probe=async()=>{const response=await checked(base,{method:'HEAD'}),raw=response.headers.get('X-Upload-Offset');if(!raw||!/^\d+$/.test(raw))throw Error('Invalid Source upload offset.');const value=Number(raw);if(!Number.isSafeInteger(value)||value<0||value>bytes.length)throw Error('Source upload offset exceeds approved file.');return value;};
+  offset=await probe();if(offset===bytes.length&&bytes.length>0){progress.cachedFiles++;progress.files++;update();continue;}
+  let retries=0,empty=bytes.length===0;
+  while(offset<bytes.length||empty){signal?.throwIfAborted();const chunk=new Uint8Array(bytes.subarray(offset,offset+limits.chunkBytes)),target=offset+chunk.length;try{const response=await checked(base,{method:'PUT',headers:{'X-Upload-Offset':String(offset),'X-Upload-Chunk-Checksum':await bytesHash(chunk),'Content-Type':'application/octet-stream'},body:chunk}),raw=response.headers.get('X-Upload-Offset');if(raw!==String(target))throw Error('Source acknowledgement mismatch.');progress.transferredBytes+=chunk.length;offset=target;empty=false;retries=0;update();}catch(error){signal?.throwIfAborted();if(++retries>2)throw error;const resumed=await probe();if(resumed<offset||resumed>target)throw Error('Source resume offset conflict.');progress.transferredBytes+=resumed-offset;offset=resumed;update();if(bytes.length===0)empty=true;}}
+  progress.files++;update();
+ }
+ const response=await checked('/sources/complete/'+snapshot.snapshotId,{method:'POST'}),reference=await response.json() as ProjectSnapshot;verifyProjectReference(reference);const expected=projectReference(snapshot);if(reference.snapshotId!==expected.snapshotId||reference.projectId!==expected.projectId||reference.proposalId!==expected.proposalId||reference.attempt!==expected.attempt||reference.baseRevision!==expected.baseRevision||reference.checksum!==expected.checksum||reference.transfer!.fileCount!==expected.transfer!.fileCount||reference.transfer!.totalBytes!==expected.transfer!.totalBytes||reference.transfer!.changedFileCount!==expected.transfer!.changedFileCount)throw Error('Completed Source identity mismatch.');progress.state='complete';update();return reference;
+}

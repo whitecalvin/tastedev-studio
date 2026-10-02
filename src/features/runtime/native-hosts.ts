@@ -36,6 +36,7 @@ export class TauriFileSystemHost implements FileSystemHost {
   private file<T>(operation: string, connectionId: string, path: string, extra = {}) { return this.call<T>('workspace_file', { request: { operation, connectionId, path, ...extra } }); }
   readDirectory(id: string, path: string) { return this.file<FileEntry[]>('list', id, path); }
   readFile(id: string, path: string) { return this.file<FileSnapshot>('read', id, path); }
+  async readBytes(id:string,path:string){const {base64}=await this.file<{base64:string}>('readBytes',id,path);return Uint8Array.from(atob(base64),c=>c.charCodeAt(0));}
   writeFile(id: string, path: string, content: string, expected: string) { return this.file<void>('write', id, path, { content, expected }); }
   createFile(id: string, path: string) { return this.file<void>('createFile', id, path); }
   createDirectory(id: string, path: string) { return this.file<void>('createDirectory', id, path); }

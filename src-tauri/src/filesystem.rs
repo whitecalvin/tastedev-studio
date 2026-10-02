@@ -184,6 +184,22 @@ pub fn execute(state: &Workspaces, r: FileRequest) -> Result<serde_json::Value> 
             }
             Ok(serde_json::json!(entries))
         }
+        "readBytes" => {
+            use base64::Engine;
+            use std::io::Read;
+            let file = fs::File::open(&path)?;
+            if !file.metadata()?.is_file() || file.metadata()?.len() > 8 * 1024 * 1024 {
+                return Err(error("large"));
+            }
+            let mut bytes = Vec::new();
+            file.take(8 * 1024 * 1024 + 1).read_to_end(&mut bytes)?;
+            if bytes.len() > 8 * 1024 * 1024 {
+                return Err(error("large"));
+            }
+            Ok(
+                serde_json::json!({"base64":base64::engine::general_purpose::STANDARD.encode(bytes)}),
+            )
+        }
         "read" => {
             let m = fs::metadata(&path)?;
             if m.len() > 2 * 1024 * 1024 {

@@ -8,16 +8,16 @@ const runtimeVersion = (runtime: string, value: string) => runtime === 'java' ? 
 export function text(value: string, label: string, max = 120) { if (typeof value !== 'string' || !value.trim() || value.length > max || /[\x00-\x1f]/.test(value)) throw new CoreError(`${label} is invalid.`); return value.trim(); }
 function positive(value: number) { return Number.isSafeInteger(value) && value > 0; }
 export function validateCapabilities(c: AgentCapability): AgentCapability {
-  if (!c || !positive(c.cpuCores) || !positive(c.memoryMiB) || !['docker','gpu','pty'].every(k => typeof c[k as 'docker'] === 'boolean') || !Array.isArray(c.browsers) || c.browsers.some(b => !browsers.includes(b)) || !c.runtimes || Object.entries(c.runtimes).some(([key, v]) => !runtimes.includes(key) || typeof v !== 'string' || !runtimeVersion(key, v))) throw new CoreError('Capabilities must contain valid structured hardware and runtime versions.');
-  return { cpuCores: c.cpuCores, memoryMiB: c.memoryMiB, docker: c.docker, gpu: c.gpu, pty: c.pty, runtimes: { ...c.runtimes }, browsers: [...new Set(c.browsers)] };
+  if (!c || (c.sourceSnapshot!==undefined&&c.sourceSnapshot!==2) || !positive(c.cpuCores) || !positive(c.memoryMiB) || !['docker','gpu','pty'].every(k => typeof c[k as 'docker'] === 'boolean') || !Array.isArray(c.browsers) || c.browsers.some(b => !browsers.includes(b)) || !c.runtimes || Object.entries(c.runtimes).some(([key, v]) => !runtimes.includes(key) || typeof v !== 'string' || !runtimeVersion(key, v))) throw new CoreError('Capabilities must contain valid structured hardware and runtime versions.');
+  return { ...(c.sourceSnapshot===2?{sourceSnapshot:2 as const}:{}), cpuCores: c.cpuCores, memoryMiB: c.memoryMiB, docker: c.docker, gpu: c.gpu, pty: c.pty, runtimes: { ...c.runtimes }, browsers: [...new Set(c.browsers)] };
 }
 export function validateAgent(a: Pick<Agent, 'name' | 'platform' | 'architecture' | 'capabilities'>) {
   if (!platforms.includes(a.platform) || !architectures.includes(a.architecture)) throw new CoreError('Unsupported platform or architecture.');
   return { name: text(a.name, 'Agent name'), platform: a.platform, architecture: a.architecture, capabilities: validateCapabilities(a.capabilities) };
 }
 export function validateRequirements(r: JobRequirement): JobRequirement {
-  if (!r || (r.platform !== undefined && !platforms.includes(r.platform)) || (r.architecture !== undefined && !architectures.includes(r.architecture)) || (r.browser !== undefined && !browsers.includes(r.browser)) || (r.cpuCores !== undefined && !positive(r.cpuCores)) || (r.memoryMiB !== undefined && !positive(r.memoryMiB)) || (r.docker !== undefined && r.docker !== 'required') || (r.pty !== undefined && r.pty !== 'required') || (r.gpu !== undefined && !['required','optional'].includes(r.gpu)) || (r.runtimes !== undefined && Object.entries(r.runtimes).some(([key,v]) => !runtimes.includes(key) || typeof v !== 'string' || !v.startsWith('>=') || !version(v.slice(2))))) throw new CoreError('Invalid requirements. Runtime ranges support >=major.minor.patch only.');
-  return { platform: r.platform, architecture: r.architecture, cpuCores: r.cpuCores, memoryMiB: r.memoryMiB, docker: r.docker, gpu: r.gpu, pty: r.pty, runtimes: r.runtimes ? {...r.runtimes} : undefined, browser: r.browser };
+  if (!r || (r.sourceSnapshot!==undefined&&r.sourceSnapshot!==2) || (r.platform !== undefined && !platforms.includes(r.platform)) || (r.architecture !== undefined && !architectures.includes(r.architecture)) || (r.browser !== undefined && !browsers.includes(r.browser)) || (r.cpuCores !== undefined && !positive(r.cpuCores)) || (r.memoryMiB !== undefined && !positive(r.memoryMiB)) || (r.docker !== undefined && r.docker !== 'required') || (r.pty !== undefined && r.pty !== 'required') || (r.gpu !== undefined && !['required','optional'].includes(r.gpu)) || (r.runtimes !== undefined && Object.entries(r.runtimes).some(([key,v]) => !runtimes.includes(key) || typeof v !== 'string' || !v.startsWith('>=') || !version(v.slice(2))))) throw new CoreError('Invalid requirements. Runtime ranges support >=major.minor.patch only.');
+  return { ...(r.sourceSnapshot===2?{sourceSnapshot:2 as const}:{}), platform: r.platform, architecture: r.architecture, cpuCores: r.cpuCores, memoryMiB: r.memoryMiB, docker: r.docker, gpu: r.gpu, pty: r.pty, runtimes: r.runtimes ? {...r.runtimes} : undefined, browser: r.browser };
 }
 export function validatePayload(payload: JobPayload): JobPayload {
   if (!payload || !Array.isArray(payload.steps) || !payload.steps.length || payload.steps.length > 30) throw new CoreError('A task needs between 1 and 30 structured steps.');
@@ -33,7 +33,7 @@ export function validatePayload(payload: JobPayload): JobPayload {
   });
   let testPlan;
   if (payload.testPlan) {
-    const p = payload.testPlan;
+    const p = payload.testPlan; if(steps.some(s=>s.source?.provider==='snapshot'&&s.source.snapshot.schemaVersion===2)&&p.requirements.sourceSnapshot!==2)throw new CoreError('Workspace snapshot v2 requires a compatible Agent.');
     if (!['unit','integration','api','browser','e2e'].includes(p.type) || !Number.isInteger(p.timeout) || p.timeout < 1000 || p.timeout > 3600000) throw new CoreError('Invalid TestPlan type or timeout.');
     const order = ['source','install','build','start','healthcheck','test','cleanup'];
     let previous = -1;
@@ -50,7 +50,7 @@ export function validatePayload(payload: JobPayload): JobPayload {
 }
 function atLeast(actual: string, minimum: string) { const a = actual.split('.').map(Number), b = minimum.split('.').map(Number); for (let i=0;i<3;i++) { if ((a[i]??0)!==(b[i]??0)) return (a[i]??0)>(b[i]??0); } return true; }
 export function matchAgent(agent: Agent, requirements: JobRequirement) {
-  const reasons: string[] = [];
+  const reasons: string[] = []; if(requirements.sourceSnapshot===2&&agent.capabilities.sourceSnapshot!==2)reasons.push('Workspace snapshot v2 unavailable');
   if (!['online','idle'].includes(agent.status)) reasons.push(`Agent is ${agent.status}`);
   if (requirements.platform && agent.platform !== requirements.platform) reasons.push('OS mismatch');
   if (requirements.architecture && agent.architecture !== requirements.architecture) reasons.push('Architecture mismatch');

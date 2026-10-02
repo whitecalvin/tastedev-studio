@@ -4,13 +4,17 @@ export class AIError extends Error {
   readonly code: AIErrorCode;
   constructor(code: AIErrorCode) { super(({budget:'AI analysis budget reached. Review usage and narrow the next request.',permission:'Core denied this action. Ask a project administrator to check your access.',unavailable:'AI provider is unavailable. Check Core configuration.',authentication:'AI sign-in is required. For Codex, run pnpm ai:login on the Core host and sign in with ChatGPT.',quota:'The selected API account has no available credits. ChatGPT subscription access uses the separate Codex provider.','rate-limit':'AI request limit reached. Try again later.',timeout:'AI analysis timed out. Narrow the context and retry.','context-too-large':'AI context exceeds the configured limit. Select less context.','tool-failure':'The requested read-only context could not be accessed.',malformed:'The provider returned an invalid or ungrounded result. Retry with more context.',cancelled:'Generation stopped.'})[code]); this.code=code; }
 }
-export interface AnalysisBudget {timeoutMs:number;maxProviderRequests:number;maxInputTokens:number;maxOutputTokens:number}
+export interface CostBudget {model:string;inputUsdPerMillion:number;outputUsdPerMillion:number;maxUsd:number}
+export interface AnalysisBudget {timeoutMs:number;maxProviderRequests:number;maxInputTokens:number;maxOutputTokens:number;cost?:CostBudget}
 export const defaultBudget:Readonly<AnalysisBudget>={timeoutMs:120000,maxProviderRequests:6,maxInputTokens:100000,maxOutputTokens:16000};
 export function validateBudget(value:AnalysisBudget):AnalysisBudget {
  const ranges={timeoutMs:[1000,120000],maxProviderRequests:[1,12],maxInputTokens:[1,1000000],maxOutputTokens:[1,100000]};
- if(!value||Object.keys(value).length!==4||Object.entries(ranges).some(([key,[min,max]])=>{const n=value[key as keyof AnalysisBudget];return !Number.isSafeInteger(n)||n<min||n>max;}))throw new AIError('budget');
- return {...value};
+ if(!value||Object.keys(value).some(k=>!(k in ranges)&&k!=='cost')||Object.entries(ranges).some(([key,[min,max]])=>{const n=value[key as keyof typeof ranges];return !Number.isSafeInteger(n)||n<min||n>max;}))throw new AIError('budget');
+ const c=value.cost;
+ if(c!==undefined&&(!c||typeof c!=='object'||Array.isArray(c)||Object.keys(c).length!==4||typeof c.model!=='string'||!c.model.trim()||c.model.length>120||[c.inputUsdPerMillion,c.outputUsdPerMillion,c.maxUsd].some(n=>!Number.isFinite(n)||n<0||n>100000)||c.maxUsd<=0))throw new AIError('budget');
+ return {...value,...(c?{cost:{...c}}:{})};
 }
+export interface AnalysisMetrics {durationMs:number;providerRequests:number;toolCalls:number;usageComplete:boolean;budget:AnalysisBudget;estimatedCostUsd?:number;costComplete:boolean;outcome:'completed'|AIErrorCode}
 export interface ToolCall { id:string; name:string; arguments:unknown }
 export interface Message { role:'user'|'assistant'|'tool'; text:string; calls?:ToolCall[]; callId?:string }
 export interface ProviderRequest { messages:Message[] }
@@ -18,7 +22,7 @@ export interface ProviderReply { text:string; calls:ToolCall[]; model:string; us
 export interface AIProvider { readonly id:string; readonly capabilities:{streaming:boolean;tools:boolean;structured:boolean;images:boolean}; request(input:ProviderRequest, signal:AbortSignal, delta:(text:string)=>void):Promise<ProviderReply> }
 export interface Citation { id:string; label:string; kind:string; path?:string; start?:number; end?:number; redacted?:boolean; truncated:boolean; text:string }
 export interface Analysis { summary:string; observedFailure:string; candidates:{cause:string; evidence:string[]; uncertainty:string}[]; evidence:string[]; relatedFiles:{path:string;start:number;end:number;evidence:string}[]; proposal:{path:string;proposed:string;rationale:string;impact:string;tests:string[]}[]; uncertainty:string }
-export interface AnalysisRecord { id:string; projectId:string; conversationId:string; runId?:string; model:string; createdAt:string; result:Analysis; context:Citation[]; originals:Record<string,string>; usage?:ProviderReply['usage']; metrics?:{durationMs:number;providerRequests:number;toolCalls:number;usageComplete:boolean;budget:AnalysisBudget} }
+export interface AnalysisRecord { id:string; projectId:string; conversationId:string; runId?:string; model:string; createdAt:string; result:Analysis; context:Citation[]; originals:Record<string,string>; usage?:ProviderReply['usage']; metrics?:AnalysisMetrics }
 export interface Conversation { id:string; projectId:string; createdAt:string; messages:{role:'user'|'assistant';text:string;analysisId?:string}[] }
 const string={type:'string'}, strings={type:'array',items:string};
 const reference={type:'string',pattern:'^ctx-[1-9][0-9]*$',description:'An exact returned citation ID such as ctx-5. No prose, brackets or Markdown.'},references={type:'array',items:reference};

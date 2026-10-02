@@ -1,11 +1,49 @@
 use crate::model::{no_links, Result};
 use sha2::{Digest, Sha256};
 use std::{
+    collections::HashMap,
     fs,
-    io::Write,
+    io::{Read, Write},
     path::{Path, PathBuf},
+    sync::{Mutex, OnceLock},
+    time::SystemTime,
 };
 const LIMIT: usize = 256;
+const FILE_LIMIT: usize = 8 * 1024 * 1024;
+type Verified = HashMap<PathBuf, (u64, SystemTime)>;
+static VERIFIED: OnceLock<Mutex<Verified>> = OnceLock::new();
+fn advertised(root: &Path, project: &str, checksum: &str) -> bool {
+    let Ok(path) = location(root, project, checksum) else {
+        return false;
+    };
+    let Ok(meta) = fs::metadata(&path) else {
+        return false;
+    };
+    if !meta.is_file() || meta.len() > FILE_LIMIT as u64 {
+        return false;
+    }
+    let Ok(modified) = meta.modified() else {
+        return false;
+    };
+    let fingerprint = (meta.len(), modified);
+    let memo = VERIFIED.get_or_init(|| Mutex::new(HashMap::new()));
+    if memo
+        .lock()
+        .is_ok_and(|m| m.get(&path) == Some(&fingerprint))
+    {
+        return true;
+    }
+    if read(root, project, checksum).is_err() {
+        return false;
+    }
+    if let Ok(mut m) = memo.lock() {
+        if m.len() >= LIMIT {
+            m.clear();
+        }
+        m.insert(path, fingerprint);
+    }
+    true
+}
 fn digest(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
@@ -25,10 +63,18 @@ fn location(root: &Path, project: &str, checksum: &str) -> Result<PathBuf> {
 pub fn read(root: &Path, project: &str, checksum: &str) -> Result<Vec<u8>> {
     let file = location(root, project, checksum)?;
     let metadata = fs::metadata(&file).map_err(|_| "Cached source unavailable")?;
-    if !metadata.is_file() || metadata.len() > 24000 {
+    if !metadata.is_file() || metadata.len() > FILE_LIMIT as u64 {
         return Err("Cached source limit".into());
     }
-    let bytes = fs::read(file).map_err(|_| "Cached source unavailable")?;
+    let mut bytes = Vec::new();
+    fs::File::open(file)
+        .map_err(|_| "Cached source unavailable")?
+        .take(FILE_LIMIT as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| "Cached source unavailable")?;
+    if bytes.len() > FILE_LIMIT {
+        return Err("Cached source limit".into());
+    }
     if digest(&bytes) != checksum {
         return Err("Cached source integrity".into());
     }
@@ -60,7 +106,7 @@ pub fn inventory(root: &Path) -> Vec<String> {
             let Some(checksum) = file.file_name().to_str().map(str::to_owned) else {
                 continue;
             };
-            if read(root, &id, &checksum).is_ok() {
+            if advertised(root, &id, &checksum) {
                 entries.push(format!("{id}:{checksum}"));
                 if entries.len() == LIMIT {
                     return entries;
@@ -91,7 +137,7 @@ fn retained_count(root: &Path) -> usize {
     count
 }
 pub fn save(root: &Path, project: &str, checksum: &str, bytes: &[u8]) -> Result<()> {
-    if bytes.len() > 24000 || digest(bytes) != checksum {
+    if bytes.len() > FILE_LIMIT || digest(bytes) != checksum {
         return Err("Cache content integrity".into());
     }
     if read(root, project, checksum).is_ok() {

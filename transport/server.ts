@@ -11,6 +11,8 @@ import {TeamAccess,TeamAccessError,teamTokenHash,type TeamConfiguration,type Tea
 import {TeamAllocation} from './team-allocation.ts';
 import type {IncomingMessage} from 'node:http';
 import {verifySnapshot} from '../src/features/ai/snapshot.ts';
+import type {ProjectSnapshot} from '../src/features/ai/project-snapshot.ts';
+import {sourceSnapshotGateway} from './source-snapshot-gateway.ts';
 import {ScheduleService} from '../src/features/scheduler/service.ts';
 import {MemoryScheduleRepository,SchedulerError} from '../src/features/scheduler/domain.ts';
 import {FileScheduleRepository} from './schedule-repository.ts';
@@ -76,11 +78,12 @@ export async function startCoreServer(options:ServerOptions) {
   const orchestrator=new TestOrchestrator(service);
   const scheduler=new ScheduleService(service,options.schedulePath?new FileScheduleRepository(options.schedulePath):new MemoryScheduleRepository(),id=>projects.get(id),(p,j)=>{if(team){const scheduleId=scheduler.list(p).history.find(h=>h.jobId===j)?.scheduleId;if(!scheduleId)throw new SchedulerError('disabled');scheduleAuthority!(p,scheduleId);const identity=manualScheduleGrants.get(scheduleId)??scheduleGrants.get(scheduleId)!;grantJobs([j],identity,!manualScheduleGrants.has(scheduleId));}return dispatch(p,j);},Date.now,store?{load:()=>store.get('scheduler'),save:value=>store.put('scheduler',value)}:undefined,scheduleAuthority);
   const artifacts=artifactGateway(service,options.artifactRoot??path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../../../resources/artifacts/tastedev-studio'),options.studioToken,origins,store?{load:()=>store.get('artifact-grants')??[],save:value=>store.put('artifact-grants',value)}:undefined,fields=>event('info','artifact.upload.progress',fields));
-  const artifactAudit:{id:string;status:string}[]=[];for(const a of service.repository.read().artifacts){if(!a.location.startsWith('/artifacts/'))continue;if(a.deletedAt){try{await artifacts.store.purge(a.runId,a.id);artifactAudit.push({id:a.id,status:'deleted'});}catch{artifactAudit.push({id:a.id,status:'purge-pending'});}continue;}try{const value=await artifacts.store.get(a.runId,a.id);if(value.meta.checksum!==a.checksum||value.meta.size!==a.size)throw Error('Mismatch');artifactAudit.push({id:a.id,status:'available'});}catch{artifactAudit.push({id:a.id,status:'missing-or-invalid'});}}
+  const sources=sourceSnapshotGateway(service,(options.artifactRoot??path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../../../resources/artifacts/tastedev-studio'))+'-sources',options.studioToken,origins,authorizeHTTP,(p,a,j)=>!team||team.allowedAgent(p,a)&&team.validAgentSession(a,agentSessionHashes.get(a)??'')&&permittedJob(j,p));
+  const artifactAudit:{id:string;status:string}[]=[];for(const a of (service.repository.readRows?.('artifacts')??service.repository.read().artifacts)){if(!a.location.startsWith('/artifacts/'))continue;if(a.deletedAt){try{await artifacts.store.purge(a.runId,a.id);artifactAudit.push({id:a.id,status:'deleted'});}catch{artifactAudit.push({id:a.id,status:'purge-pending'});}continue;}try{const value=await artifacts.store.get(a.runId,a.id);if(value.meta.checksum!==a.checksum||value.meta.size!==a.size)throw Error('Mismatch');artifactAudit.push({id:a.id,status:'available'});}catch{artifactAudit.push({id:a.id,status:'missing-or-invalid'});}}
   const runTimers=new Map<string,ReturnType<typeof setTimeout>>();
   const sourceCaches=new Map<string,Set<string>>();
   function restoreDeadline(runId:string,ws:WebSocket){
-    const snap=service.repository.read(),run=snap.runs.find(r=>r.id===runId),job=snap.jobs.find(j=>j.id===run?.jobId);
+    const run=service.repository.readEntity?.('runs',runId),snap=run?service.snapshot(run.projectId,undefined,runId):service.repository.read(),job=snap.jobs.find(j=>j.id===run?.jobId);
     if(!run||!activeRun(run)||!job?.payload.testPlan||runTimers.has(runId))return;
     if(snap.steps.some(s=>s.runId===runId&&s.status==='running'&&job.payload.steps[s.order].stage==='cleanup'))return;
     const remaining=Math.max(0,Date.parse(run.startedAt??run.createdAt)+job.payload.testPlan.timeout-Date.now());
@@ -94,7 +97,7 @@ export async function startCoreServer(options:ServerOptions) {
     restoreDeadline(runId,ws);
     // Cleanup has its own bounded allowance beyond the overall deadline.
     if(command.stage==='cleanup'){clearTimeout(runTimers.get(runId));runTimers.delete(runId);}
-    const source=command.source?transferSource(command.source,run.projectId,sourceCaches.get(run.agentId)):undefined;
+    const source=command.source?.provider==='snapshot'&&command.source.snapshot.schemaVersion===2?{...command.source,snapshot:sources.grant(runId,step.id,command.source.snapshot as ProjectSnapshot,options.artifactBaseUrl??`http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`)}:command.source?transferSource(command.source,run.projectId,sourceCaches.get(run.agentId)):undefined;
     if(source?.provider==='snapshot')event('info','source.transfer',{runId,projectId:run.projectId,files:source.snapshot.files.length,reusedFiles:source.snapshot.files.filter(file=>(file as unknown as {cached?:boolean}).cached).length,transferredBytes:source.snapshot.files.reduce((n,file)=>n+Buffer.byteLength(file.content),0)});
     send(ws,{type:'execute',agentId:run.agentId,jobId:job.id,runId,runStepId:step.id,projectId:run.projectId,requirements:job.requirements,executable:command.executable,args:command.args,cwd:command.cwd,env:command.env??{},timeoutMs:command.timeoutMs??60000,stage:command.stage,...(command.browser?{browser:command.browser,artifactTransfer:{...artifacts.grant(runId,step.id,options.artifactBaseUrl??`http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`),...(sourceCaches.has(run.agentId)?{resumable:true}:{})}}:{}),...(source?{source}:{}),...(command.healthcheck?{healthcheck:command.healthcheck}:{})});
   }
@@ -112,16 +115,16 @@ export async function startCoreServer(options:ServerOptions) {
   let stopping:Promise<{timedOut:boolean}>|undefined;
   const stop=(timeoutMs=options.shutdownTimeoutMs??15000)=>stopping??=(async()=>{
     draining=true;ready=false;event('info','core.draining');const deadline=Date.now()+timeoutMs;
-    for(const run of service.repository.read().runs.filter(activeRun)){const job=service.cancelJob(run.projectId,run.jobId);const socket=agents.get(run.agentId)?.socket;if(socket)send(socket,{type:'cancel',runId:run.id});event('info','run.stop_requested',{runId:run.id,jobId:job.id});}
-    while((operations||service.repository.read().runs.some(activeRun))&&Date.now()<deadline)await new Promise(r=>setTimeout(r,20));
-    const timedOut=operations>0||service.repository.read().runs.some(activeRun);if(timedOut)event('warn','core.drain_timeout',{activeRuns:service.repository.read().runs.filter(activeRun).length,operations});
+    for(const run of (service.repository.readActiveRuns?.()??service.repository.read().runs.filter(activeRun))){const job=service.cancelJob(run.projectId,run.jobId);const socket=agents.get(run.agentId)?.socket;if(socket)send(socket,{type:'cancel',runId:run.id});event('info','run.stop_requested',{runId:run.id,jobId:job.id});}
+    while((operations||((service.repository.readActiveRuns?.()??service.repository.read().runs.filter(activeRun)).length>0))&&Date.now()<deadline)await new Promise(r=>setTimeout(r,20));
+    const timedOut=operations>0||(service.repository.readActiveRuns?.()??service.repository.read().runs.filter(activeRun)).length>0;if(timedOut)event('warn','core.drain_timeout',{activeRuns:(service.repository.readActiveRuns?.()??service.repository.read().runs.filter(activeRun)).length,operations});
     // The process supervisor owns the hard deadline. Never close SQLite beneath an in-flight operation.
     while(operations)await new Promise(r=>setTimeout(r,10));
     service.repository.transaction(()=>{});await shutdown();event('info','core.stopped',{timedOut});return {timedOut};
   })();
   const server=createServer((req,res)=>{
     const json=(code:number,value:unknown)=>{res.writeHead(code,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(value)+'\n');};
-    if(team&&req.method!=='OPTIONS'&&!['/health/live','/health/ready','/runtime'].includes(req.url??'')&&!(req.url?.startsWith('/artifacts/')&&['PUT','HEAD'].includes(req.method??''))){
+    if(team&&req.method!=='OPTIONS'&&!['/health/live','/health/ready','/runtime'].includes(req.url??'')&&!(req.url?.startsWith('/sources/agent/')&&req.method==='GET')&&!(req.url?.startsWith('/artifacts/')&&['PUT','HEAD'].includes(req.method??''))){
       try{if(req.headers.origin&&!origins.includes(req.headers.origin))throw new TeamAccessError();const identity=team.authenticate(req.headers.authorization?.replace(/^Bearer /,''));requestIdentities.set(req,identity);
         if(req.url==='/runtime/stop')team.require(identity,null,'access-manage');else team.require(identity,String(req.headers['x-project-id']??''),'read');
         if(req.url?.startsWith('/artifacts/'))authorizeHTTP(req,String(req.headers['x-project-id']??''),req.method==='DELETE'?'history-write':'read');
@@ -135,7 +138,7 @@ export async function startCoreServer(options:ServerOptions) {
       json(202,{state:'draining'});res.once('finish',()=>{void stop().catch(()=>{event('error','core.stop_failed');});});return;
     }
     if(draining){json(503,{error:'Core is draining'});return;}
-    operations++;const task=req.url?.startsWith('/ai/')?ai(req,res):req.url?.startsWith('/issues/')?issues.handle(req,res):req.url?.startsWith('/history/')?historyHandler(req,res):artifacts.handle(req,res);
+    operations++;const task=req.url?.startsWith('/sources/')?sources.handle(req,res):req.url?.startsWith('/ai/')?ai(req,res):req.url?.startsWith('/issues/')?issues.handle(req,res):req.url?.startsWith('/history/')?historyHandler(req,res):artifacts.handle(req,res);
     void Promise.resolve(task).catch(()=>{event('error','http.operation_failed');if(!res.headersSent)json(500,{error:'Core operation failed'});else res.destroy();}).finally(()=>{operations--;});
   });
   const wss=new WebSocketServer({noServer:true,maxPayload:MESSAGE_LIMIT,perMessageDeflate:false});
@@ -145,7 +148,7 @@ export async function startCoreServer(options:ServerOptions) {
   const deltaClients=new Set<WebSocket>(),published=new Map<WebSocket,{projectId:string;snapshot:CoreSnapshot;sequence:number;logs:string}>();
   function publish(){for(const [ws,id] of studios){
     if(team&&!team.permits(studioIdentities.get(ws)!,id,'read')){ws.close(1008,'Team access expired or revoked');continue;}
-    const snapshot=liveSnapshot(service.snapshot(id));
+    const snapshot=liveSnapshot(service.snapshot(id,100));
     if(team){snapshot.agents=snapshot.agents.filter(a=>team.allowedAgent(id,a.id));const allowed=new Set(snapshot.agents.map(a=>a.id));snapshot.events=snapshot.events.filter(e=>e.projectId===id||allowed.has(e.entityId));}
     const previous=published.get(ws),sequence=(previous?.sequence??0)+1,runLogs=logs.read(snapshot.runs.map(r=>r.id)),encodedLogs=JSON.stringify(runLogs),access=team?team.describe(studioIdentities.get(ws)!,id):{mode:'local-single-user'};
     const payload=deltaClients.has(ws)&&previous?.projectId===id
@@ -158,9 +161,9 @@ export async function startCoreServer(options:ServerOptions) {
   const unsubscribe=service.repository.subscribe(schedule);cleanup.push(unsubscribe);cleanup.push(()=>{clearTimeout(publishTimer);for(const timer of runTimers.values())clearTimeout(timer);});
     function lose(id:string,ws:WebSocket){if(agents.get(id)?.socket!==ws)return;agents.delete(id);sourceCaches.delete(id);agentSessionHashes.delete(id);try{service.observeAgent(id,false);}catch{/* Connection is gone; persistent ownership stays reserved until recovery. */}}
     function revokeStudioAccess(){if(!team)return;for(const job of service.repository.read().jobs){if(!jobGrants.has(job.id)||!['queued','assigned','running'].includes(job.status)||permittedJob(job.id,job.projectId))continue;service.cancelJob(job.projectId,job.id);const run=service.snapshot(job.projectId).runs.find(run=>run.jobId===job.id&&activeRun(run));if(run){const socket=agents.get(run.agentId)?.socket;if(socket)send(socket,{type:'cancel',runId:run.id});}}schedule();}
-    function revokeAgentConnections(){if(!team)return;for(const [id,connection] of agents){if(team.validAgentSession(id,agentSessionHashes.get(id)??''))continue;try{for(const run of service.repository.read().runs.filter(row=>row.agentId===id&&activeRun(row))){service.cancelJob(run.projectId,run.jobId);send(connection.socket,{type:'cancel',runId:run.id});}}catch{event('error','agent.revocation_cancel_failed');}finally{lose(id,connection.socket);connection.socket.close(1008,'Agent access revoked');}}}
-  function failRun(id:string,summary:string){const run=service.repository.read().runs.find(r=>r.id===id);if(!run||!activeRun(run))return;service.finishRun(run.projectId,run.id,'failed',null,summary);if(!agents.has(run.agentId))service.observeAgent(run.agentId,false);}
-  function orchestratorSafeFinish(id:string){const snap=service.repository.read(),run=snap.runs.find(r=>r.id===id);return run&&snap.jobs.find(j=>j.id===run.jobId)?.payload.testPlan?orchestrator.finish(id):null;}
+    function revokeAgentConnections(){if(!team)return;for(const [id,connection] of agents){if(team.validAgentSession(id,agentSessionHashes.get(id)??''))continue;try{for(const run of (service.repository.readActiveRuns?.()??[]).filter(row=>row.agentId===id)){service.cancelJob(run.projectId,run.jobId);send(connection.socket,{type:'cancel',runId:run.id});}}catch{event('error','agent.revocation_cancel_failed');}finally{lose(id,connection.socket);connection.socket.close(1008,'Agent access revoked');}}}
+  function failRun(id:string,summary:string){const run=service.repository.readEntity?.('runs',id);if(!run||!activeRun(run))return;service.finishRun(run.projectId,run.id,'failed',null,summary);if(!agents.has(run.agentId))service.observeAgent(run.agentId,false);}
+  function orchestratorSafeFinish(id:string){const run=service.repository.readEntity?.('runs',id),snap=run?service.snapshot(run.projectId,undefined,id):service.repository.read();return run&&snap.jobs.find(j=>j.id===run.jobId)?.payload.testPlan?orchestrator.finish(id):null;}
   function dispatch(projectId:string,jobId?:string){
     if(draining)throw new CoreError('Core is draining; new assignment is disabled.');
     const unsupported=service.queue(projectId).find(j=>j.payload.steps.length!==1&&!j.payload.testPlan);if(unsupported)throw new CoreError('Multi-step execution requires a TestPlan.');
@@ -176,9 +179,9 @@ export async function startCoreServer(options:ServerOptions) {
       case 'records':value=records.request(projectId,args[0],args[1]);break;
       case 'operations':{if(args[0]==='report')value=teamOperations.report(projectId,team?agent=>team.allowedAgent(projectId,agent):undefined);else if(args[0]==='link')value=teamOperations.link(projectId,args[1],team?studioIdentities.get(ws)?.userId:undefined);else throw new CoreError('Invalid operations action.');break;}
       case 'team':{if(!team){value={mode:'local-single-user'};break;}const identity=studioIdentities.get(ws)!;switch(args[0]){case 'describe':value=team.describe(identity,projectId);break;case 'management':value=team.management(identity,projectId);break;case 'save-user':value=team.saveUser(identity,projectId,args[1]);revokeStudioAccess();break;case 'issue-session':value=team.issueSession(identity,projectId,args[1]);break;case 'revoke-session':value=team.revokeSession(identity,projectId,args[1]);revokeStudioAccess();break;case 'configuration':value=team.configuration(identity);break;case 'update':team.update(identity,args[1] as TeamConfiguration);revokeAgentConnections();revokeStudioAccess();value=team.describe(identity,projectId);break;case 'agents':value=team.agentOverview(identity,projectId);break;case 'register-agent':value=team.registerCredential(identity,projectId,args[1]);break;case 'revoke-agent':value=team.revokeCredential(identity,projectId,args[1],args[2]);revokeAgentConnections();break;case 'audit':value=team.audit(identity,projectId);break;default:throw new TeamAccessError();}break;}
-      case 'storageHealth':value={mode:store?'sqlite':'memory',schema:store?STORAGE_VERSION:null,artifactAudit:artifactAudit.filter(a=>service.snapshot(projectId).artifacts.some(v=>v.id===a.id))};break;
+      case 'storageHealth':{const ids=new Set(service.snapshot(projectId).artifacts.map(a=>a.id));value={mode:store?'sqlite':'memory',schema:store?STORAGE_VERSION:null,artifactAudit:artifactAudit.filter(a=>ids.has(a.id))};break;}
       case 'scheduler': {const previousIds=new Set(scheduler.list(projectId).schedules.map(s=>s.id));switch(args[0]){case 'list':scheduler.refresh();value=scheduler.list(projectId);break;case 'register':value=scheduler.register(projectId,args[1]);break;case 'save':value=scheduler.save(projectId,args[1],args[2]===undefined?undefined:identifier(args[2]));if(team)grantSchedules(scheduler.list(projectId).schedules.filter(s=>!previousIds.has(s.id)||s.id===args[2]).map(s=>s.id),studioIdentities.get(ws)!);break;case 'enable':value=scheduler.enable(projectId,identifier(args[1]),args[2] as boolean);if(team&&args[2]===true)grantSchedules([identifier(args[1])],studioIdentities.get(ws)!);break;case 'remove':value=scheduler.remove(projectId,identifier(args[1]));break;case 'run':{const scheduleId=identifier(args[1]);if(team)manualScheduleGrants.set(scheduleId,studioIdentities.get(ws)!);try{value=await scheduler.runNow(projectId,scheduleId,identifier(args[2]));}finally{manualScheduleGrants.delete(scheduleId);}break;}default:throw new CoreError('Scheduler: invalid-input.');}break;}
-      case 'createJob': {const input=args[0] as CreateJob;if(!input||(!input.payload?.testPlan&&input.payload?.steps?.length!==1))throw new CoreError('Use a structured command or TestPlan.');for(const step of input.payload.steps){if(step.source?.provider==='snapshot'){await verifySnapshot(step.source.snapshot);if(step.source.snapshot.projectId!==projectId)throw new CoreError('Snapshot project mismatch.');}}value=await service.createJob(projectId,input,team?studioIdentities.get(ws)!.userId:undefined);break;}
+      case 'createJob': {const input=args[0] as CreateJob;if(!input||(!input.payload?.testPlan&&input.payload?.steps?.length!==1))throw new CoreError('Use a structured command or TestPlan.');for(const step of input.payload.steps){if(step.source?.provider==='snapshot'){if(step.source.snapshot.schemaVersion===2)await sources.resolve(step.source.snapshot as ProjectSnapshot,projectId);else await verifySnapshot(step.source.snapshot);if(step.source.snapshot.projectId!==projectId)throw new CoreError('Snapshot project mismatch.');}}value=await service.createJob(projectId,input,team?studioIdentities.get(ws)!.userId:undefined);break;}
       case 'dispatch':{const jobId=args[0]===undefined?undefined:identifier(args[0]);if(team){const queue=service.queue(projectId).filter(j=>jobId===undefined||j.id===jobId);if(jobId&&!queue.length)throw new CoreError('Queued Job not found.');grantJobs(queue.map(j=>j.id),studioIdentities.get(ws)!);}value=dispatch(projectId,jobId);break;}
       case 'cancelJob':{const job=service.cancelJob(projectId,identifier(args[0]));value=job;const run=service.snapshot(projectId).runs.find(r=>r.jobId===job.id&&activeRun(r));if(run)send(agents.get(run.agentId)?.socket??ws,{type:'cancel',runId:run.id});break;}
       case 'retryJob':value=service.retryJob(projectId,identifier(args[0]));break;
@@ -207,13 +210,13 @@ export async function startCoreServer(options:ServerOptions) {
             const input=validateAgent({name:m.name,platform:m.platform,architecture:m.architecture,capabilities:m.capabilities} as Parameters<typeof validateAgent>[0]);
             const inventory=sourceInventory(m.sourceCache);if(inventory)sourceCaches.set(agentId,inventory);
             service.connectAgent(agentId,input);agents.set(agentId,{socket:ws,seen:Date.now()});authenticated=true;
-            const active=service.repository.read().runs.filter(r=>r.agentId===agentId&&activeRun(r));
+            const active=(service.repository.readActiveRuns?.()??[]).filter(r=>r.agentId===agentId);
             for(const run of active){if(run.id!==m.activeRunId){if(!orchestratorSafeFinish(run.id))failRun(run.id,'Interrupted execution: Agent has no matching durable claim; no automatic replay.');}else{
-              const job=service.repository.read().jobs.find(j=>j.id===run.jobId)!;
+              const job=service.repository.readEntity?.('jobs',run.jobId);if(!job)throw Error('Run job is missing.');
               if(!job.payload.testPlan&&run.status==='pending'&&!job.cancellationRequestedAt)service.acceptExecution(run.projectId,run.id);
               restoreDeadline(run.id,ws);if(job.cancellationRequestedAt)send(ws,{type:'cancel',runId:run.id});
             }}
-            service.observeAgent(agentId,true);if(typeof m.activeRunId==='string'&&!service.repository.read().runs.some(r=>r.id===m!.activeRunId)){orphanedAgents.add(agentId);service.updateAgentStatus(agentId,'error');}else orphanedAgents.delete(agentId);send(ws,{type:'registered',agentId,heartbeatTimeoutMs:options.heartbeatTimeoutMs??15000});
+            service.observeAgent(agentId,true);if(typeof m.activeRunId==='string'&&!service.repository.readEntity?.('runs',String(m!.activeRunId))){orphanedAgents.add(agentId);service.updateAgentStatus(agentId,'error');}else orphanedAgents.delete(agentId);send(ws,{type:'registered',agentId,heartbeatTimeoutMs:options.heartbeatTimeoutMs??15000});
           }else{
             if(m.type!=='subscribe'||(!team&&!auth(m.token,options.studioToken)))throw new CoreError('Authentication failed.');
             const p=m.project as Project;if(!p||typeof p.name!=='string'||p.name.length>120)throw new CoreError('Invalid Project reference.');identifier(p.id);
@@ -227,7 +230,7 @@ export async function startCoreServer(options:ServerOptions) {
         const connection=agents.get(agentId);if(connection?.socket!==ws)throw new CoreError('Stale connection.');
         if(team&&!team.validAgentSession(agentId,agentSessionHashes.get(agentId)??'')){revokeAgentConnections();return;}
         if(m.type==='heartbeat'){if(m.agentId!==agentId||!['idle','busy'].includes(m.status as string))throw new CoreError('Invalid heartbeat.');timestamp(m.timestamp);const inventory=sourceInventory(m.sourceCache);if(inventory)sourceCaches.set(agentId,inventory);connection.seen=Date.now();if(orphanedAgents.has(agentId)){service.repository.transaction(tx=>{const a=tx.agents.get(agentId!)!;a.lastSeenAt=new Date().toISOString();a.status='error';});}else service.observeAgent(agentId,true);return;}
-        const runId=identifier(m.runId);const run=service.repository.read().runs.find(r=>r.id===runId);
+        const runId=identifier(m.runId);const run=service.repository.readEntity?.('runs',runId);
         if(!run)throw new CoreError('Unknown Run; result retained by Agent for reconciliation.');
         if(run.agentId!==agentId||m.jobId!==run.jobId)throw new CoreError('Run ownership mismatch.');
         if(!activeRun(run)){if(m.type==='result')send(ws,{type:'ack',runId,runStepId:m.runStepId});return;}
@@ -255,7 +258,7 @@ export async function startCoreServer(options:ServerOptions) {
               orchestrator.complete(runId,stepId,status as TerminalStatus,m.type==='rejected'?null:m.exitCode as number|null,m.type==='rejected'?'Agent rejected step.':status==='passed'?undefined:(summary?.failures[0]?.message??`${step.name} ${status}.`),m.revision as SourceRevision|undefined,typeof m.serviceId==='string'?m.serviceId:undefined,summary,executionReport(m));
             } catch(error) {if(!(error instanceof CoreError))throw error;orchestrator.complete(runId,stepId,'failed',null,'Agent returned an invalid step result.');send(ws,{type:'cancel',runId});}
             if(pipelineJob.payload.steps[step.order].stage==='source'&&status!=='passed')sourceCaches.delete(agentId);
-            artifacts.revoke(stepId);send(ws,{type:'ack',runId,runStepId:stepId});advance(runId);schedule();return;
+            artifacts.revoke(stepId);sources.revoke(stepId);send(ws,{type:'ack',runId,runStepId:stepId});advance(runId);schedule();return;
           }
           throw new CoreError('Unknown pipeline message.');
         }

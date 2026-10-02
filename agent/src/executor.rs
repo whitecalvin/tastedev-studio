@@ -501,6 +501,7 @@ pub fn detect() -> Capabilities {
         runtimes.insert("playwright".into(), version.into());
     }
     Capabilities {
+        source_snapshot: Some(2),
         cpu_cores: thread::available_parallelism().map_or(0, |n| n.get() as u64),
         memory_mi_b: system.total_memory() / 1024 / 1024,
         docker: probe("docker", &["version", "--format", "{{.Server.Version}}"]).is_some(),

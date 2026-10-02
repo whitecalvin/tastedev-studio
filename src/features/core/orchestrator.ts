@@ -55,7 +55,9 @@ export class TestOrchestrator {
     this.core.repository.transaction(tx=>{const run=tx.runs.get(runId);if(run && activeRun(run)) run.termination ??= status;});
   }
   finish(runId: string) {
-    const s=this.core.repository.read(), run=s.runs.find(r=>r.id===runId);
+    const repo=this.core.repository,run=repo.readEntity?repo.readEntity('runs',runId):repo.read().runs.find(r=>r.id===runId);
+    if(!run)return null;
+    const s=repo.readProject?.(run.projectId,undefined,runId)??repo.read();
     if (!run || !activeRun(run) || s.steps.some(s=>s.runId===runId && ['pending','running'].includes(s.status))) return null;
     const failure=s.steps.find(s=>s.id===run.primaryFailureStepId), status=run.termination ?? 'passed';
     return this.core.finishRun(run.projectId,run.id,status,status==='passed'?0:failure?.exitCode === 0 ? null : failure?.exitCode ?? null,(failure?.failureReason ?? (status==='passed'?'All pipeline steps passed.':`Run ${status}.`)).replace(/[\x00-\x1f]/g,' ').slice(0,300));
