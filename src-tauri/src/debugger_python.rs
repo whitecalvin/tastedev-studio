@@ -35,6 +35,16 @@ pub(super) fn interpreter(path: &str) -> Result<PathBuf> {
     }
     Ok(file.canonicalize()?)
 }
+pub(super) fn rust_adapter(path: &str) -> Result<PathBuf> {
+    let file = PathBuf::from(path);
+    if !file.is_absolute()
+        || !file.is_file()
+        || file.file_name().and_then(|n| n.to_str()) != Some("codelldb.exe")
+    {
+        return Err(error("debug-adapter"));
+    }
+    Ok(file.canonicalize()?)
+}
 pub(super) fn run(
     root: &Path,
     file: &Path,
@@ -42,12 +52,54 @@ pub(super) fn run(
     args: &[String],
     cancel: &AtomicBool,
     commands: mpsc::Receiver<Internal>,
+    emit: impl FnMut(&str, Value),
+) -> Result<Option<i32>> {
+    run_adapter(root, (file, None), python, args, cancel, commands, emit)
+}
+pub(super) fn run_rust(
+    root: &Path,
+    file: &Path,
+    target: (&Path, &Path, &str),
+    args: &[String],
+    cancel: &AtomicBool,
+    commands: mpsc::Receiver<Internal>,
+    emit: impl FnMut(&str, Value),
+) -> Result<Option<i32>> {
+    let (adapter, program, expected_hash) = target;
+    if format!("{:x}", Sha256::digest(fs::read(program)?)) != expected_hash {
+        return Err(error("conflict"));
+    }
+    run_adapter(
+        root,
+        (file, Some(program)),
+        adapter,
+        args,
+        cancel,
+        commands,
+        emit,
+    )
+}
+fn run_adapter(
+    root: &Path,
+    source: (&Path, Option<&Path>),
+    executable: &Path,
+    args: &[String],
+    cancel: &AtomicBool,
+    commands: mpsc::Receiver<Internal>,
     mut emit: impl FnMut(&str, Value),
 ) -> Result<Option<i32>> {
-    let mut command = Command::new(crate::filesystem::display_path(python));
+    let (file, program) = source;
+    let rust = program.is_some();
+    let mut command = Command::new(crate::filesystem::display_path(executable));
+    if !rust {
+        command.args(["-m", "debugpy.adapter"]);
+    }
     command
-        .args(["-m", "debugpy.adapter"])
-        .current_dir(python.parent().unwrap_or(root))
+        .current_dir(if rust {
+            root
+        } else {
+            executable.parent().unwrap_or(root)
+        })
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -99,7 +151,11 @@ pub(super) fn run(
     let drain = thread::spawn(move || {
         let mut stderr = BufReader::new(stderr);
         let mut bytes = [0u8; 4096];
-        while stderr.read(&mut bytes).is_ok_and(|size| size > 0) {}
+        while let Ok(size) = stderr.read(&mut bytes) {
+            if size == 0 {
+                break;
+            }
+        }
     });
     let result = (|| -> Result<Option<i32>> {
         let mut seq = 1;
@@ -118,7 +174,7 @@ pub(super) fn run(
             &mut input,
             &mut seq,
             "initialize",
-            json!({"clientID":"tastestudio","adapterID":"python","pathFormat":"path","linesStartAt1":true,"columnsStartAt1":true,"supportsRunInTerminalRequest":false}),
+            json!({"clientID":"tastestudio","adapterID":if rust {"lldb"} else {"python"},"pathFormat":"path","linesStartAt1":true,"columnsStartAt1":true,"supportsRunInTerminalRequest":false}),
             &mut pending,
         )?;
         loop {
@@ -133,9 +189,6 @@ pub(super) fn run(
                 .any(|(_, at)| at.elapsed() > Duration::from_secs(30))
             {
                 return Err(error("debug-timeout"));
-            }
-            if let Some(status) = child.try_wait()? {
-                return Ok(exit_code.or(status.code()));
             }
             while let Ok(action) = commands.try_recv() {
                 let result = (|| -> Result<()> {
@@ -237,20 +290,15 @@ pub(super) fn run(
                 if result.is_err() {
                     emit(
                         "operation-error",
-                        json!({"reason":"Python debug action could not complete. Wait for a paused session and check the selected source."}),
+                        json!({"reason":"DAP debug action could not complete. Wait for a paused session and check the selected source."}),
                     );
                 }
             }
             let message = match rx.recv_timeout(Duration::from_millis(25)) {
                 Ok(value) => value,
                 Err(mpsc::RecvTimeoutError::Timeout) => continue,
-                Err(_) => return Err(error("debug-python")),
+                Err(_) => return exit_code.map(Some).ok_or_else(|| error("debug-python")),
             };
-            #[cfg(test)]
-            eprintln!(
-                "DAP received type={} command={} event={} success={}",
-                message["type"], message["command"], message["event"], message["success"]
-            );
             if message["type"] == "request" {
                 let bytes=serde_json::to_vec(&json!({"seq":seq,"type":"response","request_seq":message["seq"],"success":false,"command":message["command"],"message":"Client execution requests are not allowed."})).map_err(|_|error("debug-message"))?;
                 seq += 1;
@@ -273,7 +321,7 @@ pub(super) fn run(
                     breakpoint_updates.remove(&id);
                     emit(
                         "operation-error",
-                        json!({"reason":"Python debug adapter rejected the request."}),
+                        json!({"reason":"DAP debug adapter rejected the request."}),
                     );
                     if matches!(name.as_str(), "initialize" | "launch" | "configurationDone") {
                         return Err(error("debug-python"));
@@ -287,15 +335,22 @@ pub(super) fn run(
                             &mut input,
                             &mut seq,
                             "launch",
-                            json!({"type":"python","request":"launch","name":"TASTESTUDIO","program":crate::filesystem::display_path(file),"cwd":crate::filesystem::display_path(root),"python":[crate::filesystem::display_path(python)],"args":args,"console":"internalConsole","justMyCode":true,"stopOnEntry":true,"redirectOutput":true,"subProcess":false,"env":{}}),
+                            if let Some(program) = program {
+                                json!({"type":"lldb","request":"launch","name":"TASTESTUDIO","program":crate::filesystem::display_path(program),"cwd":crate::filesystem::display_path(root),"args":args,"terminal":"console","stopOnEntry":true,"env":{},"sourceLanguages":["rust"]})
+                            } else {
+                                json!({"type":"python","request":"launch","name":"TASTESTUDIO","program":crate::filesystem::display_path(file),"cwd":crate::filesystem::display_path(root),"python":[crate::filesystem::display_path(executable)],"args":args,"console":"internalConsole","justMyCode":true,"stopOnEntry":true,"redirectOutput":true,"subProcess":false,"env":{}})
+                            },
                             &mut pending,
                         )?;
                     }
                     "configurationDone" => emit("ready", json!({})),
                     "stackTrace" => {
                         frames.clear();
-                        let rows=body["stackFrames"].as_array().map(|items|items.iter().take(100).filter_map(|frame|{let path=source_path(root,frame["source"]["path"].as_str()?)?;if !path.ends_with(".py"){return None;}let id=frame["id"].as_i64()?;frames.insert(id);Some(json!({"functionName":frame["name"],"path":path,"line":frame["line"],"column":frame["column"],"scopes":[{"type":"locals","objectId":format!("pyframe:{id}")}]}))}).collect::<Vec<_>>()).unwrap_or_default();
-                        emit("paused", json!({"reason":"Python paused","frames":rows}));
+                        let rows=body["stackFrames"].as_array().map(|items|items.iter().take(100).filter_map(|frame|{let path=source_path(root,frame["source"]["path"].as_str()?)?;if !(if rust {path.ends_with(".rs")} else {path.ends_with(".py")}){return None;}let id=frame["id"].as_i64()?;frames.insert(id);Some(json!({"functionName":frame["name"],"path":path,"line":frame["line"],"column":frame["column"],"scopes":[{"type":"locals","objectId":format!("pyframe:{id}")}]}))}).collect::<Vec<_>>()).unwrap_or_default();
+                        emit(
+                            "paused",
+                            json!({"reason":if rust {"Rust paused"} else {"Python paused"},"frames":rows}),
+                        );
                     }
                     "scopes" => {
                         if variable_frames.remove(&id).is_some() {
@@ -388,7 +443,9 @@ pub(super) fn run(
                         json!({"stream":"debug","text":body["output"].as_str().unwrap_or("").chars().take(16384).collect::<String>()}),
                     ),
                     "exited" => exit_code = body["exitCode"].as_i64().map(|code| code as i32),
-                    "terminated" => return Ok(exit_code),
+                    "terminated" => {
+                        return exit_code.map(Some).ok_or_else(|| error("debug-python"))
+                    }
                     _ => {}
                 };
             }

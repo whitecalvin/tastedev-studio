@@ -357,12 +357,12 @@ fn run(config: Config) -> Result<()> {
                                         let started = chrono::Utc::now().to_rfc3339();
                                         let probe_start = Instant::now();
                                         let mut request = request;
-                                        let capability_error = executor::verify_capabilities(
+                                        let observed = executor::verify_capabilities(
                                             &request,
                                             current_capabilities,
                                             &flag,
-                                        )
-                                        .err();
+                                        );
+                                        let capability_error = observed.as_ref().err().cloned();
                                         let elapsed = probe_start.elapsed().as_millis() as u64;
                                         if capability_error.is_some()
                                             || flag.load(Ordering::SeqCst)
@@ -379,7 +379,7 @@ fn run(config: Config) -> Result<()> {
                                             return json!({"type":"result","protocolVersion":VERSION,"jobId":request.job_id,"runId":request.run_id,"runStepId":request.run_step_id,"status":status,"exitCode":null,"startedAt":started,"finishedAt":chrono::Utc::now().to_rfc3339(),"classification":classification,"error":capability_error});
                                         }
                                         request.timeout_ms -= elapsed;
-                                        if request.run_step_id.is_some() {
+                                        let mut result = if request.run_step_id.is_some() {
                                             pipeline::execute(
                                                 request,
                                                 &root,
@@ -389,7 +389,11 @@ fn run(config: Config) -> Result<()> {
                                             )
                                         } else {
                                             executor::execute(request, &root, flag, sender)
+                                        };
+                                        if let Ok(capabilities) = observed {
+                                            result["executionEnvironment"] = json!({"platform":platform(),"architecture":architecture(),"capabilities":capabilities,"observation":"pre-execution-runtime-check","agentVersion":env!("CARGO_PKG_VERSION")});
                                         }
+                                        result
                                     }),
                                 });
                             }

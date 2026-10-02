@@ -417,7 +417,7 @@ pub fn verify_capabilities(
     request: &Request,
     mut current: Capabilities,
     cancel: &AtomicBool,
-) -> Result<()> {
+) -> Result<Capabilities> {
     if let Some(required) = &request.requirements.runtimes {
         for name in required.keys().filter(|name| name.as_str() != "playwright") {
             if cancel.load(Ordering::SeqCst) {
@@ -466,7 +466,17 @@ pub fn verify_capabilities(
     if !request.matches(&current) {
         return Err("Capability changed or required runtime unavailable".into());
     }
-    Ok(())
+    current.runtimes.retain(|key, _| {
+        request
+            .requirements
+            .runtimes
+            .as_ref()
+            .is_some_and(|r| r.contains_key(key))
+    });
+    if request.requirements.browser.is_none() {
+        current.browsers.clear();
+    }
+    Ok(current)
 }
 pub fn detect() -> Capabilities {
     let mut system = sysinfo::System::new();

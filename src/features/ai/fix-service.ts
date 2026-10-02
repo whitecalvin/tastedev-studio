@@ -2,6 +2,7 @@ import type { WorkspaceFileService } from '../filesystem/file-service.ts';
 import type { Documents } from '../editor/documents.ts';
 import type { AnalysisRecord } from './domain.ts';
 import type {WorkspaceSnapshot} from './snapshot.ts';
+import {validateImpactPlan,type ValidationImpactPlan} from './validation-impact.ts';
 import { aiPath, uuid, args } from './security.ts';
 
 export type FixStatus = 'proposed'|'approved'|'applied'|'validating'|'retesting'|'passed'|'failed'|'reverted'|'cancelled'|'rejected'|'recovery-required';
@@ -12,8 +13,8 @@ export interface FilePatch { path:string; baseHash:string; resultHash:string; ba
 export interface PatchJournal {operation:'apply'|'revert';startedAt:string;completedAt?:string;files:{path:string;beforeHash:string;afterHash:string}[]}
 export interface ExecutionApproval {id:string;proposalId:string;kind:'local-task'|'remote-test';name:string;definitionHash:string;timestamp:string}
 export interface FixEvent {id:string;status:FixStatus;phase:'proposal'|'approval'|'patch'|'validation'|'retest'|'recovery'|'result';timestamp:string}
-export type FixSnapshot=Omit<WorkspaceSnapshot,'files'> & {files:{path:string;checksum:string}[]};
-export interface FixAttempt {id:string;projectId:string;runId?:string;originRunId?:string;analysisId:string;proposalId:string;attempt:number;status:FixStatus;createdAt:string;patches:FilePatch[];approval?:{proposalId:string;files:string[];changeHash:string;timestamp:string};journal?:PatchJournal;executionApprovals?:ExecutionApproval[];snapshot?:FixSnapshot;events?:FixEvent[];error?:string;retestJobId?:string;retestRunId?:string;validation?:{name:string;status:string;durationMs:number}[]}
+export type FixSnapshot=Omit<WorkspaceSnapshot,'files'> & {files:{path:string;checksum:string;encoding?:'utf8'|'base64';size?:number}[]};
+export interface FixAttempt {validationPlans?:ValidationImpactPlan[];id:string;projectId:string;runId?:string;originRunId?:string;analysisId:string;proposalId:string;attempt:number;status:FixStatus;createdAt:string;patches:FilePatch[];approval?:{proposalId:string;files:string[];changeHash:string;timestamp:string};journal?:PatchJournal;executionApprovals?:ExecutionApproval[];snapshot?:FixSnapshot;events?:FixEvent[];error?:string;retestJobId?:string;retestRunId?:string;validation?:{name:string;status:string;durationMs:number}[]}
 export const fixTools = [{name:'apply_patch',permission:'write',approval:'proposal-and-content'}, {name:'validation_task',permission:'validate',approval:'protocol-task'}, {name:'remote_retest',permission:'validate',approval:'protocol-test'}] as const;
 export function structuredEdit(base:string,result:string):Edit[]{let start=0;while(start<base.length&&start<result.length&&base[start]===result[start])start++;let end=0;while(end<base.length-start&&end<result.length-start&&base[base.length-end-1]===result[result.length-end-1])end++;return base===result?[]:[{start,remove:base.slice(start,base.length-end),insert:result.slice(start,result.length-end)}];}
 export function applyEdits(base:string,edits:Edit[]){let value=base;let previous=base.length+1;for(const e of [...edits].sort((a,b)=>b.start-a.start)){if(!Number.isSafeInteger(e.start)||e.start<0||e.start+e.remove.length>previous||value.slice(e.start,e.start+e.remove.length)!==e.remove)throw new FixError('INVALID_PATCH');value=value.slice(0,e.start)+e.insert+value.slice(e.start+e.remove.length);previous=e.start;}return value;}
@@ -87,11 +88,13 @@ export class FixService {
  }
  private async approvedExecution(a:FixAttempt,approvalId:string,kind:ExecutionApproval['kind'],definition:unknown){const approval=a.executionApprovals?.find(v=>v.id===approvalId);if(!approval||approval.proposalId!==a.proposalId||approval.kind!==kind||approval.definitionHash!==await contentHash(JSON.stringify(definition)))throw new FixError('VALIDATION_APPROVAL_REQUIRED');}
  async beginApprovedValidation(id:string,approvalId:string,definition:unknown){const a=this.own(id);await this.approvedExecution(a,approvalId,'local-task',definition);this.beginValidation(id);await this.flush();}
+ async recordValidationPlan(id:string,plan:ValidationImpactPlan){const a=this.own(id);if(!['proposed','applied'].includes(a.status))throw new FixError('INVALID_STATE');validateImpactPlan(plan,this.projectId,a.proposalId,a.patches.map(p=>p.path));const previous=a.validationPlans?.at(-1);if(previous?.definitionHash===plan.definitionHash)return structuredClone(previous);if((a.validationPlans?.length??0)>=20)throw new FixError('VALIDATION_PLAN_LIMIT');(a.validationPlans??=[]).push(structuredClone(plan));this.changed(a);await this.flush();return structuredClone(plan);}
  async recordSnapshot(id:string,snapshot:WorkspaceSnapshot){
   const a=this.own(id);if(a.status!=='applied'||snapshot.projectId!==this.projectId||snapshot.proposalId!==a.proposalId||snapshot.attempt!==a.attempt)throw new FixError('PROJECT_BOUNDARY');
+  await this.preflight(a,true);
   const {verifySnapshot}=await import('./snapshot.ts');await verifySnapshot(snapshot);
   if(a.patches.some(p=>snapshot.files.find(f=>f.path===p.path)?.checksum!==p.resultHash)||snapshot.changedFiles.length!==a.patches.length||snapshot.changedFiles.some(p=>!a.patches.some(f=>f.path===p)))throw new FixError('PATCH_CONFLICT');
-  const value:FixSnapshot={provider:'snapshot',snapshotId:snapshot.snapshotId,projectId:snapshot.projectId,proposalId:snapshot.proposalId,attempt:snapshot.attempt,baseRevision:snapshot.baseRevision,changedFiles:[...snapshot.changedFiles],checksum:snapshot.checksum,files:snapshot.files.map(({path,checksum})=>({path,checksum}))};if(a.snapshot&&JSON.stringify(a.snapshot)!==JSON.stringify(value))throw new FixError('SNAPSHOT_IDENTITY_CONFLICT');a.snapshot=value;this.changed(a);await this.flush();
+  const value:FixSnapshot={...(snapshot.schemaVersion===2?{schemaVersion:2 as const}:{}),provider:'snapshot',snapshotId:snapshot.snapshotId,projectId:snapshot.projectId,proposalId:snapshot.proposalId,attempt:snapshot.attempt,baseRevision:snapshot.baseRevision,changedFiles:[...snapshot.changedFiles],checksum:snapshot.checksum,files:snapshot.files.map(({path,checksum,encoding,size})=>({path,checksum,...(snapshot.schemaVersion===2?{encoding,size}:{})}))};if(a.snapshot&&JSON.stringify(a.snapshot)!==JSON.stringify(value))throw new FixError('SNAPSHOT_IDENTITY_CONFLICT');a.snapshot=value;this.changed(a);await this.flush();
  }
  async beginApprovedRetest(id:string,approvalId:string,definition:unknown){const a=this.own(id);await this.approvedExecution(a,approvalId,'remote-test',definition);if(!a.snapshot)throw new FixError('INVALID_SNAPSHOT');this.beginRetest(id);await this.flush();}
  beginValidation(id:string){const a=this.own(id);if(a.status!=='applied')throw new FixError('INVALID_STATE');a.status='validating';this.changed(a);}
@@ -101,4 +104,3 @@ export class FixService {
  linkRetest(id:string,runId:string){const a=this.own(id);if(a.status!=='retesting')throw new FixError('INVALID_STATE');uuid(runId);a.retestRunId=runId;this.changed(a);}
  retestResult(id:string,status:'passed'|'failed'|'cancelled'|'timeout'){const a=this.own(id);if(a.status!=='retesting')throw new FixError('INVALID_STATE');a.status=status==='passed'?'passed':status==='cancelled'?'cancelled':'failed';this.changed(a);}
 }
-

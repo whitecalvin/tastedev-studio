@@ -15,25 +15,25 @@ export class StorageError extends Error {constructor(){super('Core storage write
 export class CoreStore {
   readonly db: DatabaseSync;
   private key: Buffer;
-  constructor(filename: string, key: Uint8Array) {
+  constructor(filename: string, key: Uint8Array, readOnly=false) {
     if (key.length !== 32) throw new Error('Core storage requires a 32-byte key.');
     this.key = Buffer.from(key);
     if (filename !== ':memory:') {
       if (!path.isAbsolute(filename)) throw new Error('Core storage path must be absolute.');
-      fs.mkdirSync(path.dirname(filename), { recursive: true });
+      if(!readOnly)fs.mkdirSync(path.dirname(filename), { recursive: true });
       if (fs.existsSync(filename) && fs.lstatSync(filename).isSymbolicLink()) throw new Error('Core storage links are not allowed.');
     }
-    this.db = new DatabaseSync(filename, { timeout: 1000 });
+    this.db = new DatabaseSync(filename, { timeout: 1000,readOnly });
     try {
-      this.db.exec('PRAGMA locking_mode=EXCLUSIVE; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;');
+      if(!readOnly)this.db.exec('PRAGMA locking_mode=EXCLUSIVE; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;');
       if (this.db.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok') throw new Error('Core storage integrity check failed.');
       const version = Number(this.db.prepare('PRAGMA user_version').get()?.user_version);
       if (version > STORAGE_VERSION) throw new Error('Core storage schema is newer than this runtime.');
-      this.db.exec('BEGIN EXCLUSIVE');
+      if(!readOnly){this.db.exec('BEGIN EXCLUSIVE');
       try {
         if (version < 1) this.db.exec('CREATE TABLE units (name TEXT PRIMARY KEY, payload BLOB NOT NULL); CREATE TABLE migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL); INSERT INTO migrations VALUES (1, CURRENT_TIMESTAMP); PRAGMA user_version=1;');
         this.db.exec('COMMIT');
-      } catch (e) { this.db.exec('ROLLBACK'); throw e; }
+      } catch (e) { this.db.exec('ROLLBACK'); throw e; }}
       // Validate the key before any mutation of an existing database.
       for (const row of this.db.prepare('SELECT payload FROM units').iterate()) this.decode(row.payload as Uint8Array);
     } catch (e) { this.db.close(); this.key.fill(0); throw e; }
@@ -155,13 +155,14 @@ function protectWindowsKey(bytes:Buffer,operation:'Protect'|'Unprotect'){
  const script="$ErrorActionPreference='Stop'; [void][Reflection.Assembly]::LoadWithPartialName('System.Security'); $data=[Convert]::FromBase64String([Console]::In.ReadToEnd()); $result=[Security.Cryptography.ProtectedData]::"+operation+"($data,[Text.Encoding]::UTF8.GetBytes('tastestudio-core-key-v1'),[Security.Cryptography.DataProtectionScope]::CurrentUser); [Console]::Out.Write([Convert]::ToBase64String($result))";
  try{return Buffer.from(execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{input:bytes.toString('base64'),encoding:'utf8',stdio:['pipe','pipe','pipe'],windowsHide:true}),'base64');}catch{throw new Error('Core storage key could not be protected or recovered for this Windows user.');}
 }
-export function storageKey(filename:string){
+export function storageKey(filename:string,readOnly=false){
  const keyPath=filename+'.key';if(fs.existsSync(filename)&&!fs.existsSync(keyPath))throw new Error('Existing Core database key is missing; restore the matching key.');
  if(fs.existsSync(keyPath)){if(fs.lstatSync(keyPath).isSymbolicLink())throw new Error('Core storage key links are not allowed.');const data=fs.readFileSync(keyPath);
   if(data.subarray(0,keyHeader.length).equals(keyHeader)){if(process.platform!=='win32')throw new Error('Windows storage key requires the original Windows user.');const key=protectWindowsKey(data.subarray(keyHeader.length),'Unprotect');if(key.length!==32)throw new Error('Invalid Core storage key.');return key;}
   if(data.length!==32)throw new Error('Invalid Core storage key.');
-  if(process.platform==='win32'){const wrapped=Buffer.concat([keyHeader,protectWindowsKey(data,'Protect')]);const temporary=keyPath+'.migrate-'+randomBytes(6).toString('hex');durableKeyFile(temporary,wrapped);fs.renameSync(temporary,keyPath);}else fs.chmodSync(keyPath,0o600);return data;
+  if(!readOnly&&process.platform==='win32'){const wrapped=Buffer.concat([keyHeader,protectWindowsKey(data,'Protect')]);const temporary=keyPath+'.migrate-'+randomBytes(6).toString('hex');durableKeyFile(temporary,wrapped);fs.renameSync(temporary,keyPath);}else if(!readOnly)fs.chmodSync(keyPath,0o600);return data;
  }
+ if(readOnly)throw new Error('Core storage key is missing.');
  fs.mkdirSync(path.dirname(filename),{recursive:true});const key=randomBytes(32),data=process.platform==='win32'?Buffer.concat([keyHeader,protectWindowsKey(key,'Protect')]):key;durableKeyFile(keyPath,data);return key;
 }
 
@@ -218,3 +219,6 @@ interface ArtifactUsageRow {projectId:string;runId:string;createdAt:string;size:
 export function artifactUsageRows(state?:CoreSnapshot){const runs=new Map(state?.runs.map(r=>[r.id,r])??[]);return new Map(state?.artifacts.map(a=>{if(!Number.isSafeInteger(a.size)||a.size<0||!runs.has(a.runId))throw Error('Invalid Evidence usage metadata.');return[a.id,{projectId:runs.get(a.runId)!.projectId,runId:a.runId,createdAt:a.createdAt,size:a.size,deleted:!!a.deletedAt}];})??[]);}
 
 export {SqliteCoreRepository} from './lazy-core-repository.ts';
+
+/** Read backup state without rebuilding indexes or migrating the backup itself. */
+export function readCoreBackupState(store:CoreStore):CoreSnapshot{const record=loadCore(store);const state=record?.state??{agents:[],jobs:[],runs:[],steps:[],artifacts:[],events:[]};validateReferences(state);return state;}

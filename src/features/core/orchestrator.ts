@@ -27,7 +27,7 @@ export class TestOrchestrator {
       return null;
     });
   }
-  complete(runId: string, stepId: string, status: TerminalStatus, exitCode: number | null, reason?: string, revision?: SourceRevision, serviceId?: string, browserResult?:BrowserResult,executionReport?:import('./domain.ts').ExecutionReport) {
+  complete(runId: string, stepId: string, status: TerminalStatus, exitCode: number | null, reason?: string, revision?: SourceRevision, serviceId?: string, browserResult?:BrowserResult,executionReport?:import('./domain.ts').ExecutionReport,environment?:import('./domain.ts').ExecutionEnvironment,contentChecksum?:string) {
     this.core.repository.transaction(tx => {
       const run = tx.runs.get(runId), step = tx.steps.get(stepId);
       if (!run || !activeRun(run) || !step || step.runId !== runId || step.status !== 'running') throw new CoreError('Unexpected pipeline result.');
@@ -36,12 +36,12 @@ export class TestOrchestrator {
       if (status === 'failed' && exitCode === 0) throw new CoreError('Failed step cannot report exit zero.');
       if (exitCode !== null && !Number.isInteger(exitCode)) throw new CoreError('Invalid step exit code.');
       step.status = status; step.exitCode = exitCode; step.finishedAt = new Date().toISOString();
-      if(browserResult)step.browserResult=browserResult;if(executionReport)step.executionReport=structuredClone(executionReport);
+      if(environment){step.executionEnvironment=structuredClone(environment);if(job.payload.steps[step.order].stage==='test')run.executionEnvironment=structuredClone(environment);}if(browserResult)step.browserResult=browserResult;if(executionReport)step.executionReport=structuredClone(executionReport);
       if (serviceId) step.serviceId = serviceId;
       if (revision) {
         const source = job.payload.steps[step.order].source;
         if (!source || revision.repository !== source.repository || !/^[a-f0-9]{40,64}$/.test(revision.commit) || typeof revision.branch !== 'string' || revision.branch.length > 200) throw new CoreError('Invalid source revision report.');
-        if(source.provider==='snapshot'&&(revision.snapshotId!==source.snapshot.snapshotId||revision.proposalId!==source.snapshot.proposalId||revision.attempt!==source.snapshot.attempt||revision.commit!==source.snapshot.checksum))throw new CoreError('Snapshot identity mismatch.');run.revision = revision;
+        if(source.provider==='snapshot'&&(revision.snapshotId!==source.snapshot.snapshotId||revision.proposalId!==source.snapshot.proposalId||revision.attempt!==source.snapshot.attempt||revision.commit!==source.snapshot.checksum))throw new CoreError('Snapshot identity mismatch.');if(contentChecksum!==undefined&&(!/^[a-f0-9]{64}$/.test(contentChecksum)||source.provider!=='snapshot'))throw new CoreError('Invalid verified content identity.');run.revision={repository:revision.repository,branch:revision.branch,commit:revision.commit,...(source.provider==='snapshot'?{snapshotId:revision.snapshotId,proposalId:revision.proposalId,attempt:revision.attempt,...(contentChecksum?{contentChecksum}:{})}:{})};
       }
       if (status === 'passed' && job.payload.steps[step.order].stage === 'source' && !revision) throw new CoreError('Source preparation must report its commit.');
       if (status !== 'passed') {

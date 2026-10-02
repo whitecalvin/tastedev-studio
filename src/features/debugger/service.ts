@@ -11,14 +11,14 @@ export class DebugService {
  snapshot=()=>this.state;subscribe=(fn:()=>void)=>{this.listeners.add(fn);return()=>{this.listeners.delete(fn);};};
  private update(patch:Partial<DebugState>){this.state={...this.state,...patch};this.listeners.forEach(fn=>fn());}
  active=()=>['starting','ready','running','paused'].includes(this.state.status);
- async start(workspaceId:string,path:string,content:string,dirty:boolean,options:{runtime?:'node'|'python';pythonPath?:string}={}){
+ async start(workspaceId:string,path:string,content:string,dirty:boolean,options:{runtime?:'node'|'python'|'rust';pythonPath?:string;adapterPath?:string;binaryPath?:string;expectedBinaryHash?:string}={}){
   if(!this.host.supported)throw new Error('Debugging requires the desktop application.');if(this.active())throw new Error('Stop the current debug session first.');if(dirty)throw new Error('Save all edited files before debugging.');
-  if(!(options.runtime==='python'?/\.py$/i:/\.(?:[cm]?[jt]s)$/i).test(path)||path.split(/[\\/]/).some(p=>p==='..'||p==='')||/^[\\/]|:/.test(path))throw new Error('Choose a Node or TypeScript file inside this project.');
+  if(!(options.runtime==='python'?/\.py$/i:options.runtime==='rust'?/\.rs$/i:/\.(?:[cm]?[jt]s)$/i).test(path)||path.split(/[\\/]/).some(p=>p==='..'||p==='')||/^[\\/]|:/.test(path))throw new Error('Choose a saved source file inside this project.');
   const epoch=++this.epoch,sessionId=crypto.randomUUID();this.off?.();this.off=undefined;this.sequence=0;this.state=initial();this.update({workspaceId,sessionId,status:'starting'});
   try{const off=await this.host.listen(event=>{if(epoch===this.epoch)this.receive(event);});if(epoch!==this.epoch){off();return;}this.off=off;
    const bytes=new TextEncoder().encode(content),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
    if(epoch!==this.epoch)return;
-   await this.host.invoke('debug_start',{request:{sessionId,workspaceId,path,expectedHash:hash,args:[],runtime:options.runtime??'node',pythonPath:options.runtime==='python'?options.pythonPath:null}});
+   await this.host.invoke('debug_start',{request:{sessionId,workspaceId,path,expectedHash:hash,args:[],runtime:options.runtime??'node',pythonPath:options.runtime==='python'?options.pythonPath:null,...(options.runtime==='rust'?{adapterPath:options.adapterPath,binaryPath:options.binaryPath,expectedBinaryHash:options.expectedBinaryHash}:{})}});
   }catch(error){if(epoch===this.epoch){this.update({status:'failed',error:error instanceof Error?error.message:'Debug session could not start.'});this.off?.();this.off=undefined;}throw error;}
  }
  receive(event:DebugEvent){if(event.sessionId!==this.state.sessionId||event.workspaceId!==this.state.workspaceId||!Number.isSafeInteger(event.sequence)||event.sequence<=this.sequence)return;this.sequence=event.sequence;const data=event.data;

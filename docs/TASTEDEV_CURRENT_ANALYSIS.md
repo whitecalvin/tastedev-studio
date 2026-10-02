@@ -432,3 +432,49 @@ Branch create/switch, approved fetch/fast-forward-only pull/non-force push/commi
 전체 Node637 및 마지막 immutable 보완42관련 PASS(최종638 effective), lint/static/export 증거는 resources/verification/dev-01/tasks/tastedev-studio/fifth-advancement/phase-1 및 상위 logs 참조. 기존 Native gates는 입력 해시를 검증해 재사용하고 버전/정적 자산 binary만 rebuild한다. 패키지·Core smoke 완료 상태는 각 checkpoint가 authority다.
 
 제한: CoreStore의 DB 무결성/암호 인증 전체 audit, Artifact 파일 audit, 메타데이터 manifest/index 전체 기록, 요청된 scheduling/export collection 조회, 단일 writer 정책 유지. 실제 장기간 운영·설치·서비스/업데이트 QA는 사용자 담당이다. 5차2~6단계는 아직 구현 전이며 순차 진행한다. 102 배포/자동 게시/서비스 설치/commit/push 없음.
+
+## 5차 고도화 2단계 — Project Snapshot v2 (2026-10-02)
+
+0.1.25: 원래 바이트 기반 binary/UTF-8 BOM/empty file Snapshot과 인증된 HTTP manifest·256KiB 재개 전송, 프로젝트별 checksum reuse, Run/Step/Agent 범위 다운로드를 추가했다. WebSocket에는 작은 Source reference만 전달한다. sourceSnapshot:2 capability가 없는 Agent는 v2 작업에서 제외된다. Protocol과 AI Retest에 연결하고 기존 승인/Dirty 보호/Queue/Pipeline을 재사용한다.
+
+실제 localhost Core + Rust Agent에서203files/700436bytes 두 Run PASS, 두 번째202files reuse, Dummy .env 제외, 실제 HTTP interruption/prefix recovery와 권한/무결성 검사 PASS. Node650 full PASS, lint/export-TypeScript PASS. Native 최종 gate와 패키지 상태는 fifth-advancement/phase-2/local-package-checkpoint.json이 authority다. 사용자 설치/원격/GUI QA는 미실시. 102 배포·게시·설치 없음.
+
+한도:100MiB total/8MiB file/10000files/2MiB manifest, Agent cache256entries/512MiB, Core blob512MiB/project128manifests. 자동 manifest retention, 외부 blob storage와 매우 느린 전송의 grant 자동갱신은 미지원. 상세: resources/guides/dev-01/tastestudio-fifth-advancement/PROJECT-SNAPSHOT.md. 3~6단계는 아직 순차 진행 대상이다.
+
+## 5차 고도화 3단계 — 재현 조건 비교 (2026-10-02)
+
+0.1.26: Core가 검증된 Snapshot manifest에서 launch identity를 제외한 contentChecksum을 계산한다. Agent의 임의 contentChecksum은 보존하지 않는다. 기존 fixed runtime recheck 결과와 Agent version을 결과 metadata로 기록하고 승인된 요구사항을 확인한다. Run comparison은 content identity/definition/observed runtime·Agent version 차이를 표시하며 unknown과 legacy registration을 구분한다.
+
+실제 Core/Rust Agent0.1.26 두 Snapshot203files: 다른 transport checksums/같은 contentChecksum, Node24.11.1 observed, 같은 환경 comparable, 실제 test2PASS. 민감 environment values/credential은 metadata에 없다. 테스트·패키지 완료 gate는 fifth-advancement/phase-3 및 DELIVERY-INDEX/checkpoint authority. OS build/kernel/container/package 설치·binary hash attestation은 미지원이며 관측값은 연결 Agent의 보고다. 상세 guide: resources/guides/dev-01/tastestudio-fifth-advancement/REPRODUCIBILITY.md. 102 배포·설치·게시 없음. 4~6단계는 순차 진행한다.
+
+## Fifth advancement phase4 — 0.1.27
+Affected-file Protocol validation plans, immutable history, current Retest evidence and v2 AI Snapshot history implemented. Actual ChatGPT Pro+Rust Agent failure→fix→PASS, rollback/source hashes/secret0/orphan0 verified. Node658 effective, lint/export PASS; unchanged native gates reused by hashes. Local packages only; installed QA user-owned. Evidence: resources/verification/dev-01/tasks/tastedev-studio/fifth-advancement/phase-4/RESULT.md.
+
+## Fifth advancement phase5 — 0.1.28
+Completed Snapshot bodies/manifests are included in offline v2 backup, restored only into a new directory after references/checksums validate. Read-only doctor validates DB/key/schema/Evidence/Source without generating keys or migrating original data. GUI separates authentication and connection recovery. Node663/663, lint/export PASS. External config/credentials/service registration remain outside backup; Windows DPAPI recovery requires original user. Evidence phase-5/RESULT.md; local packages only.
+
+## Fifth advancement phase6 — 0.1.29 / local deliverables complete
+History search/keyset navigation/cancel and stale session/project/permission response protection implemented. Analysis/Attempt navigation reuses restored AI review; no automatic approval/write/provider call. Source transfer progress is separate from actual Run/Agent/Step verification. History HTTP request/response bounds align with v2 metadata. Node667/667 PASS; full lint had one cleanup-ref warning, repaired with scoped lint PASS; final production export including TypeScript PASS. Native Debug/Release111 PASS+4 existing ignored reused from phase5 after source/toolchain/log hash verification, version/frontend Release build refreshed. Actual controlled Core GUI31 records paging/search/empty verified, browser errors0; packaged Core ready/stop PASS. Installed Native/Light-Dark/service/update/user-machine QA not run. Phase4 actual Provider+Rust Agent FAIL→fix→PASS evidence retained without duplicate calls. All six stages have local Windows installer/portable ZIP/Core runtime ZIP; user deploys/tests. No102/remote publication/install/commit/push. Evidence: resources/verification/dev-01/tasks/tastedev-studio/fifth-advancement/FINAL-DELIVERY.md and DELIVERY-INDEX.json. User guide: resources/guides/dev-01/tastestudio-fifth-advancement/WORKFLOW.md.
+
+## Sixth advancement phase1 — 0.1.30
+Existing Rust/Python LSP diagnostics/definition/references/rename are reused. Monaco completion, bounded safe LSP item conversion, current dirty editor sync and stale source/session/model result rejection added; hover current-buffer sync added. Actual local Pyright/rust-analyzer completion plus production adapter PASS; source0/orphan0/exit0. Node670/670, lint/typecheck/production export PASS. Native gates reused by source/toolchain/log hashes, Release binary refreshed for frontend/version. Local installer/ZIP/Core signed manifest verified. Native installed completion GUI/user QA not run. Commands/hidden additional completion edits and unsupported defaults are blocked; auto-import and full TS project reference semantics not supported. Evidence: resources/verification/dev-01/tasks/tastedev-studio/sixth-advancement/phase-1/RESULT.md. Phases2–6 remain active; no102/publish/install/commit/push.
+
+
+## Sixth advancement — implementation and local package completion (2026-10-02)
+
+| Phase | Delivered behavior | Local version | Verification |
+|---|---|---|---|
+| 1 | Rust/Python LSP completion and stale/dirty guards | 0.1.30 | Actual Pyright/rust-analyzer completion; Node670 |
+| 2 | Rust CodeLLDB and shared safe DAP lifecycle | 0.1.31 | Actual Rust/Python breakpoint/step/locals; native112 Debug and112 Release |
+| 3 | Protocol execution profiles with requested/observed identity | 0.1.32 | Actual local Rust Agent mismatch blocking + compatible install/test; Node675 |
+| 4 | Offline snapshot usage/preview/prune and bounded transfer renewal | 0.1.33 | Reference/hash safety; HTTP grant expiry; actual203-file Agent test; Node677 |
+| 5 | Grounded language context and Protocol language validation recommendations | 0.1.34 | Actual ChatGPT Pro fix + approved source patch + local validation + actual Rust Agent PASS; source restored; Node680 |
+| 6 | Manual workflow navigation and identifier-only explicit restart restore | 0.1.35 | Node683; actual persisted Provider analysis/attempt + matching Rust Run restored after SQLite reopen |
+
+Lint and production export/typecheck passed per changed phase. Native inputs unchanged after phase2: later phases reuse verified Debug/Release/fmt/Clippy by input, toolchain and log hashes; version/frontend release binaries are rebuilt for packaging. No duplicate full tests merely for packaging. Node has no meaningful Debug/Release test distinction.
+
+Delivery scope: signed local Windows installer/portable and Core runtime ZIP per phase. Node24 runtime is separately required for Core. No102 deployment, remote installation, publication, tags, commits or push. Installed GUI, updater, Linux/macOS and service-install QA remain user-owned, not claimed PASS.
+
+Evidence: resources/verification/dev-01/tasks/tastedev-studio/sixth-advancement/DELIVERY-INDEX.json and per-phase RESULT.md/logs; guides: resources/guides/dev-01/tastestudio-sixth-advancement.
+
+Final sixth-advancement delivery: all6 phases and18 current local artifacts verified; final0.1.35 frontend diagnostic identity matches version. Earlier phase archives may retain preceding frontend diagnostic metadata; use0.1.35. Installed/cross-platform QA remains user-owned. FINAL-DELIVERY.md and DELIVERY-INDEX.json record exact evidence and limitations.

@@ -26,7 +26,7 @@ export function resolveProtocol(state: ProtocolState, kind: 'task' | 'test', nam
   if (!task) throw new Error('The selected task or test no longer exists. Reload Protocol.');
   const env = resolveEnvironment(d, task, test);
   return {
-    name: `${kind}: ${name}`, requirements: mergeRequirements(d.requirements, task.requirements, test?.requirements ?? {}),
+    name: `${kind}: ${name}`, requirements: combineRequirements([mergeRequirements(d.requirements, task.requirements, test?.requirements ?? {}),mergeRequirements(test?.executionProfile?d.executionProfiles![test.executionProfile].requirements:{})]),
     payload: validatePayload({ task: task.name, steps: [{ name: task.name, executable: task.command, args: [...task.args], cwd: task.cwd, env, timeoutMs: (test?.timeout ?? task.timeout) * 1000 }] }),
   };
 }
@@ -40,6 +40,7 @@ export function combineRequirements(layers: JobRequirement[]): JobRequirement {
       if (layer[key]) Object.assign(result, { [key]: layer[key] });
     }
     for (const key of ['docker', 'gpu', 'pty'] as const) if (layer[key] === 'required') result[key] = 'required';
+    if(layer.gpu==='optional'&&!result.gpu)result.gpu='optional';
     for (const key of ['cpuCores', 'memoryMiB'] as const) if (layer[key]) result[key] = Math.max(result[key] ?? 0, layer[key]!);
     for (const [key, value] of Object.entries(layer.runtimes ?? {})) {
       const runtime = key as Runtime;
@@ -52,19 +53,22 @@ export function combineRequirements(layers: JobRequirement[]): JobRequirement {
 export function resolveTestPlan(state: ProtocolState, projectId: string, name: string, id = crypto.randomUUID()): TestPlan {
   if (state.status !== 'Valid' || !Object.hasOwn(state.definition.tests, name)) throw new Error('Select a valid Test definition.');
   const d = state.definition, test = d.tests[name];
+  const profile = test.executionProfile ? d.executionProfiles?.[test.executionProfile] : undefined;
+  if(test.executionProfile&&!profile)throw Error('Execution profile no longer exists. Reload Protocol.');
   const steps: ExecutionStep[] = [], requirements: JobRequirement[] = [];
+  if(profile)requirements.push(mergeRequirements(profile.requirements));
   if (d.source) { steps.push(gitSourceProvider.prepare(d.source)); requirements.push({ runtimes: { git: '>=0' } }); }
   const addTask = (stage: ExecutionStep['stage'], ref: string) => {
     const t = d.tasks[ref];
     requirements.push(mergeRequirements(d.requirements, t.requirements, test.requirements));
     steps.push({ name: stage![0].toUpperCase() + stage!.slice(1), stage, taskReference: ref, executable: t.command, args: [...t.args], cwd: d.source ? (t.cwd === '.' ? 'source' : `source/${t.cwd}`) : t.cwd, env: resolveEnvironment(d, t, test), timeoutMs: t.timeout * 1000 });
   };
-  for (const stage of ['install', 'build', 'start'] as const) if (test.pipeline?.[stage]) addTask(stage, test.pipeline[stage]);
+  for (const stage of ['install', 'build', 'start'] as const) {const task=test.pipeline?.[stage]??(stage==='install'?profile?.installTask:undefined);if(task)addTask(stage,task);}
   if (test.healthcheck) steps.push({ name: 'Health check', stage: 'healthcheck', executable: 'http', args: [], cwd: '.', healthcheck: test.healthcheck, timeoutMs: test.healthcheck.timeout * 1000 });
   addTask('test', test.task);
   if(test.browser){steps.at(-1)!.browser=test.browser;steps.at(-1)!.name='Browser test';requirements.push({browser:'chromium',runtimes:{node:'>=24',playwright:'>=1.62.1'}});}
   if (test.pipeline?.cleanup) addTask('cleanup', test.pipeline.cleanup);
   // Always end the run session, including a run without a project cleanup task.
   else steps.push({ name: 'Cleanup', stage: 'cleanup', executable: 'internal-stop-services', args: [], cwd: '.', timeoutMs: 10000 });
-  return { id, projectId, testName: name, type: test.type, requirements: combineRequirements(requirements), environment: resolveEnvironment(d, d.tasks[test.task], test), timeout: (test.timeout ?? 600) * 1000, steps };
+  return { id, projectId, testName: name, type: test.type, ...(profile?{executionProfile:{name:test.executionProfile!,requirements:mergeRequirements(profile.requirements),...(profile.installTask?{installTask:profile.installTask}:{})}}:{}), requirements: combineRequirements(requirements), environment: resolveEnvironment(d, d.tasks[test.task], test), timeout: (test.timeout ?? 600) * 1000, steps };
 }

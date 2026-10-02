@@ -2,7 +2,8 @@ import { load, CORE_SCHEMA } from 'js-yaml';
 import type { JobRequirement, Runtime } from '../core/domain.ts';
 import { normalizePath } from '../filesystem/paths.ts';
 import { validateSource, validateHealth, validateBrowser } from '../core/test-plan.ts';
-import { ProtocolError, protocolFiles, type EnvironmentDefinition, type ProtocolSources, type ProtocolState, type RequirementDefinition, type TaskDefinition, type TestDefinition } from './domain.ts';
+import {affectedPattern} from './affected-files.ts';
+import { ProtocolError, protocolFiles, type EnvironmentDefinition, type ProtocolSources, type ProtocolState, type RequirementDefinition, type TaskDefinition, type TestDefinition, type TasteDevProjectDefinition } from './domain.ts';
 
 type Dict = Record<string, unknown>;
 const unsafeKeys = new Set(['__proto__', 'prototype', 'constructor']);
@@ -111,7 +112,7 @@ export function parseProtocol(sources: ProtocolSources): ProtocolState {
     const parsed: Record<string, unknown> = {};
     for (const file of protocolFiles) parsed[file] = sources[file] === undefined ? {} : parseYaml(sources[file], file);
     const s = new Schema('project.yml');
-    const root = s.object(parsed['project.yml'], '$', ['version', 'project', 'requirements', 'environment', 'source']);
+    const root = s.object(parsed['project.yml'], '$', ['version', 'project', 'requirements', 'environment', 'source', 'executionProfiles']);
     if (root.version !== 1) s.fail('version', 'Protocol version must be the number 1. Other versions are not supported.');
     const project = s.object(root.project, 'project', ['name', 'type']);
     let source;
@@ -120,7 +121,7 @@ export function parseProtocol(sources: ProtocolSources): ProtocolState {
       try { source = validateSource({ provider: s.enum(raw.provider, 'source.provider', ['git']), repository: s.string(raw.repository, 'source.repository', 1024), revision: s.string(raw.revision, 'source.revision', 200) }); }
       catch { s.fail('source', 'Use a credential-free HTTPS/Git repository URL and a branch, tag or commit revision.'); }
     }
-    const definition = {
+    const definition: TasteDevProjectDefinition = {
       version: 1 as const, project: { name: s.string(project.name, 'project.name'), type: s.string(project.type, 'project.type', 64) },
       ...(source ? { source } : {}),
       requirements: own(root, 'requirements') ? s.requirements(root.requirements, 'requirements') : {},
@@ -138,12 +139,23 @@ export function parseProtocol(sources: ProtocolSources): ProtocolState {
       definition.tasks[name] = task;
     }
     const xs = new Schema('tests.yml');
+    if (own(root,'executionProfiles')) {
+      definition.executionProfiles={};
+      for(const [name,value] of Object.entries(s.definitions(root.executionProfiles,'executionProfiles'))){
+        const profile=s.object(value,`executionProfiles.${name}`,['requirements','installTask']);
+        const installTask=own(profile,'installTask')?s.string(profile.installTask,`executionProfiles.${name}.installTask`,64):undefined;
+        if(installTask&&!own(definition.tasks,installTask))s.fail(`executionProfiles.${name}.installTask`,'The installation task must exist in tasks.yml.');
+        definition.executionProfiles[name]={requirements:own(profile,'requirements')?s.requirements(profile.requirements,`executionProfiles.${name}.requirements`):{},...(installTask?{installTask}:{})};
+      }
+    }
     for (const [name, val] of Object.entries(xs.definitions(parsed['tests.yml'] === undefined ? {} : parsed['tests.yml'], '$'))) {
-      const x = xs.object(val, name, ['task', 'type', 'requirements', 'timeout', 'pipeline', 'healthcheck', 'environment', 'env', 'browser']);
+      const x = xs.object(val, name, ['task', 'type', 'requirements', 'timeout', 'pipeline', 'healthcheck', 'environment', 'env', 'browser','affectedFiles','executionProfile']);
       const task = xs.string(x.task, `${name}.task`, 64);
       if (!own(definition.tasks, task)) xs.fail(`${name}.task`, 'The referenced task does not exist.');
       definition.tests[name] = { name, task, type: xs.enum(x.type, `${name}.type`, ['unit', 'integration', 'api', 'browser', 'e2e']), requirements: own(x, 'requirements') ? xs.requirements(x.requirements, `${name}.requirements`) : {}, ...(own(x, 'timeout') ? { timeout: xs.timeout(x.timeout, `${name}.timeout`) } : {}) };
       const test = definition.tests[name];
+      if(own(x,'executionProfile')){test.executionProfile=xs.string(x.executionProfile,`${name}.executionProfile`,64);if(!Object.hasOwn(definition.executionProfiles??{},test.executionProfile))xs.fail(`${name}.executionProfile`,'The execution profile must exist in project.yml.');}
+      if(own(x,'affectedFiles')){if(!Array.isArray(x.affectedFiles)||!x.affectedFiles.length||x.affectedFiles.length>32)xs.fail(`${name}.affectedFiles`,'Use 1–32 relative file patterns.');try{test.affectedFiles=[...new Set((x.affectedFiles as unknown[]).map(affectedPattern))];}catch{xs.fail(`${name}.affectedFiles`,'Use relative paths with * or ** segments.');}}
       if (own(x,'browser')) {
         const b=xs.object(x.browser,`${name}.browser`,['engine','baseUrl','config']);
         if(!['browser','e2e'].includes(test.type))xs.fail(`${name}.browser`,'Browser settings require a browser/e2e test.');

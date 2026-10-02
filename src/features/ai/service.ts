@@ -1,10 +1,11 @@
 import {AIError,limits,analysisSchema,defaultBudget,validateBudget,type AnalysisMetrics,type AnalysisBudget,type Analysis,type AnalysisRecord,type Conversation,type Message,type AIProvider} from './domain.ts';
 import {ContextTools,type ToolEnvironment} from './tools.ts';
 import {aiPath,mask,sanitize} from './security.ts';
-export interface ContextSelection { current?:{path:string;content:string}; selected?:{path:string;text:string;start:number}; open?:string[]; protocol?:unknown; related?:string[]; runId?:string; originalRunId?:string }
+export interface ContextSelection {fixFeedback?:unknown; current?:{path:string;content:string}; selected?:{path:string;text:string;start:number}; open?:string[]; protocol?:unknown; related?:string[]; runId?:string; originalRunId?:string }
 export async function buildContext(tools:ContextTools,selection:ContextSelection,signal:AbortSignal){
  tools.add('Project','project',{id:tools.env.projectId,name:tools.env.name});
  if(selection.protocol)tools.add('Protocol','protocol',selection.protocol,4000);
+ if(selection.fixFeedback)tools.add('Current fix validation feedback','validation',selection.fixFeedback,4000);
  if(selection.open)tools.add('Open editors','editors',selection.open.filter(p=>{try{aiPath(p);return true;}catch{return false;}}).slice(0,20),2000);
  if(selection.current){aiPath(selection.current.path);tools.add(`Current editor: ${selection.current.path}`,'editor',selection.current.content,limits.file,{path:selection.current.path});}
  if(selection.selected){aiPath(selection.selected.path);tools.add(`Selection: ${selection.selected.path}`,'selection',{startLine:selection.selected.start,text:selection.selected.text},8000,{path:selection.selected.path});}

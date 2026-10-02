@@ -44,7 +44,19 @@ export function validatePayload(payload: JobPayload): JobPayload {
     }
     if (!steps.some(s=>s.stage==='test') || steps.at(-1)?.stage !== 'cleanup' || steps.some(s=>s.stage==='healthcheck') && !steps.some(s=>s.stage==='start')) throw new CoreError('Pipeline requires test, cleanup and a start before health check.');
     if(steps.some(s=>s.browser)&&(!['browser','e2e'].includes(p.type)||p.requirements.browser!=='chromium'||!p.requirements.runtimes?.playwright))throw new CoreError('Browser pipeline requires Chromium and Playwright capabilities.');
-    testPlan = { id:text(p.id,'Plan ID',100), projectId:text(p.projectId,'Project ID',100), testName:text(p.testName,'Test name',64), type:p.type, timeout:p.timeout, requirements:validateRequirements(p.requirements), environment:{...steps.find(s=>s.stage==='test')?.env}, steps };
+    let executionProfile;
+    if(p.executionProfile){
+      const profile=p.executionProfile;
+      if(Object.keys(profile).some(k=>!['name','requirements','installTask'].includes(k))||!/^\w[\w-]{0,63}$/.test(profile.name))throw new CoreError('Invalid execution profile.');
+      const required=validateRequirements(profile.requirements),effective=validateRequirements(p.requirements);
+      for(const key of ['platform','architecture','browser','sourceSnapshot'] as const)if(required[key]!==undefined&&required[key]!==effective[key])throw new CoreError('Execution profile constraints cannot be weakened.');
+      for(const key of ['cpuCores','memoryMiB'] as const)if(required[key]&&(effective[key]??0)<required[key]!)throw new CoreError('Execution profile resources cannot be weakened.');
+      for(const key of ['docker','gpu','pty'] as const)if(required[key]==='required'&&effective[key]!=='required')throw new CoreError('Execution profile tools cannot be weakened.');
+      for(const [runtime,minimum] of Object.entries(required.runtimes??{})){const actual=effective.runtimes?.[runtime as keyof NonNullable<typeof effective.runtimes>];if(!actual||!atLeast(actual.slice(2),minimum.slice(2)))throw new CoreError('Execution profile runtime cannot be weakened.');}
+      if(profile.installTask!==undefined)text(profile.installTask,'Profile install task',64);
+      executionProfile={name:profile.name,requirements:required,...(profile.installTask?{installTask:profile.installTask}:{})};
+    }
+    testPlan = { id:text(p.id,'Plan ID',100), projectId:text(p.projectId,'Project ID',100), testName:text(p.testName,'Test name',64), type:p.type, timeout:p.timeout, requirements:validateRequirements(p.requirements), ...(executionProfile?{executionProfile}:{}), environment:{...steps.find(s=>s.stage==='test')?.env}, steps };
   } else if (steps.some(s=>s.stage)) throw new CoreError('Pipeline steps require a TestPlan.');
   return { task:text(payload.task,'Task'), steps, ...(testPlan ? { testPlan } : {}) };
 }

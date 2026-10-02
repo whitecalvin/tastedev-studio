@@ -124,7 +124,15 @@ pub fn manifest_hash(s: &Snapshot) -> Result<String> {
 pub fn validate_manifest(s: &Snapshot) -> Result<()> {
     let mut paths = HashSet::new();
     let mut bytes = 0u64;
-    if s.schema_version != Some(2)
+    let mut changed = HashSet::new();
+    if s.provider != "snapshot"
+        || s.base_revision.len() > 200
+        || !(1..=10).contains(&s.attempt)
+        || [&s.snapshot_id, &s.project_id, &s.proposal_id]
+            .iter()
+            .any(|v| uuid::Uuid::parse_str(v).is_err())
+        || s.changed_files.iter().any(|v| !changed.insert(v))
+        || s.schema_version != Some(2)
         || s.transfer.is_some()
         || s.files.is_empty()
         || s.files.len() > 10000

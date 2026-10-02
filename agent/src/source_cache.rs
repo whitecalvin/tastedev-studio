@@ -116,12 +116,13 @@ pub fn inventory(root: &Path) -> Vec<String> {
     }
     entries
 }
-fn retained_count(root: &Path) -> usize {
+fn retained_count(root: &Path, incoming: usize) -> usize {
     let base = root.join("source-cache");
     let Ok(projects) = fs::read_dir(base) else {
         return 0;
     };
     let mut count = 0;
+    let mut bytes = incoming as u64;
     for project in projects.take(LIMIT + 1).flatten() {
         if no_links(&project.path()).is_err() {
             return LIMIT;
@@ -129,7 +130,22 @@ fn retained_count(root: &Path) -> usize {
         let Ok(files) = fs::read_dir(project.path()) else {
             continue;
         };
-        count += files.take(LIMIT + 1).count();
+        for file in files.take(LIMIT + 1).flatten() {
+            if no_links(&file.path()).is_err() {
+                return LIMIT;
+            }
+            let Ok(meta) = file.metadata() else {
+                return LIMIT;
+            };
+            if !meta.is_file() {
+                return LIMIT;
+            }
+            bytes = bytes.saturating_add(meta.len());
+            count += 1;
+            if bytes > 512 * 1024 * 1024 || count >= LIMIT {
+                return LIMIT;
+            }
+        }
         if count >= LIMIT {
             return LIMIT;
         }
@@ -148,7 +164,7 @@ pub fn save(root: &Path, project: &str, checksum: &str, bytes: &[u8]) -> Result<
     no_links(parent)?;
     fs::create_dir_all(parent).map_err(|_| "Cache directory unavailable")?;
     // Only a bounded, project-scoped cache is retained. A full cache never prevents execution.
-    if !file.exists() && retained_count(root) >= LIMIT {
+    if !file.exists() && retained_count(root, bytes.len()) >= LIMIT {
         return Err("Source cache capacity".into());
     }
     let temp = file.with_extension(format!("{}.partial", uuid::Uuid::new_v4()));
@@ -183,6 +199,22 @@ mod tests {
         let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/third-advancement/phase-2/rust");
         fs::create_dir_all(&base).unwrap();
         tempfile::tempdir_in(base).unwrap()
+    }
+    #[test]
+    fn binary_cache_exceeds_legacy_text_limit_and_rechecks_bytes() {
+        let dir = root();
+        let project = uuid::Uuid::new_v4().to_string();
+        let bytes = vec![128; 600000];
+        let checksum = digest(&bytes);
+        save(dir.path(), &project, &checksum, &bytes).unwrap();
+        assert_eq!(read(dir.path(), &project, &checksum).unwrap(), bytes);
+        assert_eq!(inventory(dir.path()).len(), 1);
+        fs::write(
+            location(dir.path(), &project, &checksum).unwrap(),
+            vec![129; 600000],
+        )
+        .unwrap();
+        assert!(read(dir.path(), &project, &checksum).is_err());
     }
     #[test]
     fn persisted_cache_reopens_and_is_project_scoped() {

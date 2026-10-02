@@ -1,0 +1,8 @@
+import path from 'node:path';import {backupCore,restoreCore} from './backup.ts';import {runtimeConfig} from './runtime-config.ts';import {diagnoseStorage} from './storage-diagnostics.ts';
+import {offlineSourceMaintenance} from './source-maintenance.ts';
+const [action,target,destination]=process.argv.slice(2);
+if(action==='doctor'){const config=runtimeConfig(process.env,process.platform,false),result=await diagnoseStorage(config.storagePath,config.artifactRoot);console.log(JSON.stringify(result));if(!result.ok)process.exitCode=1;}
+else if(action==='source-report'||action==='source-prune'&&target){const config=runtimeConfig(process.env,process.platform,false);if(destination!==undefined&&destination!=='apply')throw Error('Use apply explicitly, or omit it for preview.');console.log(JSON.stringify(await offlineSourceMaintenance(config.storagePath,config.artifactRoot,action==='source-report'?0:Date.parse(target!),action==='source-prune'&&destination==='apply')));}
+else if(action==='backup'&&target){const config=runtimeConfig(process.env,process.platform,false),m=await backupCore(config.storagePath,config.artifactRoot,path.resolve(target));console.log(JSON.stringify({result:'backup-complete',files:m.files.length,artifactCount:m.artifactCount,snapshotCount:m.snapshotCount}));}
+else if(action==='restore'&&target&&destination)console.log(JSON.stringify(await restoreCore(path.resolve(target),path.resolve(destination))));
+else throw Error('Usage: core:storage doctor | backup <new-directory> | restore <backup-directory> <new-directory> | source-report | source-prune <ISO-cutoff> [apply]. Stop Core before backup/restore/source maintenance.');

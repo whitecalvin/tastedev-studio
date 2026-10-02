@@ -11,3 +11,5 @@
 @media(max-width:1100px){.ws-primary{width:200px}.ws-secondary{max-width:25vw}.ws-breadcrumb,.ws-metadata{display:none}.ws-titlebar{gap:8px}.ws-project-name{max-width:160px}}
 @media(max-width:760px){.ws-primary{width:170px}.ws-secondary{max-width:28vw}.ws-brand span,.ws-title-actions .theme-control,.ws-status>span:last-child{display:none}.ws-project-name{max-width:140px}.ws-editor-content{padding:16px}.ws-welcome h1{font-size:20px}.ws-bottom-heading [role=tablist]{gap:14px}.ws-status{gap:10px}}
 
+
+.ws-workflow{display:flex;align-items:center;gap:10px;min-height:34px;padding:4px 12px;flex-shrink:0;border-bottom:1px solid var(--border);overflow-x:auto;font-size:12px}.ws-workflow button{white-space:nowrap}.ws-workflow-state{margin-left:auto;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ws-workflow-message{min-width:180px;max-width:360px}

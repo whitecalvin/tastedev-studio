@@ -5,6 +5,8 @@ import {sourceInventory,transferSource} from './source-transfer.ts';
 import {snapshotDelta} from '../src/features/core/snapshot-delta.ts';
 import type {CoreSnapshot} from '../src/features/core/domain.ts';
 import {executionReport} from './execution-report.ts';
+import {executionEnvironment} from './execution-environment.ts';
+import {sourceContentHash} from '../src/features/core/source-identity.ts';
 import {RunHistory} from './run-history.ts';
 import {liveSnapshot} from '../src/features/core/history-query.ts';
 import {TeamAccess,TeamAccessError,teamTokenHash,type TeamConfiguration,type TeamIdentity,type TeamAction} from './team-access.ts';
@@ -255,7 +257,8 @@ export async function startCoreServer(options:ServerOptions) {
             try {
               if(m.type==='result'&&Date.parse(timestamp(m.finishedAt))<Date.parse(timestamp(m.startedAt)))throw new CoreError('Invalid step timestamps.');
               let summary:ReturnType<typeof browserResult>|undefined;try{summary=m.browserResult?browserResult(m.browserResult,Object.values(pipelineJob.payload.steps[step.order].env??{})):undefined;}catch{throw new CoreError('Invalid browser result.');}
-              orchestrator.complete(runId,stepId,status as TerminalStatus,m.type==='rejected'?null:m.exitCode as number|null,m.type==='rejected'?'Agent rejected step.':status==='passed'?undefined:(summary?.failures[0]?.message??`${step.name} ${status}.`),m.revision as SourceRevision|undefined,typeof m.serviceId==='string'?m.serviceId:undefined,summary,executionReport(m));
+              let verifiedContent:string|undefined;const assignedSource=pipelineJob.payload.steps[step.order].source;if(m.revision&&assignedSource?.provider==='snapshot'){const manifest=assignedSource.snapshot.schemaVersion===2?await sources.resolve(assignedSource.snapshot as import('../src/features/ai/project-snapshot.ts').ProjectSnapshot,run.projectId):assignedSource.snapshot;verifiedContent=await sourceContentHash(manifest);}const environment=executionEnvironment(m.executionEnvironment,pipelineJob.requirements);
+              orchestrator.complete(runId,stepId,status as TerminalStatus,m.type==='rejected'?null:m.exitCode as number|null,m.type==='rejected'?'Agent rejected step.':status==='passed'?undefined:(summary?.failures[0]?.message??`${step.name} ${status}.`),m.revision as SourceRevision|undefined,typeof m.serviceId==='string'?m.serviceId:undefined,summary,executionReport(m),environment,verifiedContent);
             } catch(error) {if(!(error instanceof CoreError))throw error;orchestrator.complete(runId,stepId,'failed',null,'Agent returned an invalid step result.');send(ws,{type:'cancel',runId});}
             if(pipelineJob.payload.steps[step.order].stage==='source'&&status!=='passed')sourceCaches.delete(agentId);
             artifacts.revoke(stepId);sources.revoke(stepId);send(ws,{type:'ack',runId,runStepId:stepId});advance(runId);schedule();return;
@@ -269,10 +272,11 @@ export async function startCoreServer(options:ServerOptions) {
         }else if(m.type==='rejected'){failRun(runId,'Agent rejected the execution request.');}
         else if(m.type==='output'){if(run.status!=='running')throw new CoreError('Output before acceptance.');logs.append(runId,m.sequence,m.stream,m.text);schedule();}
         else if(m.type==='result'){
+          const job=service.repository.readEntity?.('jobs',run.jobId)??service.snapshot(run.projectId).jobs.find(j=>j.id===run.jobId);if(!job)throw new CoreError('Run job is missing.');
           if(!['passed','failed','timeout','cancelled'].includes(m.status as string)||!(m.exitCode===null||Number.isInteger(m.exitCode)))throw new CoreError('Invalid result.');const start=timestamp(m.startedAt),end=timestamp(m.finishedAt);if(Date.parse(end)<Date.parse(start))throw new CoreError('Invalid result times.');
           const status=m.status as 'passed'|'failed'|'timeout'|'cancelled';
           if(run.status==='pending'&&status!=='failed'&&status!=='cancelled')throw new CoreError('Result before acceptance.');
-          service.completeExecution(run.projectId,runId,status,m.exitCode as number|null,m.error==="Process start failed"?"Agent could not start the executable.":`Agent reported ${status}.`,start,end,executionReport(m));send(ws,{type:'ack',runId});
+          service.completeExecution(run.projectId,runId,status,m.exitCode as number|null,m.error==="Process start failed"?"Agent could not start the executable.":`Agent reported ${status}.`,start,end,executionReport(m),executionEnvironment(m.executionEnvironment,job.requirements));send(ws,{type:'ack',runId});
         }else throw new CoreError('Unknown Agent message.');
       }catch(error){if(error instanceof StorageError){ready=false;event('error','storage.operation_failed');}const reason=error instanceof CoreError||error instanceof StorageError||error instanceof TeamAccessError?error.message:'Invalid request.';send(ws,{type:m?.type==='rpc'?'reply':'error',requestId:m?.requestId,error:reason});if(!authenticated)ws.close(1008,reason.slice(0,100));}
       finally{pending--;operations--;}

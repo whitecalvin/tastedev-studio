@@ -18,12 +18,13 @@ export interface ExecutionStep {
   stage?: PipelineStage; taskReference?: string; source?: GitSource | SnapshotSource; healthcheck?: HealthCheck; browser?: BrowserTest;
 }
 export interface TestPlan {
+  executionProfile?: {name:string; requirements:JobRequirement; installTask?:string};
   id: string; projectId: string; testName: string; type: TestType;
   requirements: JobRequirement; environment: Record<string, string>;
   timeout: number; steps: ExecutionStep[];
 }
 export interface SnapshotSource {provider:'snapshot';repository:string;revision:string;snapshot:WorkspaceSnapshot}
-export interface SourceRevision { repository: string; branch: string; commit: string; snapshotId?:string;proposalId?:string;attempt?:number }
+export interface SourceRevision { contentChecksum?:string; repository: string; branch: string; commit: string; snapshotId?:string;proposalId?:string;attempt?:number }
 /** Provider contract is independent of orchestration; more providers can add structured operations. */
 export interface SourcePreparation { provider: string; prepare(source: GitSource): ExecutionStep }
 export const gitSourceProvider: SourcePreparation = {

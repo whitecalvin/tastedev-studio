@@ -1,6 +1,19 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {launchConfiguration,readLaunch,writeLaunch,type LaunchStorage} from '../src/features/debugger/launch.ts';import {DebugService,type DebugHost} from '../src/features/debugger/service.ts';
 function storage(){const data=new Map<string,string>();return{data,getItem:(key:string)=>data.get(key)??null,setItem:(key:string,value:string)=>{data.set(key,value);}};}
 const config={id:'controlled',name:'Saved program',program:'src/main.ts',runtime:'node' as const,pythonPath:''};
+test('Rust launch records trusted adapter and in-project binary, rejects source or binary escape',()=>{
+ const rust={...config,runtime:'rust',program:'src/main.rs',adapterPath:'C:/CodeLLDB/adapter/codelldb.exe',binaryPath:'target/debug/main.exe'};
+ assert.equal(launchConfiguration(rust).runtime,'rust');
+ for(const binaryPath of ['../main.exe','C:/outside.exe','.git/main.exe','credentials/main.exe','.env/main.exe'])assert.throws(()=>launchConfiguration({...rust,binaryPath}));
+ for(const adapterPath of ['codelldb.exe','C:/tool/shell.exe'])assert.throws(()=>launchConfiguration({...rust,adapterPath}));
+ const saved=storage();writeLaunch(saved,'rust-project',[launchConfiguration(rust)]);assert.deepEqual(readLaunch(saved,'rust-project'),[rust]);assert.deepEqual(readLaunch(saved,'other'),[]);
+});
+test('Rust debugger sends scoped binary hash and preserves dirty-source protection',async()=>{
+ const calls:Record<string,unknown>[]=[];const service=new DebugService({supported:true,async listen(){return()=>{};},async invoke(_command,args){calls.push(args);}});
+ const options={runtime:'rust' as const,adapterPath:'C:/CodeLLDB/adapter/codelldb.exe',binaryPath:'target/debug/main.exe',expectedBinaryHash:'a'.repeat(64)};
+ await assert.rejects(service.start('workspace','main.rs','fn main(){}',true,options),/Save all/);assert.equal(calls.length,0);
+ await service.start('workspace','main.rs','fn main(){}',false,options);const request=calls[0].request as Record<string,unknown>;assert.equal(request.binaryPath,options.binaryPath);assert.equal(request.expectedBinaryHash,options.expectedBinaryHash);assert.equal(request.runtime,'rust');await service.stop();
+});
 test('saved launch configurations isolate projects and never start a process',()=>{const s=storage();writeLaunch(s,'one',[config]);assert.deepEqual(readLaunch(s,'one'),[config]);assert.deepEqual(readLaunch(s,'two'),[]);assert.equal(s.data.size,1);assert.throws(()=>writeLaunch(s,'one',[config,config]));assert.deepEqual(readLaunch(s,'one'),[config]);});
 test('launch configuration denies project escapes, credential paths, shell keys and relative interpreters',()=>{for(const program of ['../outside.ts','.env/main.ts','C:/outside.ts','.git/main.ts'])assert.throws(()=>launchConfiguration({...config,program}));assert.throws(()=>launchConfiguration({...config,shell:'unrestricted'}));assert.throws(()=>launchConfiguration({...config,runtime:'python',program:'main.py',pythonPath:'python.exe'}));assert.equal(launchConfiguration({...config,runtime:'python',program:'main.py',pythonPath:'C:/Python/python.exe'}).runtime,'python');});
 test('malformed saved launch data and storage failures preserve previous state',()=>{const s=storage();writeLaunch(s,'one',[config]);const key=[...s.data.keys()][0];for(const value of ['{','{"version":2,"configurations":[]}']){s.data.set(key,value);assert.throws(()=>readLaunch(s,'one'));assert.equal(s.data.get(key),value);}const failed:LaunchStorage={getItem:()=>{throw Error('unavailable');},setItem:()=>{throw Error('unavailable');}};assert.throws(()=>readLaunch(failed,'one'));assert.throws(()=>writeLaunch(failed,'one',[config]));});

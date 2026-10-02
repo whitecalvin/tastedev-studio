@@ -1,4 +1,5 @@
 "use client";
+import {WorkflowBar} from './workflow-bar';
 import {DebugProvider,DebugView} from '../debugger/views';
 import { useI18n, LanguageControl } from '@/i18n/react';
 import { AIStateProvider, AISidebar, AIPanel, AIProposalArea, useAI } from '../ai/views';
@@ -120,7 +121,7 @@ export function StatusBar({ project }: { project: Project }) {
 export function WorkspaceShell({ project }: { project: Project }) { return <DebugProvider><ProtocolProvider><AIStateProvider><IssuesProvider><ScheduleProvider><WorkspaceContent project={project} /></ScheduleProvider></IssuesProvider></AIStateProvider></ProtocolProvider></DebugProvider>; }
 function WorkspaceContent({ project }: { project: Project }) {
   const { t } = useI18n();
- const ai=useAI(); const { state } = useWorkspace(); const coreActive = ['agents','queue','runs'].includes(state.activeActivity),issuesActive=state.activeActivity==='issues',schedulerActive=state.activeActivity==='scheduler'; return <div className="ws-shell" style={{ '--ws-bottom-height': `${state.bottomHeight}px`, '--ws-secondary-width': `${state.secondaryWidth}px` } as CSSProperties}><a href="#main-content" className="skip-link">{t("Skip to editor")}</a><TitleBar project={project} /><FileFeedback /><div className="ws-main"><ActivityBar /><PrimarySidebar /><div className="ws-editor-host" hidden={coreActive||issuesActive||schedulerActive||state.activeActivity==='ai'||!!ai.proposal}><GitEditorArea /></div>{!ai.proposal&&coreActive && <CoreDetail activity={state.activeActivity} />}{!ai.proposal&&issuesActive&&<IssueDetail />}{!ai.proposal&&schedulerActive&&<ScheduleDetail />}<AIProposalArea /><SecondaryPanel /></div><BottomPanel /><StatusBar project={project} /></div>; }
+ const ai=useAI(); const { state } = useWorkspace(); const coreActive = ['agents','queue','runs'].includes(state.activeActivity),issuesActive=state.activeActivity==='issues',schedulerActive=state.activeActivity==='scheduler'; return <div className="ws-shell" style={{ '--ws-bottom-height': `${state.bottomHeight}px`, '--ws-secondary-width': `${state.secondaryWidth}px` } as CSSProperties}><a href="#main-content" className="skip-link">{t("Skip to editor")}</a><TitleBar project={project} /><WorkflowBar/><FileFeedback /><div className="ws-main"><ActivityBar /><PrimarySidebar /><div className="ws-editor-host" hidden={coreActive||issuesActive||schedulerActive||state.activeActivity==='ai'||!!ai.proposal}><GitEditorArea /></div>{!ai.proposal&&coreActive && <CoreDetail activity={state.activeActivity} />}{!ai.proposal&&issuesActive&&<IssueDetail />}{!ai.proposal&&schedulerActive&&<ScheduleDetail />}<AIProposalArea /><SecondaryPanel /></div><BottomPanel /><StatusBar project={project} /></div>; }
 
 
 

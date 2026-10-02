@@ -75,6 +75,24 @@ fn capability_recheck_rejects_a_stale_advertised_runtime_before_execution() {
     assert!(executor::verify_capabilities(&request, advertised, &AtomicBool::new(false)).is_err());
 }
 #[test]
+fn execution_observation_omits_unrequested_stale_runtime_inventory() {
+    let request = request();
+    let advertised = Capabilities {
+        source_snapshot: Some(2),
+        cpu_cores: 2,
+        memory_mi_b: 2048,
+        docker: false,
+        gpu: false,
+        pty: false,
+        runtimes: [("node".into(), "999.0.0".into())].into(),
+        browsers: vec!["chromium".into()],
+    };
+    let observed =
+        executor::verify_capabilities(&request, advertised, &AtomicBool::new(false)).unwrap();
+    assert!(observed.runtimes.is_empty());
+    assert!(observed.browsers.is_empty());
+}
+#[test]
 fn capability_check_observes_cancellation_before_starting_a_tool_probe() {
     let mut request = request();
     request.requirements.runtimes = Some([("node".into(), ">=24".into())].into());

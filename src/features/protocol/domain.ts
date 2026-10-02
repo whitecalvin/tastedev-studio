@@ -7,12 +7,15 @@ export type RequirementDefinition = Omit<JobRequirement, 'docker' | 'browser' | 
   runtimes?: Partial<Record<Runtime, string | null>>;
 };
 export type EnvironmentDefinition = Record<string, string>;
+export interface ExecutionProfileDefinition {requirements: RequirementDefinition; installTask?:string}
 export interface TaskDefinition {
   name: string; command: string; args: string[]; cwd: string;
   environment?: string; env: EnvironmentDefinition; timeout: number;
   requirements: RequirementDefinition;
 }
 export interface TestDefinition {
+  executionProfile?: string;
+  affectedFiles?:string[];
   browser?: import('../core/test-plan.ts').BrowserTest;
   name: string; task: string; type: 'unit' | 'integration' | 'api' | 'browser' | 'e2e';
   requirements: RequirementDefinition; timeout?: number;
@@ -21,6 +24,7 @@ export interface TestDefinition {
   environment?: string; env?: EnvironmentDefinition;
 }
 export interface TasteDevProjectDefinition {
+  executionProfiles?: Record<string, ExecutionProfileDefinition>;
   version: 1; project: { name: string; type: string };
   source?: import('../core/test-plan.ts').GitSource;
   requirements: RequirementDefinition; environment: EnvironmentDefinition;

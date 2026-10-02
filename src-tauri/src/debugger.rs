@@ -35,6 +35,9 @@ pub struct Start {
     pub args: Vec<String>,
     pub runtime: Option<String>,
     pub python_path: Option<String>,
+    pub adapter_path: Option<String>,
+    pub binary_path: Option<String>,
+    pub expected_binary_hash: Option<String>,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -83,7 +86,7 @@ fn script(root: &Path, path: &str) -> Result<PathBuf> {
     if !file.is_file()
         || !matches!(
             file.extension().and_then(|e| e.to_str()),
-            Some("js" | "cjs" | "mjs" | "ts" | "cts" | "mts" | "py")
+            Some("js" | "cjs" | "mjs" | "ts" | "cts" | "mts" | "py" | "rs")
         )
     {
         return Err(error("debug-file"));
@@ -103,9 +106,47 @@ impl Debuggers {
         }
         let root = workspaces.root(&request.workspace_id)?;
         let file = script(&root, &request.path)?;
-        if !matches!(request.runtime.as_deref(), None | Some("node" | "python")) {
+        if !matches!(
+            request.runtime.as_deref(),
+            None | Some("node" | "python" | "rust")
+        ) {
             return Err(error("invalid"));
         }
+        let rust_target = if request.runtime.as_deref() == Some("rust") {
+            if file.extension().and_then(|e| e.to_str()) != Some("rs") {
+                return Err(error("debug-file"));
+            }
+            let adapter = python::rust_adapter(
+                request
+                    .adapter_path
+                    .as_deref()
+                    .ok_or_else(|| error("debug-adapter"))?,
+            )?;
+            let binary = resolve(
+                &root,
+                request
+                    .binary_path
+                    .as_deref()
+                    .ok_or_else(|| error("debug-file"))?,
+                false,
+            )?;
+            if !binary.is_file()
+                || binary.extension().and_then(|e| e.to_str()) != Some("exe")
+                || fs::metadata(&binary)?.len() > 8 * 1024 * 1024
+            {
+                return Err(error("debug-file"));
+            }
+            let hash = request
+                .expected_binary_hash
+                .as_deref()
+                .ok_or_else(|| error("conflict"))?;
+            if hash != format!("{:x}", Sha256::digest(fs::read(&binary)?)) {
+                return Err(error("conflict"));
+            }
+            Some((adapter, binary, hash.to_string()))
+        } else {
+            None
+        };
         let interpreter = if request.runtime.as_deref() == Some("python") {
             if file.extension().and_then(|e| e.to_str()) != Some("py") {
                 return Err(error("debug-file"));
@@ -117,7 +158,9 @@ impl Debuggers {
                     .ok_or_else(|| error("debug-python"))?,
             )?)
         } else {
-            if file.extension().and_then(|e| e.to_str()) == Some("py") {
+            if matches!(file.extension().and_then(|e| e.to_str()), Some("py" | "rs"))
+                && rust_target.is_none()
+            {
                 return Err(error("debug-file"));
             }
             None
@@ -165,7 +208,17 @@ impl Debuggers {
                 );
             };
             publish(&mut sequence, "starting", json!({"path":request.path}));
-            let result = if let Some(interpreter) = interpreter {
+            let result = if let Some((adapter, program, hash)) = rust_target {
+                python::run_rust(
+                    &root,
+                    &file,
+                    (&adapter, &program, &hash),
+                    &request.args,
+                    &worker.cancel,
+                    rx,
+                    |kind, data| publish(&mut sequence, kind, data),
+                )
+            } else if let Some(interpreter) = interpreter {
                 python::run(
                     &root,
                     &file,
@@ -878,6 +931,9 @@ mod tests {
             args: vec![],
             runtime: None,
             python_path: None,
+            adapter_path: None,
+            binary_path: None,
+            expected_binary_hash: None,
         };
         let mut stale = start();
         stale.expected_hash = "0".repeat(64);
@@ -911,6 +967,68 @@ mod tests {
         assert!(serde_json::from_value::<Action>(json!({"sessionId":id,"workspaceId":"x","action":"variables","method":"Runtime.evaluate"})).is_err());
     }
     #[test]
+    fn rust_binary_hash_adapter_and_project_boundaries() {
+        let dir = fixture();
+        fs::write(dir.path().join("main.rs"), "fn main() {}").unwrap();
+        fs::write(dir.path().join("main.exe"), "controlled dummy binary").unwrap();
+        fs::write(dir.path().join("codelldb.exe"), "controlled dummy adapter").unwrap();
+        let (workspaces, workspace) = scope(dir.path());
+        let debugger = Debuggers::default();
+        let request = || Start {
+            session_id: uuid::Uuid::new_v4().to_string(),
+            workspace_id: workspace.clone(),
+            path: "main.rs".into(),
+            expected_hash: format!("{:x}", Sha256::digest(b"fn main() {}")),
+            args: vec![],
+            runtime: Some("rust".into()),
+            python_path: None,
+            adapter_path: Some(dir.path().join("codelldb.exe").to_string_lossy().into()),
+            binary_path: Some("main.exe".into()),
+            expected_binary_hash: Some("0".repeat(64)),
+        };
+        assert_eq!(
+            debugger
+                .start(request(), &workspaces, Arc::new(|_| {}))
+                .unwrap_err()
+                .code,
+            "conflict"
+        );
+        let mut escape = request();
+        escape.binary_path = Some("../outside.exe".into());
+        assert!(debugger
+            .start(escape, &workspaces, Arc::new(|_| {}))
+            .is_err());
+        let mut adapter = request();
+        adapter.adapter_path = Some("codelldb.exe".into());
+        assert!(debugger
+            .start(adapter, &workspaces, Arc::new(|_| {}))
+            .is_err());
+        let (_, commands) = mpsc::sync_channel(1);
+        assert_eq!(
+            python::run_rust(
+                dir.path(),
+                &dir.path().join("main.rs"),
+                (
+                    &dir.path().join("codelldb.exe"),
+                    &dir.path().join("main.exe"),
+                    &"0".repeat(64)
+                ),
+                &[],
+                &AtomicBool::new(false),
+                commands,
+                |_, _| {}
+            )
+            .unwrap_err()
+            .code,
+            "conflict"
+        );
+        assert!(debugger.sessions.lock().unwrap().is_empty());
+        assert_eq!(
+            fs::read_to_string(dir.path().join("main.rs")).unwrap(),
+            "fn main() {}"
+        );
+    }
+    #[test]
     fn actual_node_and_typescript_breakpoint_variables_steps_and_cleanup() {
         let mut scenarios = Vec::new();
         for extension in ["cjs", "ts"] {
@@ -937,6 +1055,9 @@ mod tests {
                         args: vec![],
                         runtime: None,
                         python_path: None,
+                        adapter_path: None,
+                        binary_path: None,
+                        expected_binary_hash: None,
                     },
                     &workspaces,
                     Arc::new(move |value| {
@@ -1047,6 +1168,9 @@ mod tests {
                     args: vec![],
                     runtime: None,
                     python_path: None,
+                    adapter_path: None,
+                    binary_path: None,
+                    expected_binary_hash: None,
                 },
                 &workspaces,
                 Arc::new(move |value| {
@@ -1067,7 +1191,7 @@ mod tests {
     #[test]
     #[ignore = "Actual trusted local Python/debugpy, disposable source only"]
     fn actual_python_conditional_logpoint_variables_and_cleanup() {
-        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/fourth-advancement/phase-2/native-python");
+        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/sixth-advancement/phase-2/native-python");
         fs::create_dir_all(&base).unwrap();
         let dir = tempfile::tempdir_in(&base).unwrap();
         let source="def calculate(a,b):\n    value=a+b\n    return value\nresult=calculate(2,3)\nprint(result)\n";
@@ -1087,6 +1211,9 @@ mod tests {
                     args: vec![],
                     runtime: Some("python".into()),
                     python_path: Some("C:/Users/whitecalvin/anaconda3/python.exe".into()),
+                    adapter_path: None,
+                    binary_path: None,
+                    expected_binary_hash: None,
                 },
                 &workspaces,
                 Arc::new(move |value| {
@@ -1143,7 +1270,7 @@ mod tests {
             source
         );
         assert!(debugger.sessions.lock().unwrap().is_empty());
-        let evidence=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/fourth-advancement/phase-2/ACTUAL-PYTHON-DEBUG.json");
+        let evidence=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/sixth-advancement/phase-2/ACTUAL-PYTHON-DEBUG.json");
         fs::write(evidence,serde_json::to_string_pretty(&json!({"result":"PASS","events":events,"sourceChanged":false,"ownedSessionsRemaining":0})).unwrap()).unwrap();
     }
     #[test]
@@ -1173,6 +1300,9 @@ mod tests {
                     args: vec![],
                     runtime: Some("node".into()),
                     python_path: None,
+                    adapter_path: None,
+                    binary_path: None,
+                    expected_binary_hash: None,
                 },
                 &workspaces,
                 Arc::new(move |value| {
@@ -1220,5 +1350,110 @@ mod tests {
         );
         let evidence = base.parent().unwrap().join("ACTUAL-SOURCE-MAP-DEBUG.json");
         fs::write(evidence,serde_json::to_string_pretty(&json!({"result":"PASS","events":events,"sourceChanged":false,"ownedSessionsRemaining":0})).unwrap()).unwrap();
+    }
+    #[test]
+    #[ignore = "Actual official CodeLLDB and trusted rustc, disposable source"]
+    fn actual_rust_breakpoints_variables_steps_and_cleanup() {
+        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/sixth-advancement/phase-2");
+        let dir = tempfile::tempdir_in(&base).unwrap();
+        let source = "fn main() {\n let value=5;\n println!(\"{}\",value);\n}\n";
+        fs::write(dir.path().join("main.rs"), source).unwrap();
+        let compiled = Command::new("C:/Users/whitecalvin/.cargo/bin/rustc.exe")
+            .args([
+                "-C",
+                "debuginfo=2",
+                "-C",
+                "opt-level=0",
+                "main.rs",
+                "-o",
+                "main.exe",
+            ])
+            .current_dir(dir.path())
+            .status()
+            .unwrap();
+        assert!(compiled.success());
+        let workspaces = Workspaces::default();
+        let workspace = uuid::Uuid::new_v4().to_string();
+        workspaces
+            .roots
+            .lock()
+            .unwrap()
+            .insert(workspace.clone(), dir.path().canonicalize().unwrap());
+        let debugger = Debuggers::default();
+        let id = uuid::Uuid::new_v4().to_string();
+        let (tx, rx) = mpsc::channel();
+        let mut events = Vec::new();
+        let hash = format!(
+            "{:x}",
+            Sha256::digest(fs::read(dir.path().join("main.exe")).unwrap())
+        );
+        debugger
+            .start(
+                Start {
+                    session_id: id.clone(),
+                    workspace_id: workspace.clone(),
+                    path: "main.rs".into(),
+                    expected_hash: format!("{:x}", Sha256::digest(source)),
+                    args: vec![],
+                    runtime: Some("rust".into()),
+                    python_path: None,
+                    adapter_path: Some(
+                        base.join("tools/extension/adapter/codelldb.exe")
+                            .to_string_lossy()
+                            .into(),
+                    ),
+                    binary_path: Some("main.exe".into()),
+                    expected_binary_hash: Some(hash),
+                },
+                &workspaces,
+                Arc::new(move |event| {
+                    let _ = tx.send(event);
+                }),
+            )
+            .unwrap();
+        event(&rx, &mut events, "ready");
+        event(&rx, &mut events, "paused");
+        let mut point = action(&id, &workspace, "set-breakpoint");
+        point.path = Some("main.rs".into());
+        point.line = Some(3);
+        debugger.action(point).unwrap();
+        let verified = event(&rx, &mut events, "breakpoint");
+        assert_eq!(verified["data"]["verified"], true);
+        debugger
+            .action(action(&id, &workspace, "continue"))
+            .unwrap();
+        let paused = event(&rx, &mut events, "paused");
+        assert_eq!(paused["data"]["frames"][0]["path"], "main.rs");
+        let mut variables = action(&id, &workspace, "variables");
+        variables.object_id = paused["data"]["frames"][0]["scopes"][0]["objectId"]
+            .as_str()
+            .map(str::to_owned);
+        debugger.action(variables).unwrap();
+        let values = event(&rx, &mut events, "variables");
+        assert!(values["data"]["values"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|row| row["name"] == "value"
+                && row["value"].as_str().is_some_and(|v| v.contains('5'))));
+        let mut remove = action(&id, &workspace, "remove-breakpoint");
+        remove.breakpoint_id = verified["data"]["breakpointId"].as_str().map(str::to_owned);
+        debugger.action(remove).unwrap();
+        event(&rx, &mut events, "breakpoint-removed");
+        debugger
+            .action(action(&id, &workspace, "step-over"))
+            .unwrap();
+        event(&rx, &mut events, "paused");
+        debugger
+            .action(action(&id, &workspace, "continue"))
+            .unwrap();
+        assert_eq!(event(&rx, &mut events, "exited")["data"]["exitCode"], 0);
+        debugger.stop(&id, &workspace).unwrap();
+        assert!(debugger.sessions.lock().unwrap().is_empty());
+        assert_eq!(
+            fs::read_to_string(dir.path().join("main.rs")).unwrap(),
+            source
+        );
+        fs::write(base.join("ACTUAL-RUST-DEBUG.json"),serde_json::to_vec_pretty(&json!({"result":"PASS","events":events,"sourceChanged":false,"ownedSessionsRemaining":0})).unwrap()).unwrap();
     }
 }

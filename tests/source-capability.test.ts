@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {validateCapabilities,validateRequirements,matchAgent} from '../src/features/core/matcher.ts';
+import type {Agent} from '../src/features/core/domain.ts';
+const capabilities={cpuCores:2,memoryMiB:2048,docker:false,gpu:false,pty:false,runtimes:{},browsers:[]};
+test('legacy Agents stay eligible for existing jobs but cannot receive v2 Source',()=>{const agent:Agent={id:'fixture',name:'Fixture',lastSeenAt:null,createdAt:'2026-10-02',updatedAt:'2026-10-02',status:'idle',platform:'windows',architecture:'x86_64',capabilities};assert(matchAgent(agent,{}).matches);assert(!matchAgent(agent,{sourceSnapshot:2}).matches);assert(matchAgent({...agent,capabilities:{...capabilities,sourceSnapshot:2}},{sourceSnapshot:2}).matches);});
+test('Source capability survives validation and unknown schema requirements are rejected',()=>{assert.equal(validateCapabilities({...capabilities,sourceSnapshot:2}).sourceSnapshot,2);assert.equal(validateRequirements({sourceSnapshot:2}).sourceSnapshot,2);assert.throws(()=>validateRequirements({sourceSnapshot:3} as never));assert.throws(()=>validateCapabilities({...capabilities,sourceSnapshot:3} as never));});

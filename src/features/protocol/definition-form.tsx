@@ -20,6 +20,8 @@ export function DefinitionForm({ kind, name, projectId, onClose, onSaved }: { ki
   const [timeout, setTimeoutValue] = useState('60');
   const [task, setTask] = useState('');
   const [type, setType] = useState('unit');
+  const [executionProfile,setExecutionProfile]=useState('');
+  const [affectedFiles,setAffectedFiles]=useState('');
   const [pipeline, setPipeline] = useState<Record<string, string>>({});
   const [advanced, setAdvanced] = useState('{}');
   const [problem, setProblem] = useState('');
@@ -43,7 +45,9 @@ export function DefinitionForm({ kind, name, projectId, onClose, onSaved }: { ki
       } else {
         setTask(String(raw.task ?? Object.keys(definitionMap(next, 'tasks.yml'))[0] ?? ''));
         setType(String(raw.type ?? 'unit')); setPipeline(raw.pipeline as Record<string, string> ?? {});
-        for (const key of ['task', 'type', 'pipeline']) delete rest[key];
+        setExecutionProfile(String(raw.executionProfile??'')); delete rest.executionProfile;
+        setAffectedFiles((raw.affectedFiles as string[]??[]).join('\n'));
+        for (const key of ['task', 'type', 'pipeline','affectedFiles']) delete rest[key];
       }
       setAdvanced(JSON.stringify(rest, null, 2));
     }).catch(error => { if (!cancelled) setProblem(error instanceof Error ? error.message : 'Cannot read Protocol.'); });
@@ -55,7 +59,7 @@ export function DefinitionForm({ kind, name, projectId, onClose, onSaved }: { ki
     if (!extra || typeof extra !== 'object' || Array.isArray(extra)) throw Error('Advanced options must be a JSON object.');
     return { sources, file, name: entry, originalName: name, value: kind === 'task'
       ? { ...extra, command, args: args ? args.split('\n') : [], cwd, timeout: Number(timeout) }
-      : { ...extra, task, type, ...(Object.values(pipeline).some(Boolean) ? { pipeline: Object.fromEntries(Object.entries(pipeline).filter(([,value]) => value)) } : {}) } };
+      : { ...extra, task, type, ...(executionProfile?{executionProfile}:{}), ...(affectedFiles.trim()?{affectedFiles:affectedFiles.split('\n').map(p=>p.trim()).filter(Boolean)}:{}),...(Object.values(pipeline).some(Boolean) ? { pipeline: Object.fromEntries(Object.entries(pipeline).filter(([,value]) => value)) } : {}) } };
   }
   function inspect() {
     setProblem('');
@@ -82,13 +86,17 @@ export function DefinitionForm({ kind, name, projectId, onClose, onSaved }: { ki
     finally { setPending(false); }
   }
   const tasks = sources ? Object.keys(definitionMap(sources, 'tasks.yml')) : [];
+  const parsed=sources?parseProtocol(sources):null;
+  const profiles=parsed?.status==='Valid'?Object.keys(parsed.definition.executionProfiles??{}):[];
   const field = (label: string, value: string, update: (value: string) => void, inputType = 'text') => <label>{t(label)}<input type={inputType} value={value} disabled={pending} onChange={e => { update(e.target.value); setPreview(''); }} /></label>;
   return <form className="protocol-form" aria-label={t(kind === 'task' ? 'Task editor' : 'Test editor')} onSubmit={e => { e.preventDefault(); void save(); }}>
     <h4>{t(name ? 'Edit definition' : 'New definition')}</h4>
     {field('Name', entry, setEntry)}
     {kind === 'task' ? <>{field('Executable', command, setCommand)}<label>{t('Arguments (one per line)')}<textarea value={args} disabled={pending} onChange={e => { setArgs(e.target.value); setPreview(''); }} /></label>{field('Working directory', cwd, setCwd)}{field('Timeout (seconds)', timeout, setTimeoutValue, 'number')}</> : <>
       <label>{t('Test task')}<select value={task} disabled={pending} onChange={e => { setTask(e.target.value); setPreview(''); }}>{tasks.map(value => <option key={value}>{value}</option>)}</select></label>
+      <label>{t('Execution profile')}<select value={executionProfile} disabled={pending} onChange={e=>{setExecutionProfile(e.target.value);setPreview('');}}><option value="">{t('None')}</option>{profiles.map(value=><option key={value}>{value}</option>)}</select></label>
       <label>{t('Test type')}<select value={type} disabled={pending} onChange={e => { setType(e.target.value); setPreview(''); }}>{['unit','integration','api','browser','e2e'].map(value => <option key={value}>{value}</option>)}</select></label>
+      <label>{t('Affected files')}<textarea rows={3} value={affectedFiles} disabled={pending} placeholder={'src/auth/**\ntests/auth*.ts'} onChange={e=>{setAffectedFiles(e.target.value);setPreview('');}}/></label><p>{t('Optional relative file patterns, one per line. Use * for file names or ** for directories.')}</p>
       <fieldset><legend>{t('Pipeline')}</legend>{['install','build','start','cleanup'].map(stage => <label key={stage}>{stage}<select value={pipeline[stage] ?? ''} disabled={pending} onChange={e => { setPipeline({ ...pipeline, [stage]: e.target.value }); setPreview(''); }}><option value="">{t('None')}</option>{tasks.map(value => <option key={value}>{value}</option>)}</select></label>)}</fieldset>
     </>}
     <details><summary>{t('Advanced options (JSON)')}</summary><p>{t('Environment, requirements and optional settings are preserved. Values must follow the Protocol schema.')}</p><textarea value={advanced} disabled={pending} onChange={e => { setAdvanced(e.target.value); setPreview(''); }} /></details>

@@ -100,3 +100,12 @@ DEV_VERIFIED / functional PASS; final common deployment pending. Phases1–5 alr
 
 ### Second advancement final delivery — 2026-10-01
 All six approved phases implemented/verified and sequentially deployed:0.1.6,0.1.7,0.1.8,0.1.9,0.1.10,0.1.11. Final common pipeline exit0; release source/tag/origin at publication d644ec0e095b8f32cafac17c23b282b32e66c283. Public Windows ZIP/NSIS and Linux Agent/signature4 SHA-256 digests match local artifacts; NSIS signature Valid. DEB built/signed but not configured for publication; Core service component deferred. Actual public https://tastedev.net/en/products/studio HTTP200 includes0.1.11 and studio-v0.1.11 at2026-10-01T10:41:49Z. This final status supersedes prior pending records. Goal summary/evidence: resources/verification/dev-01/tasks/tastedev-studio/second-advancement/FINAL-DELIVERY.md and checkpoint.json. Installed service/DPI and user-owned updater tests remain QA; no such validation claimed. This documentation closure does not change tested application inputs and does not require another package/build.
+
+
+## Sixth advancement integration
+
+Language evidence is supplementary, untrusted observation. Compiler codes and runtime exceptions retain their distinct classification and must link to real source/evidence. Existing Protocol language checks are recommendations, still separately approved.
+
+Manual workflow toolbar connects edit/problems/debug/analysis/proposal/result. Saved IDs are validated against project + credential-free endpoint and actual recovered history. Bookmark is not approval; historical proposal review retains scoped Apply preconditions. Dirty source reopen preserves text. Actual matching Run required for verified result. No auto-call/patch/retest/commit/push on restore.
+
+Actual Provider/E2E evidence: sixth-advancement/phase-5/ACTUAL-AI-VALIDATION-RESULT.json. Restore evidence: phase-6/ACTUAL-HISTORY-RESTORE.json.

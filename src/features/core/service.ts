@@ -71,12 +71,12 @@ export class CoreService {
     this.event(tx,'run.started',id,projectId);this.event(tx,'run.step.changed',step.id,projectId);return run;
   }); }
   /** Persist Step/Run/Job/result times together before acknowledging the Agent. */
-  completeExecution(projectId:string,id:string,status:Extract<RunStatus,'passed'|'failed'|'cancelled'|'timeout'>,exitCode:number|null,summary:string,start:string,end:string,executionReport?:import('./domain.ts').ExecutionReport) {return this.repository.transaction(tx=>{
+  completeExecution(projectId:string,id:string,status:Extract<RunStatus,'passed'|'failed'|'cancelled'|'timeout'>,exitCode:number|null,summary:string,start:string,end:string,executionReport?:import('./domain.ts').ExecutionReport,environment?:import('./domain.ts').ExecutionEnvironment) {return this.repository.transaction(tx=>{
     const run=this.run(tx,projectId,id);if(!activeRun(run))return run;
     const job=this.job(tx,projectId,run.jobId);if(job.payload.testPlan)throw new CoreError('Use pipeline result.');
     if(status==='passed'&&(exitCode!==0||run.status!=='running'))throw new CoreError('Result before acceptance or invalid exit code.');
     if(status==='passed'){const step=required(tx.steps.list().find(s=>s.runId===id),'Step');step.status='passed';step.exitCode=0;step.finishedAt=end;this.event(tx,'run.step.changed',step.id,projectId);}
-    this.finish(tx,run,status,exitCode,summary);run.startedAt=start;run.finishedAt=end;if(executionReport)run.executionReport=structuredClone(executionReport);return run;
+    this.finish(tx,run,status,exitCode,summary);run.startedAt=start;run.finishedAt=end;if(executionReport)run.executionReport=structuredClone(executionReport);if(environment)run.executionEnvironment=structuredClone(environment);return run;
   });}
   addArtifact(projectId:string,input:Omit<Artifact,'id'|'createdAt'>) { return this.repository.transaction(tx=>{this.run(tx,projectId,input.runId);if(input.runStepId&&required(tx.steps.get(input.runStepId),'Step').runId!==input.runId)throw new CoreError('Artifact step belongs to another run.');if(!['log','screenshot','report','trace','video'].includes(input.type)||!Number.isSafeInteger(input.size)||input.size<0)throw new CoreError('Invalid artifact metadata.');const location=text(input.location,'Artifact location',500);if(/^[a-z]+:/i.test(location)&&!/^https?:\/\//i.test(location))throw new CoreError('Unsupported artifact location.');if(/[?#@]/.test(location))throw new CoreError('Artifact location must not contain credentials or query values.');const artifact:Artifact={id:this.id(),runId:input.runId,runStepId:input.runStepId,type:input.type,name:text(input.name,'Artifact name'),location,size:input.size,createdAt:this.now()};tx.artifacts.save(artifact);this.event(tx,'artifact.created',artifact.id,projectId);return artifact;}); }
 }
