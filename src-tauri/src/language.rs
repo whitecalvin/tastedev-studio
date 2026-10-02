@@ -61,6 +61,12 @@ fn tool(path: &str, name: &str) -> Result<PathBuf> {
     let file = PathBuf::from(path);
     if !file.is_absolute()
         || file.file_stem().and_then(|s| s.to_str()) != Some(name)
+        || file.extension().and_then(|s| s.to_str())
+            != Some(if name == "pyright-langserver" {
+                "js"
+            } else {
+                "exe"
+            })
         || !file.is_file()
     {
         return Err(error("language-tool"));
@@ -554,7 +560,7 @@ mod tests {
                     "def add(a:int,b:int)->int:\n    return a+b\n",
                 )
             } else {
-                ("main.rs","math.rs","mod math;\nfn main() { let value=math::add(2,3); let wrong: String=value; println!(\"{wrong}\"); }\n","pub fn add(a:i32,b:i32)->i32 {a+b}\n")
+                ("main.rs","math.rs","mod math;\nfn main() { let value=math::add(2,3); let wrong: String=value; let syntax_error=; println!(\"{wrong}\"); }\n","pub fn add(a:i32,b:i32)->i32 {a+b}\n")
             };
             std::fs::write(root.join(main), content).unwrap();
             std::fs::write(root.join(other), other_content).unwrap();

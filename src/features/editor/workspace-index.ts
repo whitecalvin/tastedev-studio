@@ -11,7 +11,7 @@ export const indexLimits = { files: 500, bytes: 8 * 1024 * 1024, entries: 5000, 
 export function indexable(path: string) {
   const parts = normalizePath(path).split('/');
   return !parts.some(part => ignored.has(part) || /^\.env(?:\.|$)/i.test(part) || /^(?:credentials|id_rsa|id_ed25519)(?:\.|$)/i.test(part))
-    && /\.(?:[cm]?[jt]sx?|json|ya?ml|md|txt|css|html|rs|py|java|toml)$/i.test(path);
+    && /\.(?:[cm]?[jt]sx?|json|ya?ml|md|txt|css|html|rs|pyi?|java|toml)$/i.test(path);
 }
 /** Bounded, cancellable traversal with literal searches and no writes. */
 export async function indexWorkspace(reader: IndexReader, signal: AbortSignal, dirty: readonly IndexedFile[] = [], languagesOnly = false) {

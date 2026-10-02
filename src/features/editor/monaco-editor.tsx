@@ -52,7 +52,7 @@ export function MonacoEditor() {
       const widget = monaco.editor.create(container.current, { model: null, readOnly:!!protectedEditor.current, automaticLayout: true, fontSize: 13, fontFamily: 'Consolas, monospace', lineNumbers: 'on', glyphMargin:true, minimap: { enabled: false }, wordWrap: 'off', tabSize: 2, scrollBeyondLastLine: false, bracketPairColorization: { enabled: true }, accessibilitySupport: 'auto', ariaLabel: label.current, fixedOverflowWidgets: true });
       instance.current = widget;
       const decorations=widget.createDecorationsCollection();
-      actionListener=(event)=>{const action=(event as CustomEvent).detail as keyof typeof editorActions;if(!Object.hasOwn(editorActions,action)||widget.getOption(monaco.editor.EditorOption.readOnly))return;void widget.getAction(editorActions[action])?.run().catch(error=>{if(alive)setError(error instanceof Error?error.message:'Editor action failed.');});};
+      actionListener=(event)=>{const action=(event as CustomEvent).detail as keyof typeof editorActions;if(!Object.hasOwn(editorActions,action)||widget.getOption(monaco.editor.EditorOption.readOnly))return;widget.focus();void widget.getAction(editorActions[action])?.run().catch(error=>{if(alive)setError(error instanceof Error?error.message:'Editor action failed.');});};
       window.addEventListener('tastestudio.editor.action',actionListener);
       const theme = () => monaco.editor.setTheme(document.documentElement.dataset.theme === 'dark' ? 'vs-dark' : 'vs');
       theme(); observer = new MutationObserver(theme); observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
@@ -94,7 +94,7 @@ export function MonacoEditor() {
       }
     }).catch(error => { if (alive) setError(error instanceof Error ? error.message : 'The editor could not be loaded.'); });
     return () => { alive = false; controller.abort(); if(actionListener)window.removeEventListener('tastestudio.editor.action',actionListener); unsubscribe?.(); unsubscribeDebug?.(); observer?.disconnect(); modelChanges.forEach(disposable=>disposable.dispose());serverCleanup?.(); selection?.dispose(); opener?.dispose(); markers?.dispose(); instance.current?.dispose(); instance.current = null; languageCleanup?.(); models.forEach(model => {if(!model.isDisposed())model.dispose();}); setProblems([]); };
-  }, [debug, languageService, documents, files, connection?.id, connection?.permission, revision, setProblems]);
+  }, [debug, languageService, documents, files, connection, revision, setProblems]);
   useEffect(() => { protectedEditor.current=busy; instance.current?.updateOptions({ readOnly: !!busy }); }, [busy]);
   return <div className="fs-monaco-wrap" hidden={!state.activeEditorId}><div ref={container} className="fs-monaco" />{error && <p className="fs-editor-error" role="alert">{error}</p>}</div>;
 }

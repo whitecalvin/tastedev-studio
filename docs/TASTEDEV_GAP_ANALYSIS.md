@@ -1,5 +1,13 @@
 # TASTEDEV Studio GAP 분석
 
+## 4차 고도화 1단계 — Python/Rust 언어 서비스 (2026-10-02)
+
+Python(Pyright)·Rust(rust-analyzer)의 local stdio LSP를 기존 Native workspace/Monaco에 연결했다. 사용자 선택 absolute trusted tool만 명시적 Start로 실행하며 shell/executeCommand/workspace.applyEdit를 제공하지 않는다. 프로젝트 경로·파일 종류·secret path·base/version 검증, 4MiB frame/16 pending request/2 sessions/256 indexed sources, timeout cancellation 및 owned job 종료를 적용한다. TypeScript lib/types 설정도 기존 worker에 반영한다.
+
+정의·참조·이름 변경은 다중 파일을 지원한다. Rename은 실제 Disk를 직접 쓰지 않고 기존 Documents의 Dirty 상태로 반영하며 기존 Save/Save All conflict 보호를 재사용한다. 닫은 dirty editor는 서버에서 saved base로 복원한다. 업데이트/폴더 해제/앱 종료 시 server sessions를 종료한다.
+
+실제 Windows Native host + 실제 공개 Pyright1.1.414/rust-analyzer2026-09-28에서 정의·참조·rename·진단·source unchanged·owned session0 검증 완료. Rust의 자동 cargo check/build scripts/proc macros는 꺼져 있으므로 native syntax diagnostics와 컴파일러 validation을 구분한다. Linux native desktop/설치 QA는 확인하지 않았다. Production Monaco GUI와 공용 배포 결과는 resources/verification/dev-01/tasks/tastedev-studio/fourth-advancement/phase-1 및 checkpoint가 최종 상태다. 2~6단계는 아직 미완료다.
+
 ## 3차 고도화 6단계 — 팀 운영·종합 실제 검증 (2026-10-02)
 
 Owner 사용자 생성/역할/프로젝트 권한/비활성화, bounded 세션 발급·해지와 stale etag 보호를 구현했다. 관리 응답에는 저장된 token hash를 넣지 않고 새 토큰은 password input에서 발급 직후만 표시하며 브라우저 저장소에 저장하지 않는다. 기존 TeamAccess/암호화 CoreStore/Protocol/Queue/Matcher/Rust Agent를 재사용하며 세션 해지·권한 강등은 해당 승인으로 실행 중인 작업의 취소도 요청한다. 최근168시간 Run의 최신1000건 표본과 표본 한도, UTC 일별 추이/통과율/생성→종료 평균 경과 시간, 현재 Agent/Queue, 최신25개 FixAttempt 승인과100개 Run→Issue/PR 링크를 제공한다. 링크는 프로젝트 GitHub 저장소와 실제 Run/snapshot identity로 제한하고 검토 후 저장한다. 링크의 GitHub 존재 확인/직접 PR 생성은 지원하지 않는다.
