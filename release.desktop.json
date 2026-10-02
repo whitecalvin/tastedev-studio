@@ -48,6 +48,7 @@
     "prepareScript": "scripts/prepare-windows-release-payload.ps1",
     "packageFormats": [
       "zip",
+      "msi",
       "nsis"
     ]
   },
