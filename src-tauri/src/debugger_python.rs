@@ -109,6 +109,7 @@ pub(super) fn run(
         let mut variable_frames = HashMap::<u64, i64>::new();
         let mut vars = HashMap::<u64, String>::new();
         let mut breakpoint_actions = HashMap::<u64, Internal>::new();
+        let mut breakpoint_updates = HashMap::<u64, (String, Vec<(String, Internal)>)>::new();
         let mut breakpoints = HashMap::<String, Vec<(String, Internal)>>::new();
         let mut serial = 1u64;
         let mut exit_code = None;
@@ -200,7 +201,12 @@ pub(super) fn run(
                             {
                                 return Err(error("debug-busy"));
                             }
-                            let points = breakpoints.entry(target.clone()).or_default();
+                            // Serialize per-source updates so rejected adapter requests never
+                            // become the committed breakpoint state used by the next action.
+                            if breakpoint_updates.values().any(|(path, _)| path == &target) {
+                                return Err(error("debug-busy"));
+                            }
+                            let mut points = breakpoints.get(&target).cloned().unwrap_or_default();
                             if action.action == "set-breakpoint" {
                                 let id = format!("pybp:{serial}");
                                 serial += 1;
@@ -208,20 +214,20 @@ pub(super) fn run(
                             } else {
                                 points.retain(|(id, _)| Some(id) != action.breakpoint_id.as_ref());
                             }
-                            let points=points.iter().map(|(_,point)|json!({"line":point.line,"condition":point.condition,"logMessage":point.log_message})).collect::<Vec<_>>();
+                            let requested=points.iter().map(|(_,point)|json!({"line":point.line,"condition":point.condition,"logMessage":point.log_message})).collect::<Vec<_>>();
                             let path = resolve(root, &target, false)?;
                             let id = send(
                                 &mut input,
                                 &mut seq,
                                 "setBreakpoints",
-                                json!({"source":{"path":crate::filesystem::display_path(&path)},"breakpoints":points,"sourceModified":false}),
+                                json!({"source":{"path":crate::filesystem::display_path(&path)},"breakpoints":requested,"sourceModified":false}),
                                 &mut pending,
                             )?;
                             let mut action = action.clone();
                             if action.action == "set-breakpoint" {
-                                action.breakpoint_id =
-                                    breakpoints[&target].last().map(|(id, _)| id.clone());
+                                action.breakpoint_id = points.last().map(|(id, _)| id.clone());
                             }
+                            breakpoint_updates.insert(id, (target, points));
                             breakpoint_actions.insert(id, action);
                         }
                         _ => return Err(error("debug-permission")),
@@ -264,6 +270,7 @@ pub(super) fn run(
                     variable_frames.remove(&id);
                     vars.remove(&id);
                     breakpoint_actions.remove(&id);
+                    breakpoint_updates.remove(&id);
                     emit(
                         "operation-error",
                         json!({"reason":"Python debug adapter rejected the request."}),
@@ -320,6 +327,9 @@ pub(super) fn run(
                         }
                     }
                     "setBreakpoints" => {
+                        if let Some((path, points)) = breakpoint_updates.remove(&id) {
+                            breakpoints.insert(path, points);
+                        }
                         if let Some(action) = breakpoint_actions.remove(&id) {
                             if action.action == "remove-breakpoint" {
                                 emit(

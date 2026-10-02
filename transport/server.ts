@@ -1,3 +1,5 @@
+import {PullRequestService,type PullProvider} from '../src/features/git/pull-requests.ts';
+import {GitHubPullProvider} from './pull-request-provider.ts';
 import {TeamOperations} from './team-operations.ts';
 import {sourceInventory,transferSource} from './source-transfer.ts';
 import {snapshotDelta} from '../src/features/core/snapshot-delta.ts';
@@ -36,7 +38,7 @@ import { CoreStore, SqliteCoreRepository, storageKey, StorageError, STORAGE_VERS
 import type { LogState } from './protocol.ts';
 import { validateAgent } from '../src/features/core/matcher.ts';
 import { decode, identifier, timestamp, PROTOCOL, MESSAGE_LIMIT, RunLogs, type Message } from './protocol.ts';
-export interface ServerOptions { accessMode?:'local-single-user'|'team';team?:TeamConfiguration;storagePath?:string; storageKey?:Uint8Array; schedulePath?:string; issueProvider?:IssueProvider; artifactRoot?:string; artifactBaseUrl?:string; port?:number; host?:string; agentToken:string; studioToken:string; allowLan?:boolean; origins?:string[]; heartbeatTimeoutMs?:number; version?:string; shutdownTimeoutMs?:number; runtimeEvent?:(level:'info'|'warn'|'error',event:string,fields?:Record<string,unknown>)=>void }
+export interface ServerOptions { accessMode?:'local-single-user'|'team';team?:TeamConfiguration;storagePath?:string; storageKey?:Uint8Array; schedulePath?:string; pullProvider?:PullProvider; issueProvider?:IssueProvider; artifactRoot?:string; artifactBaseUrl?:string; port?:number; host?:string; agentToken:string; studioToken:string; allowLan?:boolean; origins?:string[]; heartbeatTimeoutMs?:number; version?:string; shutdownTimeoutMs?:number; runtimeEvent?:(level:'info'|'warn'|'error',event:string,fields?:Record<string,unknown>)=>void }
 const auth=(actual:unknown,expected:string)=>typeof actual==='string'&&actual.length<=512&&timingSafeEqual(createHash('sha256').update(actual).digest(),createHash('sha256').update(expected).digest());
 export async function startCoreServer(options:ServerOptions) {
   const host=options.host??'127.0.0.1';
@@ -101,7 +103,8 @@ export async function startCoreServer(options:ServerOptions) {
   const provider=providerName==='openai'?new OpenAIProvider(process.env.OPENAI_API_KEY??'',process.env.TASTEDEV_AI_MODEL??'gpt-4.1-mini'):new CodexProvider(process.env.TASTEDEV_CODEX_MODEL);
   const ai=aiGateway(provider,options.studioToken,origins,id=>projects.has(id),Object.entries(process.env).filter(([k])=>/key|secret|token|password/i.test(k)).map(([,v])=>v??'').filter(Boolean),Number(process.env.TASTEDEV_AI_TIMEOUT_MS??120000),(req,p,write)=>authorizeHTTP(req,p,write?'ai':'read'));
   const issueSecrets=Object.entries(process.env).filter(([k])=>/key|secret|token|password/i.test(k)).map(([,v])=>v??'').filter(Boolean);
-  const issues=issueGateway(options.issueProvider??new GitHubIssueProvider(undefined,issueSecrets),options.studioToken,origins,id=>projects.get(id),id=>service.snapshot(id),id=>(logs.read([id])[id]??[]).map(l=>l.text),issueSecrets,store?{load:()=>store.get('issues')??[],save:value=>store.put('issues',value)}:undefined,(req,p,action,target)=>authorizeHTTP(req,p,['list','get'].includes(action)?'read':'issue-write',target));
+  const pulls=new PullRequestService(options.pullProvider??new GitHubPullProvider(undefined,issueSecrets),issueSecrets,store?{load:()=>store.get('pull-requests')??[],save:value=>store.put('pull-requests',value)}:undefined);
+  const issues=issueGateway(options.issueProvider??new GitHubIssueProvider(undefined,issueSecrets),options.studioToken,origins,id=>projects.get(id),id=>service.snapshot(id),id=>(logs.read([id])[id]??[]).map(l=>l.text),issueSecrets,store?{load:()=>store.get('issues')??[],save:value=>store.put('issues',value)}:undefined,(req,p,action,target)=>authorizeHTTP(req,p,['list','get','pr-list','pr-status'].includes(action)?'read':'issue-write',target),pulls);
   const records=new RunHistory(service,logs,store);
   const history=new HistoryStore(store),historyHandler=historyGateway(history,options.studioToken,origins,id=>projects.has(id),(req,p,action,kind,value)=>{authorizeHTTP(req,p,action==='put'?'history-write':'read',value?.id);if(action==='put'&&kind==='attempt'&&value&&'approval' in value&&value.approval)authorizeHTTP(req,p,'approve',value.id);});
   const teamOperations=new TeamOperations(service,records,history,id=>projects.get(id),store);

@@ -100,7 +100,7 @@ fn decode(root: &Path, map: &Path, json: &Value) -> Result<Vec<Point>> {
             generated_column = generated_column
                 .checked_add(vlq(bytes, &mut at)?)
                 .ok_or_else(|| error("debug-map"))?;
-            if generated_column < 0 || generated_column > 2000000 {
+            if !(0..=2000000).contains(&generated_column) {
                 return Err(error("debug-map"));
             }
             if at == bytes.len() {
@@ -122,10 +122,8 @@ fn decode(root: &Path, map: &Path, json: &Value) -> Result<Vec<Point>> {
             }
             if at != bytes.len()
                 || source < 0
-                || line < 0
-                || line > 100000
-                || column < 0
-                || column > 2000000
+                || !(0..=100000).contains(&line)
+                || !(0..=2000000).contains(&column)
                 || name < 0
             {
                 return Err(error("debug-map"));

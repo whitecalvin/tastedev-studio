@@ -32,6 +32,21 @@ pub(crate) fn run_program(
     args: &[&str],
     cancelled: Option<&std::sync::atomic::AtomicBool>,
 ) -> Result<Vec<u8>> {
+    run_program_with_input(root, executable, args, cancelled, None)
+}
+pub(crate) fn run_input(root: &Path, args: &[&str], input: Vec<u8>) -> Result<Vec<u8>> {
+    if input.len() > 2 * 1024 * 1024 {
+        return Err(error("large"));
+    }
+    run_program_with_input(root, "git", args, None, Some(input))
+}
+fn run_program_with_input(
+    root: &Path,
+    executable: &str,
+    args: &[&str],
+    cancelled: Option<&std::sync::atomic::AtomicBool>,
+    input: Option<Vec<u8>>,
+) -> Result<Vec<u8>> {
     if !["git", "node"].contains(&executable) {
         return Err(error("invalid"));
     }
@@ -49,7 +64,11 @@ pub(crate) fn run_program(
         .args(args)
         .env("GIT_TERMINAL_PROMPT", "0")
         .env("GCM_INTERACTIVE", "never")
-        .stdin(Stdio::null());
+        .stdin(if input.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        });
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -103,6 +122,16 @@ pub(crate) fn run_program(
         Box::new(child.stderr.take().ok_or_else(|| error("git"))?),
         32768,
     );
+    let writer = input.map(|bytes| {
+        let mut stdin = child.stdin.take();
+        std::thread::spawn(move || -> std::io::Result<()> {
+            use std::io::Write;
+            if let Some(ref mut stdin) = stdin {
+                stdin.write_all(&bytes)?;
+            }
+            Ok(())
+        })
+    });
     let deadline = Instant::now() + Duration::from_secs(if cancelled.is_some() { 120 } else { 30 });
     let status = loop {
         if let Some(status) = child.try_wait()? {
@@ -114,6 +143,9 @@ pub(crate) fn run_program(
             let _ = child.wait();
             let _ = stdout.join();
             let _ = stderr.join();
+            if let Some(writer) = writer {
+                let _ = writer.join();
+            }
             return Err(error(if stopped { "cancelled" } else { "git-limit" }));
         }
         std::thread::sleep(Duration::from_millis(10));
@@ -121,6 +153,9 @@ pub(crate) fn run_program(
     job.terminate();
     let stdout = stdout.join().map_err(|_| error("git"))??;
     let stderr = stderr.join().map_err(|_| error("git"))??;
+    if let Some(writer) = writer {
+        writer.join().map_err(|_| error("git"))??;
+    }
     if exceeded.load(Ordering::SeqCst) {
         return Err(error("large"));
     }

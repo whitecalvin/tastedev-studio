@@ -1,6 +1,7 @@
 mod debugger;
 mod diagnostics;
 mod git_collaboration;
+mod git_hunks;
 mod language;
 use diagnostics::runtime_diagnostic;
 mod announcements;

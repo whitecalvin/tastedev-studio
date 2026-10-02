@@ -18,6 +18,7 @@ pub struct Proposal {
     pub remote: Option<String>,
     pub message: Option<String>,
     pub path: Option<String>,
+    pub hunk: Option<usize>,
 }
 struct Approval {
     proposal: Proposal,
@@ -99,6 +100,7 @@ fn preflight(root: &Path, proposal: &Proposal) -> Result<()> {
             | "push"
             | "commit"
             | "resolve-conflict"
+            | "stage-hunk"
     ) {
         return Err(error("git-permission"));
     }
@@ -143,6 +145,13 @@ fn preflight(root: &Path, proposal: &Proposal) -> Result<()> {
     }
     if let Some(value) = &proposal.remote {
         remote(root, value)?;
+    }
+    if proposal.operation == "stage-hunk" {
+        crate::git_hunks::patch(
+            root,
+            proposal.path.as_deref().ok_or_else(|| error("path"))?,
+            proposal.hunk.ok_or_else(|| error("git-hunk"))?,
+        )?;
     }
     if proposal.operation == "resolve-conflict" {
         let path = proposal.path.as_deref().ok_or_else(|| error("path"))?;
@@ -199,7 +208,19 @@ impl Collaboration {
         if approvals.len() >= 16 {
             return Err(error("git-limit"));
         }
-        let result = json!({"approvalId":id,"operation":proposal.operation,"branch":proposal.branch.as_deref().unwrap_or(&branch),"remote":proposal.remote,"message":proposal.message,"head":head,"files":if proposal.operation=="resolve-conflict"{vec![proposal.path.as_deref().unwrap_or("")]}else{files.lines().collect::<Vec<_>>() },"expiresInSeconds":60});
+        let preview_patch = if proposal.operation == "stage-hunk" {
+            Some(
+                String::from_utf8(crate::git_hunks::patch(
+                    &root,
+                    proposal.path.as_deref().unwrap_or(""),
+                    proposal.hunk.unwrap_or(usize::MAX),
+                )?)
+                .map_err(|_| error("binary"))?,
+            )
+        } else {
+            None
+        };
+        let result = json!({"approvalId":id,"operation":proposal.operation,"branch":proposal.branch.as_deref().unwrap_or(&branch),"remote":proposal.remote,"message":proposal.message,"head":head,"files":if matches!(proposal.operation.as_str(),"resolve-conflict"|"stage-hunk"){vec![proposal.path.as_deref().unwrap_or("")]}else{files.lines().collect::<Vec<_>>() },"patch":preview_patch,"expiresInSeconds":60});
         approvals.insert(
             id,
             Approval {
@@ -244,6 +265,14 @@ impl Collaboration {
         }
         let proposal = approval.proposal;
         preflight(&root, &proposal)?;
+        if proposal.operation == "stage-hunk" {
+            crate::git_hunks::stage(
+                &root,
+                proposal.path.as_deref().unwrap_or(""),
+                proposal.hunk.unwrap_or(usize::MAX),
+            )?;
+            return Ok(json!({"operation":"stage-hunk","result":"completed"}));
+        }
         let branch = proposal.branch.as_deref().unwrap_or("");
         let remote = proposal.remote.as_deref().unwrap_or("");
         let target = format!("HEAD:refs/heads/{branch}");
@@ -279,7 +308,7 @@ impl Collaboration {
             .map(|s| s.trim().to_owned());
         let counts=text(&root,&["rev-list","--left-right","--count","HEAD...@{upstream}"]).ok().and_then(|s|{let values=s.split_whitespace().collect::<Vec<_>>();Some(json!({"ahead":values.first()?.parse::<u32>().ok()?,"behind":values.get(1)?.parse::<u32>().ok()?}))});
         Ok(
-            json!({"remotes":remote_names.lines().take(100).collect::<Vec<_>>(),"branch":branch,"divergence":counts}),
+            json!({"remotes":remote_names.lines().take(100).collect::<Vec<_>>(),"branch":branch,"head":text(&root,&["rev-parse","--verify","HEAD"]).ok().map(|s|s.trim().to_owned()),"divergence":counts}),
         )
     }
     pub fn conflict(&self, state: &Workspaces, workspace: &str, path: &str) -> Result<Value> {
@@ -392,6 +421,10 @@ impl Collaboration {
                 Ok(Value::Null)
             }
             "overview" => self.overview(state, &id),
+            "hunks" => Ok(json!(crate::git_hunks::hunks(
+                &root(state, &id)?,
+                request.path.as_deref().ok_or_else(|| error("path"))?
+            )?)),
             "conflict" => self.conflict(
                 state,
                 &id,
@@ -457,6 +490,7 @@ mod tests {
             remote: Some("origin".into()),
             message: Some("Approved controlled change".into()),
             path: None,
+            hunk: None,
         }
     }
     fn approved(c: &Collaboration, w: &Workspaces, proposal: Proposal) -> Value {
@@ -637,5 +671,65 @@ mod tests {
         )
         .unwrap();
         assert!(c.compare_url(&w, &id, "origin", "main", "feature").is_err());
+    }
+    #[test]
+    fn actual_hunk_stage_preserves_other_changes_and_rejects_stale_approval() {
+        let (_dir, w, id, project, _remote) = fixture();
+        let c = Collaboration::default();
+        let file = project.join("main.txt");
+        fs::write(&file, "one\ntwo\nthree\nfour\nfive\nsix\nseven\neight\n").unwrap();
+        git::run(&project, &["add", "--", "main.txt"], None).unwrap();
+        git::run(
+            &project,
+            &["commit", "-m", "Controlled hunk baseline"],
+            None,
+        )
+        .unwrap();
+        fs::write(
+            &file,
+            "USER_STAGED\ntwo\nthree\nfour\nfive\nsix\nseven\neight\n",
+        )
+        .unwrap();
+        git::run(&project, &["add", "--", "main.txt"], None).unwrap();
+        let working = "USER_STAGED\nCHANGE_A\nthree\nfour\nfive\nsix\nseven\nCHANGE_B\n";
+        fs::write(&file, working).unwrap();
+        let before = text(&project, &["show", ":main.txt"]).unwrap();
+        let hunks = crate::git_hunks::hunks(&project.canonicalize().unwrap(), "main.txt").unwrap();
+        assert_eq!(hunks.len(), 2);
+        let mut p = proposal(&id, "stage-hunk", "main");
+        p.path = Some("main.txt".into());
+        p.hunk = Some(0);
+        let preview = c.prepare(&w, p.clone()).unwrap();
+        assert_eq!(text(&project, &["show", ":main.txt"]).unwrap(), before);
+        assert!(preview["patch"].as_str().unwrap().contains("+CHANGE_A"));
+        c.apply(&w, &id, preview["approvalId"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(fs::read_to_string(&file).unwrap(), working);
+        let staged = text(&project, &["show", ":main.txt"]).unwrap();
+        assert!(staged.contains("USER_STAGED\nCHANGE_A\n"));
+        assert!(staged.ends_with("eight\n"));
+        let stale = c.prepare(&w, p.clone()).unwrap();
+        fs::write(&file, working.replace("CHANGE_B", "USER_LATER")).unwrap();
+        assert_eq!(
+            c.apply(&w, &id, stale["approvalId"].as_str().unwrap())
+                .unwrap_err()
+                .code,
+            "git-conflict"
+        );
+        assert_eq!(text(&project, &["show", ":main.txt"]).unwrap(), staged);
+        let cancelled = c.prepare(&w, p.clone()).unwrap();
+        c.cancel(&id, cancelled["approvalId"].as_str().unwrap())
+            .unwrap();
+        assert!(c
+            .apply(&w, &id, cancelled["approvalId"].as_str().unwrap())
+            .is_err());
+        p.path = Some("../outside.txt".into());
+        assert!(c.prepare(&w, p.clone()).is_err());
+        p.path = Some("main.txt".into());
+        p.hunk = Some(999);
+        assert!(c.prepare(&w, p).is_err());
+        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/fourth-advancement/phase-3");
+        fs::create_dir_all(&base).unwrap();
+        fs::write(base.join(if cfg!(debug_assertions){"ACTUAL-HUNK-DEV.json"}else{"ACTUAL-HUNK-PROD.json"}),serde_json::to_vec_pretty(&json!({"result":"PASS","actualGit":true,"actualNativeHost":true,"checks":["approval before index mutation","one selected hunk only","existing staged change preserved","unselected working change preserved","source unchanged","stale approval blocked","cancel blocked","project escape blocked","invalid hunk blocked"]})).unwrap()).unwrap();
     }
 }

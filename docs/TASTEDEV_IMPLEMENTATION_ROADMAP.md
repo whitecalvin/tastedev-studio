@@ -1,5 +1,25 @@
 # TASTEDEV Studio 구현 로드맵
 
+## 4차 고도화 3단계 — Git 협업 (2026-10-02)
+
+승인 기반 hunk Stage, Dirty conflict editor, Core의 scoped PR 생성·상태·SHA 기반 CI 조회를 추가했다. 기존 Git/Files/Documents, Core GitHub 인증·masking·encrypted persistence·team 권한을 재사용한다. 임의 patch/shell을 받지 않고 preview fingerprint/일회용 approval/Source 경계를 검증한다. existing user changes를 보존하고 uncertain create/reconcile를 지원한다.
+
+실제 local Git/native, actual local Core HTTP(controlled GitHub), production Monaco GUI(controlled Git IPC/GitHub), effective Node610 PASS, Native Debug/Release each106 PASS(4 ignored), lint/fmt/Clippy/export/build 완료. Windows0.1.20 signed installer/ZIP과 별도 Core Runtime ZIP을 로컬에 제공한다. Core manifest288파일과 실제 bundle CLI 시작·종료 검증 완료. resources/verification/dev-01/tasks/tastedev-studio/fourth-advancement/phase-3/RESULT.md와 package checkpoint가 근거다.
+
+실제 외부 GitHub PR/CI·설치·서비스/배포 QA는 사용자 미실행이다. 102 전송/실행·자동 GitHub/웹 게시를 하지 않았다. hunk는 저장된 tracked regular text만, PR은 동일 repo branch만, bounded100개 조회. approved SHA와 actual current PR SHA가 달라지면 안내한다. 4~6단계는 아직 미완료다.
+
+## 4차 고도화 2단계 — 로컬 디버깅 확대 (2026-10-02)
+
+프로젝트별 이름 있는 실행 설정(Node/TypeScript/Python)을 저장·선택·삭제한다. 자동 실행하지 않으며 Source·환경 비밀값을 설정 저장소에 넣지 않는다. Dirty editor가 있으면 실행을 차단하고 saved disk hash를 Native에서 다시 확인한다.
+
+Node Inspector의 조건부 중단점과 멈추지 않는 로그 포인트를 지원한다. 로컬 v3 source map으로 생성 JavaScript 위치와 원본 TypeScript 위치를 연결한다. 원격/inline/indexed/중첩 source map은 지원하지 않는 bounded subset이며 map 파일과 원본은 프로젝트 경계를 벗어날 수 없다. 원본 TS를 실행하기 위해 필요한 컴파일은 기존 Protocol Task로 사용자가 수행한다.
+
+Python은 사용자가 선택한 trusted absolute python.exe/python3.exe에 설치된 debugpy의 stdio DAP를 사용한다. Start/Stop/Continue/Pause/Step/Locals/조건부 breakpoint/logpoint를 제공한다. 임의 shell/RunInTerminal/evaluate/write 도구는 제공하지 않는다. 요청16개·30초 timeout·최대30분 session·100개 breakpoint·bounded output을 적용하고 종료 시 owned Windows job을 정리한다. 거부된 breakpoint 요청은 committed state로 저장하지 않으며 같은 source에 대한 변경을 직렬화한다.
+
+실제 Native Node source map/conditional/logpoint 및 실제 Python debugpy/locals/종료 정리를 확인했다. Production export + actual Monaco GUI에서 설정 저장/선택/삭제, Dirty 보호, condition 전달, Light/Dark, source unchanged를 확인했다(화면의 Native IPC는 controlled fixture; 실제 Native host는 별도 검증). 전체 Node602건 중601건 통과 후 신규 Runtime 번역 누락1건만 수정하여 해당 검사 통과. lint와 production export 통과. 최종 Native 검사·서명 패키지 결과는 phase-2/local-package-checkpoint.json에서 확인한다.
+
+실제 설치·배포·업데이트/QA는 사용자 담당이며 실행하지 않았다. 원격102 전송·실행 및 자동 GitHub/웹 게시를 하지 않는다. 단계별 signed installer/ZIP/SHA만 resources/packages/tastestudio/fourth-advancement에 제공한다. 3~6단계는 아직 미완료다.
+
 ## 4차 고도화 1단계 — Python/Rust 언어 서비스 (2026-10-02)
 
 Python(Pyright)·Rust(rust-analyzer)의 local stdio LSP를 기존 Native workspace/Monaco에 연결했다. 사용자 선택 absolute trusted tool만 명시적 Start로 실행하며 shell/executeCommand/workspace.applyEdit를 제공하지 않는다. 프로젝트 경로·파일 종류·secret path·base/version 검증, 4MiB frame/16 pending request/2 sessions/256 indexed sources, timeout cancellation 및 owned job 종료를 적용한다. TypeScript lib/types 설정도 기존 worker에 반영한다.
