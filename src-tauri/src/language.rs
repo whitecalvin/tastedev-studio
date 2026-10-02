@@ -71,7 +71,7 @@ fn tool(path: &str, name: &str) -> Result<PathBuf> {
     {
         return Err(error("language-tool"));
     }
-    Ok(fs_canonical(file)?)
+    fs_canonical(file)
 }
 fn fs_canonical(file: PathBuf) -> Result<PathBuf> {
     Ok(std::fs::canonicalize(file)?)
@@ -116,7 +116,7 @@ fn scoped_uri(root: &Path, value: &str, language: &str) -> Result<PathBuf> {
     }
     Ok(resolved)
 }
-fn frame(reader: &mut impl Read) -> std::io::Result<Value> {
+pub(crate) fn frame(reader: &mut impl Read) -> std::io::Result<Value> {
     let mut header = Vec::new();
     while !header.ends_with(b"\r\n\r\n") {
         if header.len() >= 8192 {
@@ -188,7 +188,7 @@ impl Session {
                 let code = value["error"]["code"].as_i64().unwrap_or(0);
                 #[cfg(test)]
                 eprintln!("Language response method={method} code={code}");
-                Err(error(if matches!(code, -32800 | -32801 | -32802) {
+                Err(error(if matches!(code, -32802..=-32800) {
                     "language-content-modified"
                 } else {
                     "language-response"

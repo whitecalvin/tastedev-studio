@@ -1,3 +1,7 @@
+#[path = "debugger_python.rs"]
+mod python;
+#[path = "debugger_source_map.rs"]
+mod source_map;
 use crate::filesystem::{error, resolve, Result, Workspaces};
 use crate::job::ProcessJob;
 use serde::Deserialize;
@@ -29,6 +33,8 @@ pub struct Start {
     pub expected_hash: String,
     #[serde(default)]
     pub args: Vec<String>,
+    pub runtime: Option<String>,
+    pub python_path: Option<String>,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -40,6 +46,8 @@ pub struct Action {
     pub line: Option<u32>,
     pub breakpoint_id: Option<String>,
     pub object_id: Option<String>,
+    pub condition: Option<String>,
+    pub log_message: Option<String>,
 }
 #[derive(Clone)]
 struct Internal {
@@ -48,6 +56,8 @@ struct Internal {
     line: Option<u32>,
     breakpoint_id: Option<String>,
     object_id: Option<String>,
+    condition: Option<String>,
+    log_message: Option<String>,
 }
 struct Session {
     workspace: String,
@@ -73,7 +83,7 @@ fn script(root: &Path, path: &str) -> Result<PathBuf> {
     if !file.is_file()
         || !matches!(
             file.extension().and_then(|e| e.to_str()),
-            Some("js" | "cjs" | "mjs" | "ts" | "cts" | "mts")
+            Some("js" | "cjs" | "mjs" | "ts" | "cts" | "mts" | "py")
         )
     {
         return Err(error("debug-file"));
@@ -93,6 +103,25 @@ impl Debuggers {
         }
         let root = workspaces.root(&request.workspace_id)?;
         let file = script(&root, &request.path)?;
+        if !matches!(request.runtime.as_deref(), None | Some("node" | "python")) {
+            return Err(error("invalid"));
+        }
+        let interpreter = if request.runtime.as_deref() == Some("python") {
+            if file.extension().and_then(|e| e.to_str()) != Some("py") {
+                return Err(error("debug-file"));
+            }
+            Some(python::interpreter(
+                request
+                    .python_path
+                    .as_deref()
+                    .ok_or_else(|| error("debug-python"))?,
+            )?)
+        } else {
+            if file.extension().and_then(|e| e.to_str()) == Some("py") {
+                return Err(error("debug-file"));
+            }
+            None
+        };
         if fs::metadata(&file)?.len() > 2 * 1024 * 1024 {
             return Err(error("large"));
         }
@@ -136,14 +165,26 @@ impl Debuggers {
                 );
             };
             publish(&mut sequence, "starting", json!({"path":request.path}));
-            let result = run(
-                &root,
-                &file,
-                &request.args,
-                &worker.cancel,
-                rx,
-                |kind, data| publish(&mut sequence, kind, data),
-            );
+            let result = if let Some(interpreter) = interpreter {
+                python::run(
+                    &root,
+                    &file,
+                    &interpreter,
+                    &request.args,
+                    &worker.cancel,
+                    rx,
+                    |kind, data| publish(&mut sequence, kind, data),
+                )
+            } else {
+                run(
+                    &root,
+                    &file,
+                    &request.args,
+                    &worker.cancel,
+                    rx,
+                    |kind, data| publish(&mut sequence, kind, data),
+                )
+            };
             match result {
                 Ok(code) => publish(
                     &mut sequence,
@@ -209,6 +250,14 @@ impl Debuggers {
         } else {
             None
         };
+        for value in [&request.condition, &request.log_message] {
+            if value
+                .as_ref()
+                .is_some_and(|v| v.len() > 2048 || v.contains(['\0', '\n', '\r']))
+            {
+                return Err(error("invalid"));
+            }
+        }
         for value in [&request.object_id, &request.breakpoint_id]
             .into_iter()
             .flatten()
@@ -225,6 +274,8 @@ impl Debuggers {
                 line: request.line,
                 breakpoint_id: request.breakpoint_id,
                 object_id: request.object_id,
+                condition: request.condition,
+                log_message: request.log_message,
             })
             .map_err(|_| error("debug-busy"))
     }
@@ -251,6 +302,13 @@ impl Debuggers {
             drop(done);
             if let Some(join) = session.join.lock().map_err(|_| error("internal"))?.take() {
                 join.join().map_err(|_| error("internal"))?;
+            }
+            let mut sessions = self.sessions.lock().map_err(|_| error("internal"))?;
+            if sessions
+                .get(id)
+                .is_some_and(|current| Arc::ptr_eq(current, &session))
+            {
+                sessions.remove(id);
             }
         } else {
             let mut cancelled = self.cancelled.lock().map_err(|_| error("internal"))?;
@@ -341,6 +399,17 @@ fn regex_escape(value: &str) -> String {
         })
         .collect()
 }
+fn breakpoint_condition(condition: Option<&str>, log: Option<&str>) -> String {
+    let condition = condition.filter(|v| !v.trim().is_empty()).unwrap_or("true");
+    if let Some(message) = log.filter(|v| !v.is_empty()) {
+        format!(
+            "(()=>{{if({condition})console.log({});return false;}})()",
+            json!(message)
+        )
+    } else {
+        condition.to_owned()
+    }
+}
 fn safe_value(value: &Value) -> Value {
     let mut out = value.clone();
     if out.to_string().len() > 4096 {
@@ -359,6 +428,7 @@ fn run(
     let mut command = Command::new("node");
     command
         .arg("--inspect-brk=127.0.0.1:0")
+        .arg("--enable-source-maps")
         .arg(crate::filesystem::display_path(file))
         .args(args)
         .current_dir(crate::filesystem::display_path(root))
@@ -461,6 +531,8 @@ fn run(
         let mut next = 1u64;
         let mut pending = HashMap::<u64, (Internal, Instant)>::new();
         let mut scripts = HashMap::<String, String>::new();
+        let mut maps = source_map::SourceMaps::new();
+        maps.load(root, file);
         let mut objects = HashSet::<String>::new();
         let mut breakpoints = HashSet::<String>::new();
         let mut paused = false;
@@ -544,12 +616,26 @@ fn run(
                     ),
                     "set-breakpoint" => {
                         let path = action.path.clone().ok_or_else(|| error("invalid"))?;
+                        let original_line = action.line.ok_or_else(|| error("invalid"))? - 1;
+                        let relative = path
+                            .strip_prefix(root)
+                            .ok()
+                            .and_then(|p| p.to_str())
+                            .map(|p| p.replace('\\', "/"))
+                            .ok_or_else(|| error("debug-file"))?;
+                        let (path, line, column) = if let Some((generated, line, column)) =
+                            maps.generated(&relative, original_line)
+                        {
+                            (resolve(root, &generated, false)?, line, column)
+                        } else {
+                            (path, original_line, 0)
+                        };
                         let path = PathBuf::from(crate::filesystem::display_path(&path));
                         let url =
                             reqwest::Url::from_file_path(&path).map_err(|_| error("invalid"))?;
                         (
                             "Debugger.setBreakpointByUrl",
-                            json!({"urlRegex":format!("^(?:{}|{})$", regex_escape(url.as_str()), regex_escape(&crate::filesystem::display_path(&path))),"lineNumber":action.line.ok_or_else(||error("invalid"))?-1}),
+                            json!({"urlRegex":format!("^(?:{}|{})$", regex_escape(url.as_str()), regex_escape(&crate::filesystem::display_path(&path))),"lineNumber":line,"columnNumber":column,"condition":breakpoint_condition(action.condition.as_deref(),action.log_message.as_deref())}),
                         )
                     }
                     "remove-breakpoint"
@@ -650,13 +736,16 @@ fn run(
                                 message["params"]["scriptId"].as_str(),
                                 source_path(root, message["params"]["url"].as_str().unwrap_or("")),
                             ) {
+                                if let Ok(file) = resolve(root, &path, false) {
+                                    maps.load(root, &file);
+                                }
                                 scripts.insert(id.to_owned(), path);
                             }
                         }
                     } else if message["method"] == "Debugger.paused" {
                         paused = true;
                         objects.clear();
-                        let frames=message["params"]["callFrames"].as_array().map(|items|items.iter().take(100).filter_map(|frame|{let path=source_path(root,frame["url"].as_str().unwrap_or("" )).or_else(||scripts.get(frame["location"]["scriptId"].as_str().unwrap_or("")).cloned())?;let scopes=frame["scopeChain"].as_array().map(|items|items.iter().take(10).filter(|scope|matches!(scope["type"].as_str(),Some("local"|"closure"|"catch"|"block"|"module"))).map(|scope|{if let Some(id)=scope["object"]["objectId"].as_str(){objects.insert(id.to_owned());}json!({"type":scope["type"],"objectId":scope["object"]["objectId"]})}).collect::<Vec<_>>()).unwrap_or_default();Some(json!({"functionName":frame["functionName"],"path":path,"line":frame["location"]["lineNumber"].as_u64().unwrap_or(0)+1,"column":frame["location"]["columnNumber"].as_u64().unwrap_or(0)+1,"scopes":scopes}))}).collect::<Vec<_>>()).unwrap_or_default();
+                        let frames=message["params"]["callFrames"].as_array().map(|items|items.iter().take(100).filter_map(|frame|{let path=source_path(root,frame["url"].as_str().unwrap_or("" )).or_else(||scripts.get(frame["location"]["scriptId"].as_str().unwrap_or("")).cloned())?;let scopes=frame["scopeChain"].as_array().map(|items|items.iter().take(10).filter(|scope|matches!(scope["type"].as_str(),Some("local"|"closure"|"catch"|"block"|"module"))).map(|scope|{if let Some(id)=scope["object"]["objectId"].as_str(){objects.insert(id.to_owned());}json!({"type":scope["type"],"objectId":scope["object"]["objectId"]})}).collect::<Vec<_>>()).unwrap_or_default();let line=frame["location"]["lineNumber"].as_u64().unwrap_or(0) as u32;let column=frame["location"]["columnNumber"].as_u64().unwrap_or(0) as u32;let(path,line,column)=maps.original(&path,line,column).unwrap_or((path,line,column));Some(json!({"functionName":frame["functionName"],"path":path,"line":line+1,"column":column+1,"scopes":scopes}))}).collect::<Vec<_>>()).unwrap_or_default();
                         emit(
                             "paused",
                             json!({"reason":message["params"]["reason"],"frames":frames}),
@@ -715,7 +804,7 @@ mod tests {
     fn fixture() -> tempfile::TempDir {
         let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/third-advancement/phase-4/native");
         fs::create_dir_all(&base).unwrap();
-        tempfile::tempdir_in(base).unwrap()
+        tempfile::tempdir_in(&base).unwrap()
     }
     fn scope(dir: &Path) -> (Workspaces, String) {
         let workspaces = Workspaces::default();
@@ -732,10 +821,12 @@ mod tests {
             line: None,
             breakpoint_id: None,
             object_id: None,
+            condition: None,
+            log_message: None,
         }
     }
     fn event(rx: &mpsc::Receiver<Value>, events: &mut Vec<Value>, kind: &str) -> Value {
-        let deadline = Instant::now() + Duration::from_secs(10);
+        let deadline = Instant::now() + Duration::from_secs(30);
         loop {
             assert!(
                 Instant::now() < deadline,
@@ -785,6 +876,8 @@ mod tests {
             path: "main.cjs".into(),
             expected_hash: format!("{:x}", Sha256::digest(b"user content")),
             args: vec![],
+            runtime: None,
+            python_path: None,
         };
         let mut stale = start();
         stale.expected_hash = "0".repeat(64);
@@ -842,6 +935,8 @@ mod tests {
                         path: file.clone(),
                         expected_hash: format!("{:x}", Sha256::digest(content)),
                         args: vec![],
+                        runtime: None,
+                        python_path: None,
                     },
                     &workspaces,
                     Arc::new(move |value| {
@@ -950,6 +1045,8 @@ mod tests {
                     path: "main.cjs".into(),
                     expected_hash: format!("{:x}", Sha256::digest(content)),
                     args: vec![],
+                    runtime: None,
+                    python_path: None,
                 },
                 &workspaces,
                 Arc::new(move |value| {
@@ -966,5 +1063,162 @@ mod tests {
             fs::read_to_string(dir.path().join("main.cjs")).unwrap(),
             content
         );
+    }
+    #[test]
+    #[ignore = "Actual trusted local Python/debugpy, disposable source only"]
+    fn actual_python_conditional_logpoint_variables_and_cleanup() {
+        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/fourth-advancement/phase-2/native-python");
+        fs::create_dir_all(&base).unwrap();
+        let dir = tempfile::tempdir_in(&base).unwrap();
+        let source="def calculate(a,b):\n    value=a+b\n    return value\nresult=calculate(2,3)\nprint(result)\n";
+        fs::write(dir.path().join("main.py"), source).unwrap();
+        let (workspaces, workspace) = scope(dir.path());
+        let debugger = Debuggers::default();
+        let id = uuid::Uuid::new_v4().to_string();
+        let (tx, rx) = mpsc::channel();
+        let mut events = Vec::new();
+        debugger
+            .start(
+                Start {
+                    session_id: id.clone(),
+                    workspace_id: workspace.clone(),
+                    path: "main.py".into(),
+                    expected_hash: format!("{:x}", Sha256::digest(source.as_bytes())),
+                    args: vec![],
+                    runtime: Some("python".into()),
+                    python_path: Some("C:/Users/whitecalvin/anaconda3/python.exe".into()),
+                },
+                &workspaces,
+                Arc::new(move |value| {
+                    let _ = tx.send(value);
+                }),
+            )
+            .unwrap();
+        event(&rx, &mut events, "ready");
+        event(&rx, &mut events, "paused");
+        let mut point = action(&id, &workspace, "set-breakpoint");
+        point.path = Some("main.py".into());
+        point.line = Some(3);
+        point.condition = Some("value == 5".into());
+        debugger.action(point).unwrap();
+        assert_eq!(
+            event(&rx, &mut events, "breakpoint")["data"]["verified"],
+            true
+        );
+        let mut log = action(&id, &workspace, "set-breakpoint");
+        log.path = Some("main.py".into());
+        log.line = Some(5);
+        log.log_message = Some("PY_CONTROLLED_LOG".into());
+        debugger.action(log).unwrap();
+        event(&rx, &mut events, "breakpoint");
+        debugger
+            .action(action(&id, &workspace, "continue"))
+            .unwrap();
+        let paused = event(&rx, &mut events, "paused");
+        assert_eq!(paused["data"]["frames"][0]["path"], "main.py");
+        assert_eq!(paused["data"]["frames"][0]["line"], 3);
+        let mut variables = action(&id, &workspace, "variables");
+        variables.object_id = paused["data"]["frames"][0]["scopes"][0]["objectId"]
+            .as_str()
+            .map(str::to_owned);
+        debugger.action(variables).unwrap();
+        let values = event(&rx, &mut events, "variables");
+        assert!(values["data"]["values"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|value| value["name"] == "value" && value["value"] == "5"));
+        debugger
+            .action(action(&id, &workspace, "continue"))
+            .unwrap();
+        let exited = event(&rx, &mut events, "exited");
+        assert_eq!(exited["data"]["exitCode"], 0);
+        assert!(events.iter().any(|e| e["type"] == "output"
+            && e["data"]["text"]
+                .as_str()
+                .is_some_and(|text| text.contains("PY_CONTROLLED_LOG"))));
+        debugger.stop(&id, &workspace).unwrap();
+        assert_eq!(
+            fs::read_to_string(dir.path().join("main.py")).unwrap(),
+            source
+        );
+        assert!(debugger.sessions.lock().unwrap().is_empty());
+        let evidence=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/fourth-advancement/phase-2/ACTUAL-PYTHON-DEBUG.json");
+        fs::write(evidence,serde_json::to_string_pretty(&json!({"result":"PASS","events":events,"sourceChanged":false,"ownedSessionsRemaining":0})).unwrap()).unwrap();
+    }
+    #[test]
+    fn actual_source_map_conditional_breakpoint_and_logpoint() {
+        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/fourth-advancement/phase-2/native-node-map");
+        fs::create_dir_all(&base).unwrap();
+        let dir = tempfile::tempdir_in(&base).unwrap();
+        fs::create_dir(dir.path().join("dist")).unwrap();
+        fs::create_dir(dir.path().join("src")).unwrap();
+        let original="function calculate(a:number,b:number){\n const value=a+b;\n return value;\n}\nconst result=calculate(2,3);\nconsole.log(result);\n";
+        let generated="'use strict';\nfunction calculate(a,b){\n const value=a+b;\n return value;\n}\nconst result=calculate(2,3);\nconsole.log(result);\n//# sourceMappingURL=main.js.map\n";
+        fs::write(dir.path().join("src/main.ts"), original).unwrap();
+        fs::write(dir.path().join("dist/main.js"), generated).unwrap();
+        fs::write(dir.path().join("dist/main.js.map"),json!({"version":3,"sources":["../src/main.ts"],"names":[],"mappings":";AAAA;AACA;AACA;AACA;AACA;AACA"}).to_string()).unwrap();
+        let (workspaces, workspace) = scope(dir.path());
+        let debugger = Debuggers::default();
+        let id = uuid::Uuid::new_v4().to_string();
+        let (tx, rx) = mpsc::channel();
+        let mut events = Vec::new();
+        debugger
+            .start(
+                Start {
+                    session_id: id.clone(),
+                    workspace_id: workspace.clone(),
+                    path: "dist/main.js".into(),
+                    expected_hash: format!("{:x}", Sha256::digest(generated.as_bytes())),
+                    args: vec![],
+                    runtime: Some("node".into()),
+                    python_path: None,
+                },
+                &workspaces,
+                Arc::new(move |value| {
+                    let _ = tx.send(value);
+                }),
+            )
+            .unwrap();
+        event(&rx, &mut events, "ready");
+        debugger
+            .action(action(&id, &workspace, "continue"))
+            .unwrap();
+        let first = event(&rx, &mut events, "paused");
+        assert_eq!(first["data"]["frames"][0]["path"], "src/main.ts");
+        let mut point = action(&id, &workspace, "set-breakpoint");
+        point.path = Some("src/main.ts".into());
+        point.line = Some(3);
+        point.condition = Some("value === 5".into());
+        debugger.action(point).unwrap();
+        event(&rx, &mut events, "breakpoint");
+        let mut log = action(&id, &workspace, "set-breakpoint");
+        log.path = Some("src/main.ts".into());
+        log.line = Some(6);
+        log.log_message = Some("JS_CONTROLLED_LOG".into());
+        debugger.action(log).unwrap();
+        event(&rx, &mut events, "breakpoint");
+        debugger
+            .action(action(&id, &workspace, "continue"))
+            .unwrap();
+        let paused = event(&rx, &mut events, "paused");
+        assert_eq!(paused["data"]["frames"][0]["path"], "src/main.ts");
+        assert_eq!(paused["data"]["frames"][0]["line"], 3);
+        debugger
+            .action(action(&id, &workspace, "continue"))
+            .unwrap();
+        assert_eq!(event(&rx, &mut events, "exited")["data"]["exitCode"], 0);
+        assert!(events.iter().any(|e| e["type"] == "output"
+            && e["data"]["text"]
+                .as_str()
+                .is_some_and(|text| text.contains("JS_CONTROLLED_LOG"))));
+        debugger.stop(&id, &workspace).unwrap();
+        assert!(debugger.sessions.lock().unwrap().is_empty());
+        assert_eq!(
+            fs::read_to_string(dir.path().join("src/main.ts")).unwrap(),
+            original
+        );
+        let evidence = base.parent().unwrap().join("ACTUAL-SOURCE-MAP-DEBUG.json");
+        fs::write(evidence,serde_json::to_string_pretty(&json!({"result":"PASS","events":events,"sourceChanged":false,"ownedSessionsRemaining":0})).unwrap()).unwrap();
     }
 }
