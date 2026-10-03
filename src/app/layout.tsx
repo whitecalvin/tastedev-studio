@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/ui/theme";
 import "@/styles/globals.css";
 import "@/styles/workspace.css";
+import '@/styles/orchestration.css';
 import "@/styles/files.css";
 import '@xterm/xterm/css/xterm.css';
 import '@/styles/process.css';
@@ -20,3 +21,5 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
 import '@/styles/git.css';
 
 import '@/styles/core.css';
+import '@/styles/custom-select.css';
+import '@/styles/controls.css';

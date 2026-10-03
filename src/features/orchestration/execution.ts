@@ -1,0 +1,7 @@
+import type {ProjectGraph} from './domain.ts';
+import type {CreateJob} from '../core/service.ts';
+import type {ProjectSnapshot} from '../ai/project-snapshot.ts';
+export interface GraphDefinition {source?:ProjectSnapshot;deploymentNodes?:string[];projectId:string;revision:number;checksum:string;inputChecksum:string;graph:ProjectGraph;plans:Record<string,CreateJob>;agents:Record<string,string[]>;publishedAt:string}
+export interface GraphActivation {approvalId?:string;id:string;nodeId:string;attempt:number;status:'ready'|'approval'|'launching'|'queued'|'running'|'passed'|'failed'|'cancelled';jobId?:string;runId?:string;agentId?:string;approvedBy?:string;approvedAt?:string;reason?:string}
+export interface GraphExecution {id:string;projectId:string;revision:number;checksum:string;inputChecksum:string;status:'running'|'paused'|'cancelling'|'cancelled'|'passed'|'failed';definition:GraphDefinition;activations:GraphActivation[];actor:string;createdAt:string;deadline:string;finishedAt?:string;reason?:string}
+export interface GraphOverview {definition:Omit<GraphDefinition,'plans'>|null;executions:(Omit<GraphExecution,'definition'>&{nodeLabels:Record<string,string>;source?:ProjectSnapshot})[];durable:boolean}

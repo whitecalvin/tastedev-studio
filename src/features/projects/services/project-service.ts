@@ -33,7 +33,7 @@ export class ProjectService {
       const project: Project = {
         ...valid, id: this.options.id?.() ?? crypto.randomUUID(),
         repositoryUrl: null, defaultBranch: null, framework: null, runtime: null,
-        packageManager: null, projectType: null, gitEnabled: null,
+        packageManager: null, projectType: valid.projectKind ?? null, gitEnabled: null,
         createdAt: now, updatedAt: now, lastOpenedAt: null,
       };
       await this.repository.save(project);
@@ -65,10 +65,11 @@ export class ProjectService {
       assertUniqueProject((await this.repository.list()).filter(item => item.id !== id), valid);
       await this.repository.save({ ...project, workspacePath: valid.workspacePath, browserFolder: false, updatedAt: this.options.now?.() ?? new Date().toISOString() });
     });
-  }  async registerBrowserFolder(name: string, description = ''): Promise<Project> {
+  }  async registerBrowserFolder(name: string, description = '', setup?: Pick<NewProjectInput, 'projectKind' | 'initialRoles'>): Promise<Project> {
     return this.exclusive(async () => {
       const now = this.options.now?.() ?? new Date().toISOString();
       const project: Project = { id: this.options.id?.() ?? crypto.randomUUID(), name, description, workspacePath: null, browserFolder: true, repositoryUrl: null, defaultBranch: null, framework: null, runtime: null, packageManager: null, projectType: null, gitEnabled: null, createdAt: now, updatedAt: now, lastOpenedAt: null };
+      if (setup) { const valid = validateNewProject({name, description, workspacePath:'/', ...setup}); project.projectType=valid.projectKind??null; project.initialRoles=valid.initialRoles; }
       await this.repository.save(project); return project;
     });
   }

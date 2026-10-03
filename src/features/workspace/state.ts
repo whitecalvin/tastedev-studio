@@ -1,4 +1,4 @@
-export const activityIds = ['explorer', 'search', 'source-control', 'run', 'tests', 'agents', 'queue', 'runs', 'issues', 'ai', 'scheduler', 'settings'] as const;
+export const activityIds = ['orchestration', 'explorer', 'search', 'source-control', 'run', 'tests', 'agents', 'queue', 'runs', 'issues', 'ai', 'scheduler', 'settings'] as const;
 export type Activity = typeof activityIds[number];
 export const bottomTabs = ['Terminal', 'Output', 'Problems', 'Tests', 'Agent', 'Logs'] as const;
 export type BottomTab = typeof bottomTabs[number];
@@ -9,7 +9,7 @@ export interface WorkspaceState {
   activeActivity: Activity; primarySidebarVisible: boolean; secondaryPanelVisible: boolean;
   bottomPanelVisible: boolean; activeBottomPanelTab: BottomTab; bottomHeight: number; secondaryWidth: number;
 }
-export const initialState: WorkspaceState = { activeActivity: 'explorer', primarySidebarVisible: true, secondaryPanelVisible: true, bottomPanelVisible: true, activeBottomPanelTab: 'Terminal', bottomHeight: 180, secondaryWidth: 280 };
+export const initialState: WorkspaceState = { activeActivity: 'orchestration', primarySidebarVisible: true, secondaryPanelVisible: true, bottomPanelVisible: true, activeBottomPanelTab: 'Terminal', bottomHeight: 180, secondaryWidth: 280 };
 export type Panel = 'primarySidebarVisible' | 'secondaryPanelVisible' | 'bottomPanelVisible';
 export type Action = { type: 'activity'; value: Activity } | { type: 'toggle'; panel: Panel } | { type: 'tab'; value: BottomTab } | { type: 'resize'; dimension: 'bottomHeight' | 'secondaryWidth'; value: number } | { type: 'hydrate'; value: WorkspaceState };
 export function workspaceReducer(state: WorkspaceState, action: Action): WorkspaceState {

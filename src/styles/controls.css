@@ -1,0 +1,16 @@
+:root{--studio-control-height:32px;--studio-control-radius:5px}
+/* Form controls share a border-box height; editor internals and toggles keep their own sizing. */
+body input:not([type=checkbox],[type=radio],[type=range],[type=color],[type=file],[type=hidden]):not(.monaco-editor input),
+body .custom-select select:not([multiple]):not([size]:not([size="1"])),
+body .button,body .fs-button,body .core-create{
+ box-sizing:border-box;
+ height:var(--studio-control-height)!important;
+ min-height:var(--studio-control-height)!important;
+ border-radius:var(--studio-control-radius);
+ line-height:20px;
+}
+body input:not([type=checkbox],[type=radio],[type=range],[type=color],[type=file],[type=hidden]):not(.monaco-editor input){padding-block:5px}
+body .button,body .fs-button,body .core-create{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding-block:5px;white-space:nowrap}
+.project-folder-input{align-items:center}
+.orch-toolbar>span{min-height:var(--studio-control-height)}
+@media(max-width:1000px){.orch-toolbar>span{min-height:0}}

@@ -1,4 +1,5 @@
 'use client';
+import { CustomSelect } from '@/components/ui/custom-select';
 import { useI18n, I18nText } from '@/i18n/react';
 import dynamic from 'next/dynamic';
 import { useState, useSyncExternalStore } from 'react';
@@ -19,7 +20,7 @@ export function RunView() {
   const selected = run.list.find(c => c.id === run.selectedId), active = running(run.state.session?.status), locked = active || run.preparing;
   return <div className="run-view"><div className="run-heading"><h3>{t("Run Configurations")}</h3><button aria-label={t("Add run configuration")} disabled={!run.ready || locked} onClick={() => setEditing('new')}><Plus size={16} /></button></div>
     {run.error && <p className="run-error" role="alert">{run.error}</p>}
-    {!run.ready ? <p role="status">{t("Loading configurations…")}</p> : !run.list.length ? <p>{t("No configurations yet. Add an executable and its arguments to prepare a run.")}</p> : <label className="run-selection">{t("Configuration")}<select value={run.selectedId} disabled={locked} onChange={e => run.select(e.target.value)}>{run.list.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
+    {!run.ready ? <p role="status">{t("Loading configurations…")}</p> : !run.list.length ? <p>{t("No configurations yet. Add an executable and its arguments to prepare a run.")}</p> : <label className="run-selection">{t("Configuration")}<CustomSelect value={run.selectedId} disabled={locked} onChange={e => run.select(e.target.value)}>{run.list.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</CustomSelect></label>}
     {selected && <><dl className="run-summary"><dt>{t("Executable")}</dt><dd title={selected.command}>{selected.command}</dd><dt>{t("Working directory")}</dt><dd>{selected.cwd || t("Workspace root")}</dd><dt>{t("Destination")}</dt><dd>{selected.type === 'terminal' ? t("Terminal / PTY") : t("Task output")}</dd></dl><div className="run-actions"><button disabled={locked} onClick={() => setEditing(selected)}><Pencil size={13} />{t("Edit")}</button><button disabled={locked} onClick={() => setDeleting(true)}><Trash2 size={13} />{t("Delete")}</button></div></>}
     <div className="run-actions"><button disabled={!selected || locked} onClick={() => void run.run()}><Play size={14} />{run.preparing ? t("Preparing…") : t("Run")}</button><button disabled={!active || run.state.session?.status === 'stopping'} onClick={() => void run.service.stop()}><Square size={13} />{t("Stop")}</button></div>
     <p role="status" className="run-state">{!run.capabilities.process ? t("Unsupported runtime") : run.state.session?.status ?? t("Ready")}</p><p>{run.state.message || (!run.capabilities.process ? desktopRequired : t("Select a configuration to begin."))}</p>
@@ -40,7 +41,7 @@ function ConfigurationForm({ initial, close }: { initial?: RunConfiguration; clo
     <label>{t("Arguments (JSON array)")}<textarea rows={2} value={args} onChange={e => setArgs(e.target.value)} placeholder={t("[\"dev\"]")} /></label><small>{t("Each array item is one argument. No shell command is assembled.")}</small>
     <label>{t("Working directory")}<input value={cwd} onChange={e => setCwd(e.target.value)} placeholder="." /></label><small>{t("Relative to the connected workspace. “.” uses its root.")}</small>
     <label>{t("Environment (JSON object)")}<textarea rows={2} value={env} onChange={e => setEnv(e.target.value)} spellCheck={false} /></label><small>{t("Stored locally with the configuration. This is not a secret vault.")}</small>
-    <label>{t("Output destination")}<select value={type} onChange={e => setType(e.target.value as 'terminal' | 'task')}><option value="terminal">{t("Terminal / PTY")}</option><option value="task">{t("Task output")}</option></select></label>
+    <label>{t("Output destination")}<CustomSelect value={type} onChange={e => setType(e.target.value as 'terminal' | 'task')}><option value="terminal">{t("Terminal / PTY")}</option><option value="task">{t("Task output")}</option></CustomSelect></label>
     {error && <p role="alert" className="run-error">{t(error || "")}</p>}<div className="fs-dialog-actions"><button className="fs-button" type="submit">{t("Save configuration")}</button><button className="fs-button" type="button" onClick={close}>{t("Cancel")}</button></div>
   </form></Dialog>;
 }

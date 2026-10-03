@@ -1,5 +1,6 @@
 import { ProjectError, type Project } from "../types/project.ts";
 import { workspaceKey } from "../utils/validation.ts";
+import { roles } from '../../orchestration/domain.ts';
 
 export interface ProjectRepository {
   list(): Promise<Project[]>;
@@ -22,6 +23,7 @@ function isProject(value: unknown): value is Project {
     && typeof p.description === "string" && ((typeof p.workspacePath === "string" && !!p.workspacePath) || (p.workspacePath === null && p.browserFolder === true))
     && nullableFields.every((field) => p[field] === null || typeof p[field] === "string")
     && (p.gitEnabled === null || typeof p.gitEnabled === "boolean")
+    && (p.initialRoles === undefined || (Array.isArray(p.initialRoles) && p.initialRoles.length >= 1 && p.initialRoles.length <= 3 && p.initialRoles.every(role => roles.includes(role))))
     && isDate(p.createdAt) && isDate(p.updatedAt) && (p.lastOpenedAt === null || isDate(p.lastOpenedAt));
 }
 

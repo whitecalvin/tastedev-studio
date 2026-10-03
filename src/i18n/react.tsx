@@ -1,4 +1,5 @@
 'use client';
+import { CustomSelect } from '@/components/ui/custom-select';
 import {useCallback,useEffect,useSyncExternalStore} from 'react';
 import {Languages} from 'lucide-react';
 import {languages,languageNames,languageLocales,languageKey,languagePreference,resolveLanguage,type LanguagePreference,type Language} from './core';
@@ -55,10 +56,10 @@ export function LanguageControl(){
  const {preference,t}=useI18n();
  return <label className="theme-control language-control">
   <Languages size={16} aria-hidden="true"/><span className="sr-only">{t('Language')}</span>
-  <select aria-label={t('Language')} value={preference} onChange={event=>setLanguage(event.target.value as LanguagePreference)}>
+  <CustomSelect aria-label={t('Language')} value={preference} onChange={event=>setLanguage(event.target.value as LanguagePreference)}>
    <option value="system">{t('System language')}</option>
    {languages.map(language=><option key={language} value={language}>{languageNames[language]}</option>)}
-  </select>
+  </CustomSelect>
  </label>;
 }
 export function I18nText({text}:{text:string}){const{t}=useI18n();return t(text);}

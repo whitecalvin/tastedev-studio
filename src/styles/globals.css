@@ -105,6 +105,11 @@ h3 { font-size: 16px; font-weight: 600; }
 .project-folder-input button { flex-shrink: 0; }
 .form-fields select { display: block; width: 100%; margin-top: 8px; border: 1px solid var(--studio-line); border-radius: 5px; padding: 10px; background: var(--studio-bg); color: var(--studio-text); }
 .form-fields small { display: block; font-weight: 400; line-height: 1.6; color: var(--studio-muted); margin-top: 7px; }
+.project-role-options{display:flex;flex-wrap:wrap;gap:12px 20px;min-width:0;padding:12px;border:1px solid var(--studio-line);border-radius:5px}
+.project-role-options legend{padding:0 4px;font-size:13px;font-weight:600}
+.form-fields .project-role-options label{display:inline-flex;align-items:center;gap:8px;font-weight:400;cursor:pointer}
+.form-fields .project-role-options input[type=checkbox]{display:inline-block;width:16px;height:16px;margin:0;padding:0;flex-shrink:0;accent-color:var(--studio-accent)}
+.project-role-options small{flex-basis:100%}
 input::placeholder, textarea::placeholder { color: var(--studio-muted); opacity: 1; }
 .required-note, .optional-note { float: right; color: var(--studio-muted); font-size: 11px; font-weight: 400; }
 .dialog-actions { display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--studio-line); padding-top: 20px; margin-top: 26px; }

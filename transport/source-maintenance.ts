@@ -1,3 +1,4 @@
+import {graphSourceReferences} from './graph-source-references.ts';
 import fs from 'node:fs';import path from 'node:path';
 import {SourceSnapshotStore} from './source-snapshot-store.ts';
 import {noSnapshotLinks,snapshotBackupFiles,assertSnapshotReferences} from './snapshot-backup.ts';
@@ -44,6 +45,6 @@ export async function maintainSources(root:string,jobs:Pick<Job,'projectId'|'pay
 export async function offlineSourceMaintenance(database:string,artifactRoot:string,cutoff:number,apply=false){
  noSnapshotLinks(database);if(!fs.existsSync(database))throw Error('Existing Core database required.');
  const key=storageKey(database,true);let store:CoreStore|undefined;
- try{store=new CoreStore(database,key);const jobs=new SqliteCoreRepository(store).read().jobs;return await maintainSources(artifactRoot+'-sources',jobs,cutoff,apply);}
+ try{store=new CoreStore(database,key);const jobs=new SqliteCoreRepository(store).read().jobs;return await maintainSources(artifactRoot+'-sources',[...jobs,...graphSourceReferences(store)],cutoff,apply);}
  finally{store?.close();key.fill(0);}
 }

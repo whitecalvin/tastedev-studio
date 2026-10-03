@@ -1,4 +1,5 @@
 "use client";
+import { CustomSelect } from '@/components/ui/custom-select';
 import { useI18n } from '@/i18n/react';
 import { useEffect, useSyncExternalStore } from "react";
 import { Monitor } from "lucide-react";
@@ -30,10 +31,10 @@ export function ThemeControl() {
 
 const theme = useSyncExternalStore(subscribe, readTheme, () => "system" as Theme);
 return (      <label className="theme-control"><Monitor size={16} aria-hidden="true" /><span className="sr-only">{t("Color theme")}</span>
-        <select value={theme} onChange={(event) => {
+        <CustomSelect value={theme} onChange={(event) => {
           const value = event.target.value as Theme;
           document.documentElement.dataset.theme = value === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : value;
           try { localStorage.setItem(themeKey, value); window.dispatchEvent(new Event("studio-theme")); } catch { /* Theme still applies for the current page when storage is blocked. */ }
-        }}><option value="system">{t("System theme")}</option><option value="light">{t("Light theme")}</option><option value="dark">{t("Dark theme")}</option></select>
+        }}><option value="system">{t("System theme")}</option><option value="light">{t("Light theme")}</option><option value="dark">{t("Dark theme")}</option></CustomSelect>
       </label>);
 }

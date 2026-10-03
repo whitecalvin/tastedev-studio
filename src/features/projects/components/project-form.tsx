@@ -1,4 +1,5 @@
 "use client";
+import { CustomSelect } from '@/components/ui/custom-select';
 import { useI18n } from '@/i18n/react';
 
 import { useState } from "react";
@@ -11,6 +12,7 @@ import { fileMessage } from '@/features/filesystem/file-service';
 import { prepareProject, cancelProject, type ProjectTemplate } from '../services/bootstrap';
 import { nativeBridge } from '@/features/runtime/native-hosts';
 import { detectRuntime } from '@/features/runtime/hosts';
+import { projectKinds, roles, type ProjectKind, type Role } from '../../orchestration/domain';
 
 export function ProjectForm({ mode, onClose, onCreated }: { mode: "new" | "clone"; onClose: () => void; onCreated: (name: string) => Promise<void> }) {
   const { t } = useI18n();
@@ -22,6 +24,8 @@ export function ProjectForm({ mode, onClose, onCreated }: { mode: "new" | "clone
   const [selectedFolder, setSelectedFolder] = useState<FolderConnection | null>(null);
   const [creation, setCreation] = useState<'register' | 'create'>('register');
   const [template, setTemplate] = useState<ProjectTemplate>('node-smoke');
+  const [projectKind, setProjectKind] = useState<ProjectKind>('custom');
+  const [firstRoles, setFirstRoles] = useState<Role[]>(['implementation']);
   const [operation, setOperation] = useState<string | null>(null);
   const [environment, setEnvironment] = useState<{node: string | null; git: string | null; python: string | null; cargo: string | null; rust: string | null} | null>(null);
   const chooseFolder = async () => {
@@ -49,7 +53,7 @@ export function ProjectForm({ mode, onClose, onCreated }: { mode: "new" | "clone
           const repository = value('repositoryUrl');
           if (mode === 'clone') validateClone({ repositoryUrl: repository, workspacePath: value('workspacePath'), branch: value('branch') });
           const name = mode === 'clone' ? repository.split('/').filter(Boolean).pop()!.replace(/\.git$/, '') : value('name');
-          const input = validateNewProject({ name, workspacePath: value('workspacePath'), description: value('description') });
+          const input = validateNewProject({ name, workspacePath: value('workspacePath'), description: value('description'), projectKind, initialRoles:firstRoles });
           // Check metadata before creating any source files.
           const existing = await projectService.list();
           assertUniqueProject(existing, input);
@@ -60,13 +64,13 @@ export function ProjectForm({ mode, onClose, onCreated }: { mode: "new" | "clone
           await projectFileSystem.bind(project.id, folder.id);
           await onCreated(project.name); onClose();
         } else if (mode === "new") {
-          const input = { name: value("name"), workspacePath: value("workspacePath"), description: value("description") };
+          const input = { name: value("name"), workspacePath: value("workspacePath"), description: value("description"), projectKind, initialRoles:firstRoles };
           if (selectedFolder) for (const existing of await projectService.list()) {
             if (await projectFileSystem.sameDirectory(selectedFolder.id, existing.id)) throw Error('This workspace is already in Recent Projects. Open the existing project instead.');
           }
           const valid = validateNewProject({ ...input, workspacePath: selectedFolder && !selectedFolder.workspacePath ? '/' : input.workspacePath });
           const project = selectedFolder && !selectedFolder.workspacePath
-            ? await projectService.registerBrowserFolder(valid.name, valid.description)
+            ? await projectService.registerBrowserFolder(valid.name, valid.description, {projectKind, initialRoles:firstRoles})
             : await projectService.create(input);
           if (selectedFolder) await projectFileSystem.bind(project.id, selectedFolder.id);
           await onCreated(project.name);
@@ -76,8 +80,10 @@ export function ProjectForm({ mode, onClose, onCreated }: { mode: "new" | "clone
       finally { setBusy(false); setOperation(null); }
     }}>
       <div className="form-fields">
-        {mode === 'new' && <label>{t('Project setup')}<select disabled={busy} value={creation} onChange={event => { setCreation(event.target.value as 'register' | 'create'); setSelectedFolder(null); setWorkspacePath(''); }}><option value="register">{t('Register existing folder')}</option><option value="create">{t('Create new folder')}</option></select></label>}
-        {mode === 'new' && creation === 'create' && <label>{t('Template')}<select value={template} disabled={busy} onChange={event => setTemplate(event.target.value as ProjectTemplate)}><option value="node-smoke">{t('Node starter with smoke test')}</option><option value="typescript-smoke">{t("TypeScript starter with smoke test")}</option><option value="python-smoke">{t("Python starter with smoke test")}</option><option value="rust-smoke">{t("Rust starter with smoke test")}</option><option value="empty">{t('Empty folder')}</option></select></label>}
+        <label>{t('Project kind')}<CustomSelect value={projectKind} onChange={e=>setProjectKind(e.target.value as ProjectKind)}>{projectKinds.map(kind=><option key={kind} value={kind}>{t(kind)}</option>)}</CustomSelect></label>
+        <fieldset className="project-role-options"><legend>{t('Current PC roles')}</legend>{roles.map(role=><label key={role}><input type="checkbox" checked={firstRoles.includes(role)} onChange={e=>setFirstRoles(e.target.checked?[...firstRoles,role]:firstRoles.filter(r=>r!==role))}/>{t(role)}</label>)}<small>{t('One PC can have multiple roles. Agent connection is configured after creation.')}</small></fieldset>
+        {mode === 'new' && <label>{t('Project setup')}<CustomSelect disabled={busy} value={creation} onChange={event => { setCreation(event.target.value as 'register' | 'create'); setSelectedFolder(null); setWorkspacePath(''); }}><option value="register">{t('Register existing folder')}</option><option value="create">{t('Create new folder')}</option></CustomSelect></label>}
+        {mode === 'new' && creation === 'create' && <label>{t('Template')}<CustomSelect value={template} disabled={busy} onChange={event => setTemplate(event.target.value as ProjectTemplate)}><option value="node-smoke">{t('Node starter with smoke test')}</option><option value="typescript-smoke">{t("TypeScript starter with smoke test")}</option><option value="python-smoke">{t("Python starter with smoke test")}</option><option value="rust-smoke">{t("Rust starter with smoke test")}</option><option value="empty">{t('Empty folder')}</option></CustomSelect></label>}
         {mode === "new" ? <label>{t("Project name")} <span className="required-note">{t("Required")}</span><input name="name" required maxLength={120} autoComplete="off" placeholder={t("My project")} /></label> : <label>{t("Repository URL")} <span className="required-note">{t("Required")}</span><input name="repositoryUrl" required autoComplete="off" placeholder="https://github.com/owner/repository.git" /></label>}
         <div><label htmlFor="new-project-path">{mode === "new" ? t("Workspace path") : t("Target workspace")} <span className="required-note">{t("Required")}</span></label><div className="project-folder-input"><input id="new-project-path" name="workspacePath" required maxLength={4096} autoComplete="off" spellCheck={false} placeholder="C:\Projects\my-project" aria-describedby="path-help" value={workspacePath} disabled={busy} onChange={event => { setWorkspacePath(event.target.value); setSelectedFolder(null); }} /><Button type="button" variant="secondary" isDisabled={busy} onPress={() => void chooseFolder()}>{t(mode === 'clone' || creation === 'create' ? 'Choose parent folder' : 'Choose folder')}</Button></div><small id="path-help">{t(selectedFolder && !selectedFolder.workspacePath ? 'Browser folder · absolute path unavailable' : 'Use an absolute Windows, macOS, or Linux path. Folder existence is not checked in the browser.')}</small></div>
         {mode === "new" ? <label>{t("Description")} <span className="optional-note">{t("Optional")}</span><textarea name="description" rows={3} maxLength={2000} placeholder={t("What are you working on?")} /></label> : <label>{t("Branch")} <span className="optional-note">{t("Optional")}</span><input name="branch" autoComplete="off" placeholder={t("Use repository default")} /></label>}

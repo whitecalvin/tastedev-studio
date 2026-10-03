@@ -1,4 +1,5 @@
 "use client";
+import {OrchestrationView,OrchestrationSidebar} from '../orchestration/views';
 import {WorkflowBar} from './workflow-bar';
 import {LanguageIndexStatus} from '../editor/language-status';
 import {DebugProvider,DebugView} from '../debugger/views';
@@ -33,7 +34,7 @@ import { SearchView } from '../editor/search-view';
 import { ProblemsView } from '../editor/problems-view';
 
 export const activities = [
-  { id: 'explorer', label: 'Explorer', icon: Files }, { id: 'search', label: 'Search', icon: Search },
+  { id: 'orchestration', label: 'Project orchestration', icon: Boxes }, { id: 'explorer', label: 'Explorer', icon: Files }, { id: 'search', label: 'Search', icon: Search },
   { id: 'source-control', label: 'Source Control', icon: GitBranch }, { id: 'run', label: 'Run', icon: Play },
   { id: 'tests', label: 'Tests', icon: FlaskConical }, { id: 'agents', label: 'Agents', icon: Bot },
   { id: 'queue', label: 'Queue', icon: ListOrdered }, { id: 'runs', label: 'Runs', icon: History },
@@ -71,7 +72,7 @@ export function TitleBar({ project }: { project: Project }) {
   const { t } = useI18n();
 
   const { state } = useWorkspace();
-  return <header className="ws-titlebar"><Link href="/" className="ws-brand" title={t("Return to Project Manager")}><Boxes size={18} /><span>TASTESTUDIO</span></Link><span className="ws-divider" /><strong className="ws-project-name" title={project.name}>{project.name}</strong><span className="ws-breadcrumb">/ {t(activities.find(item => item.id === state.activeActivity)?.label ?? "")}</span><span className="ws-metadata">{t("Folder")}: <ConnectionStatus /></span><CoreConnectionIndicator compact/><div className="ws-title-actions"><AnnouncementsButton /><LanguageControl /><ThemeControl /><PanelToggle panel="primarySidebarVisible" label={t("Primary sidebar")}><PanelLeft size={17} /></PanelToggle><PanelToggle panel="bottomPanelVisible" label={t("Bottom panel")}><PanelBottom size={17} /></PanelToggle><PanelToggle panel="secondaryPanelVisible" label={t("Secondary panel")}><PanelRight size={17} /></PanelToggle><Link href="/" className="ws-manager-link"><ArrowLeft size={14} />{t("Projects")}</Link></div></header>;
+  return <header className="ws-titlebar"><Link href="/" className="ws-brand" title={t("Return to Project Manager")}><Boxes size={18} /><span>TASTESTUDIO</span></Link><span className="ws-divider" /><strong className="ws-project-name" title={project.name}>{project.name}</strong><span className="ws-breadcrumb">/ {t(activities.find(item => item.id === state.activeActivity)?.label ?? "")}</span><span className="ws-metadata">{t("Folder")}: <ConnectionStatus /></span><CoreConnectionIndicator compact/><div className="ws-title-actions"><AnnouncementsButton /><LanguageControl /><ThemeControl /><PanelToggle panel="primarySidebarVisible" label={t("Primary sidebar")}><PanelLeft size={17} /></PanelToggle>{state.activeActivity!=='orchestration'&&<><PanelToggle panel="bottomPanelVisible" label={t("Bottom panel")}><PanelBottom size={17} /></PanelToggle><PanelToggle panel="secondaryPanelVisible" label={t("Secondary panel")}><PanelRight size={17} /></PanelToggle></>}<Link href="/" className="ws-manager-link"><ArrowLeft size={14} />{t("Projects")}</Link></div></header>;
 }
 export function ActivityBar() {
   const { t } = useI18n();
@@ -89,7 +90,7 @@ export function PrimarySidebar() {
 
   const { state } = useWorkspace();
   const { state: git, service } = useGit();
-  const views: Record<Activity, React.ReactNode> = { explorer: <Explorer decoration={path => { const kind = service.host.capabilities.git && git.fresh ? gitDecoration(git.files, path) : null; return kind ? { label: kind, text: statusLetters[kind] } : null; }} />, search: <SearchView />, 'source-control': <SourceControlView />, run: <><ProtocolView /><RunView /><DebugView /></>, tests: <ProtocolView tests />, agents: <CoreSidebar activity="agents" />, queue: <CoreSidebar activity="queue" />, runs: <CoreSidebar activity="runs" />, scheduler:<ScheduleSidebar />, issues: <IssuesSidebar />, ai: <AISidebar />, settings: <SettingsView /> };
+  const views: Record<Activity, React.ReactNode> = { orchestration: <OrchestrationSidebar />, explorer: <Explorer decoration={path => { const kind = service.host.capabilities.git && git.fresh ? gitDecoration(git.files, path) : null; return kind ? { label: kind, text: statusLetters[kind] } : null; }} />, search: <SearchView />, 'source-control': <SourceControlView />, run: <><ProtocolView /><RunView /><DebugView /></>, tests: <ProtocolView tests />, agents: <CoreSidebar activity="agents" />, queue: <CoreSidebar activity="queue" />, runs: <CoreSidebar activity="runs" />, scheduler:<ScheduleSidebar />, issues: <IssuesSidebar />, ai: <AISidebar />, settings: <SettingsView /> };
   return <aside id="primarySidebarVisible" className="ws-primary" hidden={!state.primarySidebarVisible} aria-label={t("Primary sidebar")}><div className="ws-panel-heading"><h2>{t(activities.find(item => item.id === state.activeActivity)?.label ?? '')}</h2><ClosePanel panel="primarySidebarVisible" label={t("primary sidebar")} /></div><div className="ws-sidebar-body">{views[state.activeActivity]}</div></aside>;
 }
 function ResizeHandle({ dimension }: { dimension: 'bottomHeight' | 'secondaryWidth' }) {
@@ -123,9 +124,4 @@ export function StatusBar({ project }: { project: Project }) {
 export function WorkspaceShell({ project }: { project: Project }) { return <DebugProvider><ProtocolProvider><AIStateProvider><IssuesProvider><ScheduleProvider><WorkspaceContent project={project} /></ScheduleProvider></IssuesProvider></AIStateProvider></ProtocolProvider></DebugProvider>; }
 function WorkspaceContent({ project }: { project: Project }) {
   const { t } = useI18n();
- const ai=useAI(); const { state } = useWorkspace(); const coreActive = ['agents','queue','runs'].includes(state.activeActivity),issuesActive=state.activeActivity==='issues',schedulerActive=state.activeActivity==='scheduler'; return <div className="ws-shell" style={{ '--ws-bottom-height': `${state.bottomHeight}px`, '--ws-secondary-width': `${state.secondaryWidth}px` } as CSSProperties}><a href="#main-content" className="skip-link">{t("Skip to editor")}</a><TitleBar project={project} /><CoreConnectionToast/><WorkflowBar/><FileFeedback /><div className="ws-main"><ActivityBar /><PrimarySidebar /><div className="ws-editor-host" hidden={coreActive||issuesActive||schedulerActive||state.activeActivity==='ai'||!!ai.proposal}><GitEditorArea /></div>{!ai.proposal&&coreActive && <CoreDetail activity={state.activeActivity} />}{!ai.proposal&&issuesActive&&<IssueDetail />}{!ai.proposal&&schedulerActive&&<ScheduleDetail />}<AIProposalArea /><SecondaryPanel /></div><BottomPanel /><StatusBar project={project} /></div>; }
-
-
-
-
-
+ const ai=useAI(); const { state } = useWorkspace(); const orchestrationActive=state.activeActivity==='orchestration'; const coreActive = ['agents','queue','runs'].includes(state.activeActivity),issuesActive=state.activeActivity==='issues',schedulerActive=state.activeActivity==='scheduler'; return <div className="ws-shell" style={{ '--ws-bottom-height': `${state.bottomHeight}px`, '--ws-secondary-width': `${state.secondaryWidth}px` } as CSSProperties}><a href={orchestrationActive?"#orchestration-content":"#main-content"} className="skip-link">{t("Skip to editor")}</a><TitleBar project={project} /><CoreConnectionToast/>{!orchestrationActive&&<WorkflowBar/>}<FileFeedback /><div className="ws-main"><ActivityBar /><PrimarySidebar /><div className="orch-host" hidden={!orchestrationActive}><OrchestrationView /></div><div className="ws-editor-host" hidden={orchestrationActive||coreActive||issuesActive||schedulerActive||state.activeActivity==='ai'||!!ai.proposal}><GitEditorArea /></div>{!ai.proposal&&coreActive && <CoreDetail activity={state.activeActivity} />}{!ai.proposal&&issuesActive&&<IssueDetail />}{!ai.proposal&&schedulerActive&&<ScheduleDetail />}<AIProposalArea />{!orchestrationActive&&<SecondaryPanel />}</div>{!orchestrationActive&&<BottomPanel />}<StatusBar project={project} /></div>; }

@@ -1,4 +1,5 @@
 'use client';
+import { CustomSelect } from '@/components/ui/custom-select';
 import { useEffect, useState } from 'react';
 import { useFiles } from '../editor/session';
 import { useI18n } from '@/i18n/react';
@@ -93,11 +94,11 @@ export function DefinitionForm({ kind, name, projectId, onClose, onSaved }: { ki
     <h4>{t(name ? 'Edit definition' : 'New definition')}</h4>
     {field('Name', entry, setEntry)}
     {kind === 'task' ? <>{field('Executable', command, setCommand)}<label>{t('Arguments (one per line)')}<textarea value={args} disabled={pending} onChange={e => { setArgs(e.target.value); setPreview(''); }} /></label>{field('Working directory', cwd, setCwd)}{field('Timeout (seconds)', timeout, setTimeoutValue, 'number')}</> : <>
-      <label>{t('Test task')}<select value={task} disabled={pending} onChange={e => { setTask(e.target.value); setPreview(''); }}>{tasks.map(value => <option key={value}>{value}</option>)}</select></label>
-      <label>{t('Execution profile')}<select value={executionProfile} disabled={pending} onChange={e=>{setExecutionProfile(e.target.value);setPreview('');}}><option value="">{t('None')}</option>{profiles.map(value=><option key={value}>{value}</option>)}</select></label>
-      <label>{t('Test type')}<select value={type} disabled={pending} onChange={e => { setType(e.target.value); setPreview(''); }}>{['unit','integration','api','browser','e2e'].map(value => <option key={value}>{value}</option>)}</select></label>
+      <label>{t('Test task')}<CustomSelect value={task} disabled={pending} onChange={e => { setTask(e.target.value); setPreview(''); }}>{tasks.map(value => <option key={value}>{value}</option>)}</CustomSelect></label>
+      <label>{t('Execution profile')}<CustomSelect value={executionProfile} disabled={pending} onChange={e=>{setExecutionProfile(e.target.value);setPreview('');}}><option value="">{t('None')}</option>{profiles.map(value=><option key={value}>{value}</option>)}</CustomSelect></label>
+      <label>{t('Test type')}<CustomSelect value={type} disabled={pending} onChange={e => { setType(e.target.value); setPreview(''); }}>{['unit','integration','api','browser','e2e'].map(value => <option key={value}>{value}</option>)}</CustomSelect></label>
       <label>{t('Affected files')}<textarea rows={3} value={affectedFiles} disabled={pending} placeholder={'src/auth/**\ntests/auth*.ts'} onChange={e=>{setAffectedFiles(e.target.value);setPreview('');}}/></label><p>{t('Optional relative file patterns, one per line. Use * for file names or ** for directories.')}</p>
-      <fieldset><legend>{t('Pipeline')}</legend>{['install','build','start','cleanup'].map(stage => <label key={stage}>{stage}<select value={pipeline[stage] ?? ''} disabled={pending} onChange={e => { setPipeline({ ...pipeline, [stage]: e.target.value }); setPreview(''); }}><option value="">{t('None')}</option>{tasks.map(value => <option key={value}>{value}</option>)}</select></label>)}</fieldset>
+      <fieldset><legend>{t('Pipeline')}</legend>{['install','build','start','cleanup'].map(stage => <label key={stage}>{stage}<CustomSelect value={pipeline[stage] ?? ''} disabled={pending} onChange={e => { setPipeline({ ...pipeline, [stage]: e.target.value }); setPreview(''); }}><option value="">{t('None')}</option>{tasks.map(value => <option key={value}>{value}</option>)}</CustomSelect></label>)}</fieldset>
     </>}
     <details><summary>{t('Advanced options (JSON)')}</summary><p>{t('Environment, requirements and optional settings are preserved. Values must follow the Protocol schema.')}</p><textarea value={advanced} disabled={pending} onChange={e => { setAdvanced(e.target.value); setPreview(''); }} /></details>
     {problem && <p role="alert" className="protocol-error">{problem}</p>}

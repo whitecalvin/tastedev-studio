@@ -9,7 +9,7 @@ test('each panel toggles without changing other preferences', () => {
   for (const panel of ['primarySidebarVisible', 'secondaryPanelVisible', 'bottomPanelVisible'] as const) { const hidden = workspaceReducer(initialState, { type: 'toggle', panel }); assert.equal(hidden[panel], false); assert.deepEqual(workspaceReducer(hidden, { type: 'toggle', panel }), initialState); }
 });
 test('bottom tab selection opens its panel and retains activity', () => {
-  for (const value of bottomTabs) { const state = workspaceReducer({ ...initialState, bottomPanelVisible: false }, { type: 'tab', value }); assert.equal(state.activeBottomPanelTab, value); assert.equal(state.bottomPanelVisible, true); assert.equal(state.activeActivity, 'explorer'); }
+  for (const value of bottomTabs) { const state = workspaceReducer({ ...initialState, bottomPanelVisible: false }, { type: 'tab', value }); assert.equal(state.activeBottomPanelTab, value); assert.equal(state.bottomPanelVisible, true); assert.equal(state.activeActivity, initialState.activeActivity); }
 });
 test('resize clamps panel dimensions to editor-preserving limits', () => {
   assert.equal(workspaceReducer(initialState, { type: 'resize', dimension: 'bottomHeight', value: 0 }).bottomHeight, 120);

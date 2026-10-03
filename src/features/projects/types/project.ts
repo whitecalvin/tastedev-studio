@@ -10,6 +10,7 @@ export interface Project {
   runtime: string | null;
   packageManager: string | null;
   projectType: string | null;
+  initialRoles?: import('../../orchestration/domain.ts').Role[];
   gitEnabled: boolean | null;
   createdAt: string;
   updatedAt: string;
@@ -20,6 +21,8 @@ export interface NewProjectInput {
   name: string;
   workspacePath: string;
   description: string;
+  projectKind?: import('../../orchestration/domain.ts').ProjectKind;
+  initialRoles?: import('../../orchestration/domain.ts').Role[];
 }
 
 export interface CloneInput {
