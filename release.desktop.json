@@ -53,7 +53,7 @@
     ]
   },
   "linux": {
-    "host": "192.168.0.103",
+    "host": "192.168.0.102",
     "user": "whitecalvin",
     "cargoPath": "/home/whitecalvin/.cargo/bin/cargo",
     "sourceRoot": "/home/whitecalvin/tastedev-release-sources",
