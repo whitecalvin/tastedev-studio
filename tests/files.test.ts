@@ -8,6 +8,16 @@ import { Documents } from '../src/features/editor/documents.ts';
 import { LocalProjectRepository } from '../src/features/projects/services/project-repository.ts';
 import { ProjectService } from '../src/features/projects/services/project-service.ts';
 async function setup() { const host = new FakeFileSystemHost(); host.entries.set('src', null); host.entries.set('src/main.ts', 'const value = 1;\n'); host.entries.set('readme.md', '# Hello\n'); host.entries.set('.git', null); const files = new WorkspaceFileService(host); await files.restore('test'); return { host, files, documents: new Documents(files) }; }
+test('unchanged permission preserves connection identity for editor lifetime; revocation changes it',async()=>{
+ const {host,files}=await setup();const before=files.connection;
+ assert.equal(await files.checkPermission(),before);assert.equal(await files.checkPermission(),before);
+ host.access='denied';const next=await files.checkPermission();assert.notEqual(next,before);assert.equal(next?.permission,'denied');
+});
+test('late permission response cannot replace a newly connected workspace',async()=>{
+ const {host,files}=await setup();let resolve!:(permission:'denied')=>void;host.permission=()=>new Promise<'denied'>(done=>{resolve=done;});
+ const pending=files.checkPermission();const next={...files.connection!,id:'other'};files.connection=next;resolve('denied');
+ assert.equal(await pending,next);assert.equal(files.connection?.permission,'granted');
+});
 test('relative paths normalize separators and root without allowing traversal or absolute injection', () => {
   assert.equal(normalizePath(''), ''); assert.equal(normalizePath('./src//main.ts'), 'src/main.ts'); assert.equal(normalizePath('src\\main.ts'), 'src/main.ts'); assert.equal(childPath('src', 'a.ts'), 'src/a.ts'); assert.equal(parentPath('src/a.ts'), 'src'); assert.equal(parentPath('a.ts'), '');
   for (const input of ['../secret', 'src/../secret', '/etc/passwd', 'C:/work', '\\server\\share', 'a\u0000b', 'x:y', 'x/..', 'trailing.']) assert.throws(() => normalizePath(input));

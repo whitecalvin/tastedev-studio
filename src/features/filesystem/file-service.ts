@@ -17,7 +17,15 @@ export class WorkspaceFileService {
   async restore(projectId: string) { this.connection = await this.host.restore(projectId); return this.connection; }
   async connect(projectId: string) { const connection = await this.host.selectDirectory(); this.connection = await this.host.bind(projectId, connection.id); return this.connection; }
   async requestAccess() { const id = this.id(); const permission = await this.host.permission(id, true); this.connection = { ...this.connection!, permission }; return this.connection; }
-  async checkPermission() { if (this.connection) this.connection = { ...this.connection, permission: await this.host.permission(this.connection.id) }; return this.connection; }
+  async checkPermission() {
+    const current=this.connection;
+    if(!current)return null;
+    const permission=await this.host.permission(current.id);
+    // 같은 권한이면 연결 객체를 유지해 파일 선택 때 편집기가 재생성되지 않게 한다.
+    // 폴더가 바뀐 뒤 도착한 이전 권한 응답도 새 연결에 적용하지 않는다.
+    if(this.connection===current&&permission!==current.permission)this.connection={...current,permission};
+    return this.connection;
+  }
   async disconnect(projectId: string) { if (this.connection) await this.host.disconnect(projectId, this.connection.id); this.connection = null; }
   async list(path = '', showHidden = false) { return (await this.host.readDirectory(this.id(), normalizePath(path))).filter(entry => showHidden || !hiddenNames.has(entry.name)); }
   async read(path: string) { return this.host.readFile(this.id(), nonRoot(path)); }

@@ -14,3 +14,4 @@
 
 
 .ws-workflow{display:flex;align-items:center;gap:10px;min-height:34px;padding:4px 12px;flex-shrink:0;border-bottom:1px solid var(--border);overflow-x:auto;font-size:12px}.ws-workflow button{white-space:nowrap}.ws-workflow-state{margin-left:auto;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ws-workflow-message{min-width:180px;max-width:360px}
+.ws-file-operation{width:120px;min-width:0;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;color:var(--studio-accent)}

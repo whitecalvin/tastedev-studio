@@ -1,6 +1,9 @@
 import type {Language} from './core.ts';
 const locales:Language[]=['ko','de','es','fr','it','pt','ja','zh','zh-hant'];
-const rows=`Language index notice|언어 색인 안내|Sprachindex-Hinweis|Aviso del índice de lenguaje|Avis d’indexation linguistique|Avviso indice linguistico|Aviso de índice de linguagem|言語索引のお知らせ|语言索引提示|語言索引提示
+const rows=`Could not load folder.|폴더를 불러오지 못했습니다.|Ordner konnte nicht geladen werden.|No se pudo cargar la carpeta.|Impossible de charger le dossier.|Impossibile caricare la cartella.|Não foi possível carregar a pasta.|フォルダーを読み込めませんでした。|无法加载文件夹。|無法載入資料夾。
+No active runs.|실행 중인 작업이 없습니다.|Keine aktiven Läufe.|No hay ejecuciones activas.|Aucune exécution active.|Nessuna esecuzione attiva.|Nenhuma execução ativa.|実行中のジョブはありません。|没有正在执行的任务。|沒有正在執行的工作。
+Review required|확인 필요|Prüfung erforderlich|Revisión necesaria|Vérification requise|Verifica necessaria|Revisão necessária|確認が必要|需要检查|需要檢查
+Language index notice|언어 색인 안내|Sprachindex-Hinweis|Aviso del índice de lenguaje|Avis d’indexation linguistique|Avviso indice linguistico|Aviso de índice de linguagem|言語索引のお知らせ|语言索引提示|語言索引提示
 Language indexing limit reached. Open additional files directly.|언어 색인 한도에 도달했습니다. 필요한 파일을 직접 열어주세요.|Sprachindexlimit erreicht. Öffnen Sie weitere Dateien direkt.|Límite de indexación alcanzado. Abra otros archivos directamente.|Limite d’indexation atteinte. Ouvrez les autres fichiers directement.|Limite di indicizzazione raggiunto. Apri direttamente altri file.|Limite de indexação atingido. Abra outros arquivos diretamente.|言語索引の上限に達しました。必要なファイルを直接開いてください。|已达语言索引上限。请直接打开其他文件。|已達語言索引上限。請直接開啟其他檔案。
 Folder|폴더|Ordner|Carpeta|Dossier|Cartella|Pasta|フォルダー|文件夹|資料夾
 Connection settings|연결 설정|Verbindungseinstellungen|Configuración de conexión|Paramètres de connexion|Impostazioni di connessione|Configurações de conexão|接続設定|连接设置|連線設定

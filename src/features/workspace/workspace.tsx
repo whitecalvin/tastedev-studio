@@ -17,7 +17,7 @@ import { AppShell } from '@/components/ui/app-shell';
 import { projectService } from '@/features/projects/services/browser-services';
 import type { Project } from '@/features/projects/types/project';
 import { WorkspaceProvider, useWorkspace } from './context';
-import { FileSessionProvider, ConnectionStatus, FileFeedback, useFiles } from '../editor/session';
+import { FileSessionProvider, ConnectionStatus, FileFeedback, FileOperationStatus, useFiles } from '../editor/session';
 import { Explorer } from '../filesystem/explorer';
 import { GitProvider, useGit } from '../git/context';
 import { SourceControlView, GitEditorArea, GitStatus } from '../git/views';
@@ -119,7 +119,7 @@ export function BottomPanel() {
 }
 export function StatusBar({ project }: { project: Project }) {
   const { t } = useI18n();
- const { connection, editor } = useFiles(); const active = editor.openEditors.find(d => d.id === editor.activeEditorId); return <footer className="ws-status"><span><RuntimeLabel /></span><span className="ws-status-path" title={connection?.workspacePath ?? project.workspacePath ?? undefined}>{connection?.name ?? project.workspacePath ?? t("No folder connected")}</span><span>{t("Folder")}: <ConnectionStatus /></span><CoreConnectionIndicator/><span>{active?.language ?? t("No open file")}</span><span>{editor.dirtyEditors.length} {t("unsaved")}</span><LanguageIndexStatus/><ProtocolStatus /><RunStatus /><GitStatus /></footer>; }
+ const { connection, editor } = useFiles(); const active = editor.openEditors.find(d => d.id === editor.activeEditorId); return <footer className="ws-status"><span><RuntimeLabel /></span><span className="ws-status-path" title={connection?.workspacePath ?? project.workspacePath ?? undefined}>{connection?.name ?? project.workspacePath ?? t("No folder connected")}</span><span>{t("Folder")}: <ConnectionStatus /></span><CoreConnectionIndicator/><span>{active?.language ?? t("No open file")}</span><span>{editor.dirtyEditors.length} {t("unsaved")}</span><FileOperationStatus/><LanguageIndexStatus/><ProtocolStatus /><RunStatus /><GitStatus /></footer>; }
 export function WorkspaceShell({ project }: { project: Project }) { return <DebugProvider><ProtocolProvider><AIStateProvider><IssuesProvider><ScheduleProvider><WorkspaceContent project={project} /></ScheduleProvider></IssuesProvider></AIStateProvider></ProtocolProvider></DebugProvider>; }
 function WorkspaceContent({ project }: { project: Project }) {
   const { t } = useI18n();

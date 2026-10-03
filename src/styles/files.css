@@ -14,3 +14,4 @@
 .studio-debug-breakpoint:before{content:'●';color:#df4242;font-size:16px}.studio-debug-paused{background:rgba(224,173,39,.18)}
 
 .fs-language-settings{padding:6px 12px;border-bottom:1px solid var(--border);font-size:12px;flex:none}.fs-language-settings label{display:inline-flex;align-items:center;gap:8px;margin:6px 10px 6px 0}.fs-language-settings input{min-width:220px;max-width:100%;}
+.fs-folder-retry{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-top:5px;padding-bottom:5px;font-size:11px;color:var(--studio-muted)}

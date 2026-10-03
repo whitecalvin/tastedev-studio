@@ -118,6 +118,7 @@ export function ConnectionStatus() {
  const { connection, ready, files } = useFiles(); return <>{!ready ? t("Checking access…") : !files.host.supported() ? t("Unsupported") : connection?.permission === 'granted' ? t("Connected") : connection?.permission === 'denied' ? t("Permission Denied") : t("Access Required")}</>; }
 export function FileFeedback() {
   const { t, feedback } = useI18n();
- const { error, notice, busy, setError, setNotice } = useFiles(); return <>{(error || notice || busy) && <div className={`fs-feedback ${error ? 'fs-error' : ''}`} role={error ? 'alert' : 'status'}><span>{feedback(busy || error || notice || "")}</span>{!busy && <button aria-label={t("Dismiss file notification")} onClick={() => { setError(''); setNotice(''); }}>×</button>}</div>}</>; }
+ const { error, notice, busy, setError, setNotice } = useFiles(); return <>{(error || notice) && <div className={`fs-feedback ${error ? 'fs-error' : ''}`} role={error ? 'alert' : 'status'}><span>{feedback(error || notice || "")}</span>{!busy && <button aria-label={t("Dismiss file notification")} onClick={() => { setError(''); setNotice(''); }}>×</button>}</div>}</>; }
+export function FileOperationStatus(){const {feedback}=useI18n(),{busy}=useFiles();return <span className="ws-file-operation" role="status" aria-live="polite" aria-busy={!!busy} title={busy?feedback(busy):undefined}>{busy?feedback(busy):''}</span>;}
 
 
