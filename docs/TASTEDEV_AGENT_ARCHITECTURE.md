@@ -1,4 +1,4 @@
-# TASTEDEV Agent Architecture — STEP8
+# TASTESTUDIO Agent Architecture — STEP8
 
 ## STEP11 acceptance — 2026-09-30
 

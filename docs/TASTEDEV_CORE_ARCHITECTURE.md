@@ -1,4 +1,4 @@
-# TASTEDEV Core Architecture — STEP9 integration
+# TASTESTUDIO Core Architecture — STEP9 integration
 
 ## 4차 고도화 로컬 패키지 마감 (2026-10-02)
 

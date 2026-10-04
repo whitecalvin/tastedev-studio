@@ -26,7 +26,7 @@ TASTEDEV Studio는 Project 생성부터 편집, 실행, 원격 테스트, 결과
 
 목표 실행 관계:
 
-`Project → TASTEDEV Protocol → TASTEDEV Core → Job → Agent Selection → Execution → Result`
+`Project → TASTEDEV Protocol → TASTESTUDIO Core → Job → Agent Selection → Execution → Result`
 
 Project는 특정 Agent에 종속되지 않으며 Agent도 특정 Project에 종속되지 않는다. Agent에 `if project == "tastefiles"`, `buildeon`, `easysurvey` 같은 이름별 실행 분기를 두지 않는다. Project별 차이는 선언형 task, 환경, capability 요구 및 입력으로 표현한다. 로컬 실행 역시 같은 실행 계약을 따르도록 발전시킨다.
 

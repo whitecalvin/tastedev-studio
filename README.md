@@ -2,6 +2,8 @@
 
 Brand: **TASTESTUDIO**. Project/package/repository identifier: tastedev-studio. Earlier STEP evidence uses the former display name TASTEDEV Studio.
 
+Components: **TASTESTUDIO** (desktop app), **TASTESTUDIO Core** (orchestration service), and **TASTESTUDIO Agent** (execution service).
+
 STEP9 implements [TASTEDEV Protocol v1](docs/TASTEDEV_PROTOCOL.md): saved .tastedev YAML definitions → strict validation → task/test resolution → existing Core Job/Queue/Matcher → independent Rust Agent. Run/Tests show compact definition panels and the status bar shows Protocol state. Initialize TASTEDEV creates a safe project.yml without executable tasks; edit optional files in Explorer/Monaco, save/reload, explicitly Queue, then Assign. Opening a project never executes it. Final Node219, lint/typecheck, Web and Desktop no-bundle builds passed. Actual production Web Protocol→Windows Agent execution passed on build 8Yo38H_FqufQ5R_W3tzcN; Rust Agent Debug12/Release12/fmt/Clippy/release were reused after input, toolchain, binary and evidence-hash verification. Independent UI review returned ship for eight production captures. STEP9 PASS — STEP10 ready but NOT_STARTED.
 
 

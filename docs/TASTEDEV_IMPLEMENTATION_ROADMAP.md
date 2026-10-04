@@ -243,7 +243,7 @@ STEP8 Core/Agent 단일 명령 경로를 재사용하며 Project별 Agent 코드
 - 검증 방법: 선정한 개발 OS에서 실제 desktop launch·host 호출·허용되지 않은 접근 거부·패키지 실행.
 - 완료 조건: native 기능, restart, Web 회귀, 설치/제거 및 정적/빌드 게이트는 통과. native1920×1080, Windows100%·150%, Missing Project 복구와 수정 안내 화면 증거도 통과. 과거 frontend 오류1은 원인 UNKNOWN을 보존하되 진단 보강/controlled test PASS 후 Non-blocking으로 수락. 125%는 비차단 미검증이며 Windows 외 OS는 미검증.
 
-### STEP 7 — TASTEDEV Core Foundation (PASS)
+### STEP 7 — TASTESTUDIO Core Foundation (PASS)
 
 - 목적: 기존 Project에 연결되는 실행 metadata와 교체 가능한 Core repository/service 경계 제공.
 - 선행조건: STEP6E PASS와 사용자 STEP7 승인. 기존 DB·Protocol 전체 선행 제안은 이번 in-memory foundation 범위로 대체한다.
