@@ -44,6 +44,73 @@ test('network and storage errors are recoverable', async () => {
   await service.refresh('en'); assert.equal(service.snapshot().loading, false); assert.match(service.snapshot().error, /could not be loaded/);
   service.enable(false); assert.equal(service.snapshot().preferences.enabled, false); assert.match(service.snapshot().error, /could not be saved/);
 });
+test('invalid responses are errors; a valid empty feed is successful', async () => {
+  for (const response of ['{broken', 'null', '[]', '{"error":"unavailable"}', '{"announcements":{}}']) {
+    const service = new Announcements(storage(), async () => response);
+    await service.refresh('en');
+    assert.match(service.snapshot().error, /could not be loaded/);
+    assert.equal(service.snapshot().loading, false);
+  }
+  const service = new Announcements(storage(), async () => '{"announcements":[]}');
+  await service.refresh('en');
+  assert.equal(service.snapshot().error, '');
+  assert.deepEqual(service.snapshot().items, []);
+});
+test('failed language change cannot reuse the old successful cache or display its notices', async () => {
+  let calls = 0;
+  const service = new Announcements(storage(), async language => {
+    calls++; if (language === 'ko' && calls === 2) throw Error('offline'); return payload;
+  });
+  await service.refresh('en', false, 1_000);
+  await service.refresh('ko', false, 2_000);
+  assert.equal(service.snapshot().items.length, 0);
+  assert.match(service.snapshot().error, /could not be loaded/);
+  await service.refresh('ko', false, 3_000);
+  assert.equal(calls, 3);
+  assert.equal(service.snapshot().items.length, 2);
+  assert.equal(service.snapshot().error, '');
+});
+test('refresh failure preserves the current language feed and permits immediate retry', async () => {
+  let calls = 0;
+  const service = new Announcements(storage(), async () => { if (++calls === 2) throw Error('offline'); return payload; });
+  await service.refresh('en', false, 1_000);
+  await service.refresh('en', true, 2_000);
+  assert.equal(service.snapshot().items.length, 2);
+  assert.match(service.snapshot().error, /could not be loaded/);
+  await service.refresh('en', false, 3_000);
+  assert.equal(calls, 3);
+  assert.equal(service.snapshot().error, '');
+});
+test('simultaneous refreshes reuse one request, including a forced refresh', async () => {
+  let calls = 0; let resolve!: (value: string) => void;
+  const service = new Announcements(storage(), () => { calls++; return new Promise(r => { resolve = r; }); });
+  const first = service.refresh('en');
+  const second = service.refresh('en', true);
+  assert.equal(first, second);
+  assert.equal(calls, 1);
+  resolve(payload); await first;
+  assert.equal(service.snapshot().loading, false);
+  assert.equal(service.snapshot().items.length, 2);
+});
+test('synchronous loader failure does not leave a stuck pending request', async () => {
+  let calls = 0;
+  const service = new Announcements(storage(), () => { if (++calls === 1) throw Error('offline'); return Promise.resolve(payload); });
+  await service.refresh('en'); await service.refresh('en');
+  assert.equal(calls, 2);
+  assert.equal(service.snapshot().items.length, 2);
+});
+test('switching back to a cached language invalidates the intervening pending language', async () => {
+  const resolvers: ((value: string) => void)[] = [];
+  const service = new Announcements(storage(), () => new Promise(r => resolvers.push(r)));
+  const initial = service.refresh('en', false, 1_000); resolvers[0](payload); await initial;
+  const ko = service.refresh('ko', false, 2_000);
+  const en = service.refresh('en', false, 3_000);
+  assert.equal(resolvers.length, 3);
+  resolvers[2](payload); await en;
+  resolvers[1]('{"announcements":[]}'); await ko;
+  assert.equal(service.snapshot().items.length, 2);
+  assert.equal(service.snapshot().loading, false);
+});
 test('announcement messages cover all nine translated languages plus English fallback', () => {
   for (const [language, entries] of Object.entries(announcementMessages)) { assert.equal(Object.keys(entries).length, 14); assert.equal(translate(language as Parameters<typeof translate>[0], 'Announcements'), entries.Announcements); }
   assert.equal(translate('en', 'Announcements'), 'Announcements'); assert.equal(translate('ko', '{count} unread announcements', { count: 2 }), '읽지 않은 공지 2개');

@@ -15,3 +15,8 @@
 
 .fs-language-settings{padding:6px 12px;border-bottom:1px solid var(--border);font-size:12px;flex:none}.fs-language-settings label{display:inline-flex;align-items:center;gap:8px;margin:6px 10px 6px 0}.fs-language-settings input{min-width:220px;max-width:100%;}
 .fs-folder-retry{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-top:5px;padding-bottom:5px;font-size:11px;color:var(--studio-muted)}
+
+.fs-feedback span{min-width:0;overflow-wrap:anywhere}.fs-feedback button{flex-shrink:0}
+.fs-editor-toolbar{height:auto;min-height:var(--studio-control-height);padding-block:3px}
+.studio-debug label{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+.studio-debug label input{width:100%;min-width:0;max-width:100%;margin:0}

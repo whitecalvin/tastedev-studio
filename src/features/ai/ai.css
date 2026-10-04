@@ -4,3 +4,16 @@
 .ai-workflow-timeline { margin:10px 0;overflow-wrap:anywhere; }.ai-workflow-timeline ol { padding-left:20px; }.ai-workflow-timeline li { display:flex;flex-direction:column;gap:3px;margin:8px 0; }.ai-workflow-timeline time,.ai-workflow-timeline span { font-size:11px;color:var(--studio-muted); }.ai-workflow-timeline summary:focus-visible { outline:2px solid var(--studio-accent);outline-offset:2px; }
 
 .ai-review-center{overflow:auto;min-width:0;flex:1;padding:20px}.ai-review-controls{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}.ai-review-controls label{display:grid;gap:6px;min-width:150px}.ai-review-diff{height:420px;display:flex;flex-direction:column}.ai-review-diff>div{flex:1;min-height:0}
+
+.ai-snapshot-review{display:flex;flex:1;min-width:0;min-height:0;flex-direction:column;overflow:auto;padding:16px;gap:10px}.ai-snapshot-heading,.ai-snapshot-controls,.ai-snapshot-labels{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.ai-snapshot-heading h2,.ai-snapshot-review p{margin:0}.ai-snapshot-controls label{display:grid;gap:4px;min-width:min(180px,100%);flex:1}.ai-snapshot-identity{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;margin:0;font-size:12px}.ai-snapshot-identity dd{margin:0;overflow-wrap:anywhere;color:var(--studio-muted)}.ai-snapshot-review>.git-diff-canvas{flex:1;min-height:180px}.ai-snapshot-labels{font-size:12px;color:var(--studio-muted)}
+.ai-graph-return{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--studio-line);}.ai-graph-return small{flex-basis:100%;}
+.ai-review-workspace{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden;}.ai-review-workspace>.ai-graph-return{flex-shrink:0;}.ai-review-workspace>.ai-snapshot-review,.ai-review-workspace>.ai-proposal,.ai-review-workspace>.core-detail{flex:1;min-height:0;}
+
+.ai-review-workspace>.core-detail{overflow:auto;min-width:0}
+.ai-snapshot-review>:not(.git-diff-canvas){flex-shrink:0}
+.ai-snapshot-review>.git-diff-canvas{flex:1 0 180px}
+.ai-proposal-area,.ai-review-center,.ai-panel{min-height:0}
+.ai-review-controls label{min-width:min(150px,100%);max-width:100%}
+.ai-snapshot-identity{grid-template-columns:minmax(0,auto) minmax(0,1fr)}
+.ai-snapshot-identity dt,.ai-snapshot-labels strong{overflow-wrap:anywhere;min-width:0}
+@media(max-width:700px){.ai-snapshot-identity{grid-template-columns:minmax(0,1fr)}.ai-snapshot-review{padding:12px}.ai-review-center{padding:12px}}

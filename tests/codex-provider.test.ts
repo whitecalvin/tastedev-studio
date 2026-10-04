@@ -32,3 +32,11 @@ test('Codex forwards only structured read requests to existing AIService',async(
 for(const mode of ['unauth','api'])test(`Codex refuses ${mode} account rather than falling back to paid API`,async()=>{await assert.rejects(new CodexProvider(undefined,peer(mode)).request({messages:[]},AbortSignal.timeout(5000),()=>{}),e=>e instanceof AIError&&e.code==='authentication');});
 for(const mode of ['native','unknown','malformed','failure'])test(`Codex fails closed on ${mode}`,async()=>{await assert.rejects(new CodexProvider(undefined,peer(mode)).request({messages:[]},AbortSignal.timeout(5000),()=>{}),AIError);});
 test('Codex cancellation closes a stalled child and pending turn',async()=>{const c=new AbortController();const timer=setTimeout(()=>c.abort(new AIError('cancelled')),150);try{await assert.rejects(new CodexProvider(undefined,peer('hang')).request({messages:[]},c.signal,()=>{}),AIError);}finally{clearTimeout(timer);}});
+test('Codex account inspection distinguishes ChatGPT and missing/API accounts without starting a turn',async()=>{
+ for(const mode of ['ok','unauth','api']){
+  // 테스트 peer는 모델 실행 메서드를 거부한다. 진단이 실행으로 진행하면 실패한다.
+  const launch:Launch=()=>spawn(process.execPath,['--input-type=module','-e',`import readline from 'node:readline';readline.createInterface({input:process.stdin}).on('line',line=>{const p=JSON.parse(line);if(!p.id)return;const result=p.method==='initialize'?{}:p.method==='account/read'?{account:${mode==='ok'?"{type:'chatgpt',email:'private@example.test'}":mode==='api'?"{type:'apiKey'}":'null'}}:undefined;process.stdout.write(JSON.stringify(result===undefined?{id:p.id,error:{message:'Model execution forbidden'}}:{id:p.id,result})+'\\n');});`],{windowsHide:true,stdio:['pipe','pipe','pipe']});
+  const result=await new CodexProvider('configured-model',launch).inspect(AbortSignal.timeout(5000));
+  assert.equal(result.authentication,mode==='ok'?'authenticated':'missing');assert.equal(result.modelVerified,false);assert.ok(!JSON.stringify(result).includes('private@example.test'));
+ }
+});

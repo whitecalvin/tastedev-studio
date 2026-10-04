@@ -31,3 +31,5 @@
 
 .ws-bottom-content:has(>.run-terminal),.ws-bottom-content:has(>.run-output) { flex: 1; min-height: 0; }
 .run-view>p { margin: 10px 0; }
+
+.run-terminal-tools{flex:0 0 auto;min-height:32px;flex-wrap:wrap;padding-block:4px}.run-terminal-tools>span:first-child{min-width:0}

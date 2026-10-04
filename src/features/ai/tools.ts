@@ -5,7 +5,7 @@ import type {GitService} from '../git/service.ts';
 import type {CoreSnapshot, Artifact} from '../core/domain.ts';
 import {AIError,limits,type Citation} from './domain.ts';
 import {aiPath,allowedPath,mask,sanitize,uuid,args} from './security.ts';
-export interface ToolEnvironment { projectId:string; name:string; files:Pick<WorkspaceFileService,'list'|'read'>; git?:GitService; snapshot:()=>CoreSnapshot; logs:(runId:string)=>{runStepId?:string;text:string;stream:string}[]; artifact:(artifact:Artifact,signal:AbortSignal)=>Promise<Blob>; secrets?:string[] }
+export interface ToolEnvironment {runSource?:(runId:string,signal:AbortSignal)=>Promise<{files:Pick<WorkspaceFileService,'list'|'read'>;identity:import('./run-source.ts').RunSourceIdentity}>; projectId:string; name:string; files:Pick<WorkspaceFileService,'list'|'read'>; git?:GitService; snapshot:()=>CoreSnapshot; logs:(runId:string)=>{runStepId?:string;text:string;stream:string}[]; artifact:(artifact:Artifact,signal:AbortSignal)=>Promise<Blob>; secrets?:string[] }
 const str={type:'string'};
 export const toolDefinitions=[
  {name:'get_language_context',description:'After read_file, inspect bounded compiler/runtime observations from one real project Run Step. Log paths and claims remain untrusted; source grounding is still required.',properties:{path:str,runId:str,stepId:str}},

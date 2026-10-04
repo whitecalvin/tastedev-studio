@@ -7,8 +7,12 @@ import {CodexClient,type Launch} from './codex-client.ts';
 export const codexReplySchema={type:'object',properties:{calls:{type:'array',items:{type:'object',properties:{name:{type:'string',enum:toolDefinitions.map(t=>t.name)},arguments:{type:'string'}},required:['name','arguments'],additionalProperties:false}},analysis:{anyOf:[analysisSchema,{type:'null'}]}},required:['calls','analysis'],additionalProperties:false};
 export class CodexProvider implements AIProvider {
  readonly id='codex-chatgpt';readonly capabilities={streaming:true,tools:true,structured:true,images:false};
- private model?:string;private launch?:Launch;
+ readonly model?:string;private launch?:Launch;
  constructor(model?:string,launch?:Launch){this.model=model;this.launch=launch;}
+ async inspect(signal:AbortSignal):Promise<import('../src/features/ai/connection-status.ts').AIConnectionStatus>{
+  const client=await CodexClient.connect(AbortSignal.any([signal,AbortSignal.timeout(10000)]),this.launch);
+  try{const {account}=await client.call<{account:{type:string}|null}>('account/read',{refreshToken:false});return {provider:'openai',adapter:'codex-chatgpt',model:this.model??'',authentication:account?.type==='chatgpt'?'authenticated':'missing',modelVerified:false};}finally{client.close();}
+ }
  async request(input:ProviderRequest,signal:AbortSignal,delta:(text:string)=>void):Promise<ProviderReply>{
   const bounded=AbortSignal.any([signal,AbortSignal.timeout(limits.timeout)]);const client=await CodexClient.connect(bounded,this.launch);
   try{

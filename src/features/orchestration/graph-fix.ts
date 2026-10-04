@@ -1,0 +1,14 @@
+import type {GraphActivation,GraphExecution} from './execution.ts';
+import type {FixAttempt} from '../ai/fix-service.ts';
+import type {CoreSnapshot} from '../core/domain.ts';
+/** Core Run + exact transferred Source prove test success; the AI/Fix status alone does not. */
+function graphFixResult(project:string,executionId:string,a:GraphActivation,attempt:FixAttempt|undefined,snapshot:CoreSnapshot,failed=false){
+ if(!attempt||attempt.projectId!==project||attempt.analysisId!==a.analysisId||attempt.graph?.executionId!==executionId||attempt.graph.activationId!==a.id||attempt.graph.leaseId!==a.leaseId||attempt.graph.nodeId!==a.nodeId||attempt.status!==(failed?'failed':'passed')||!attempt.approval||!attempt.journal?.completedAt||attempt.journal.operation!=='apply'||!attempt.snapshot)throw Error('Graph fix requires an approved applied patch and a verified remote test.');
+ const source=attempt.snapshot,job=snapshot.jobs.find(j=>j.projectId===project&&j.id===attempt.retestJobId&&j.idempotencyKey===attempt.id),run=snapshot.runs.find(r=>r.projectId===project&&r.id===attempt.retestRunId&&r.jobId===job?.id);
+ const delivered=job?.payload.steps.find(s=>s.source?.provider==='snapshot')?.source;
+ if(!job||job.status!==(failed?'failed':'succeeded')||job.payload.testPlan?.projectId!==project||!run||(failed?!['failed','timeout'].includes(run.status):run.status!=='passed')||!run.finishedAt||(!failed&&run.exitCode!==0)||delivered?.provider!=='snapshot'||delivered.snapshot.projectId!==project||delivered.snapshot.proposalId!==attempt.proposalId||delivered.snapshot.snapshotId!==source.snapshotId||delivered.snapshot.checksum!==source.checksum||run.revision?.snapshotId!==source.snapshotId||run.revision.commit!==source.checksum||run.revision.proposalId!==attempt.proposalId||run.revision.attempt!==attempt.attempt||!attempt.executionApprovals?.some(v=>v.kind==='remote-test'&&v.name===job.payload.testPlan!.testName)||attempt.patches.some(p=>source.files.find(f=>f.path===p.path)?.checksum!==p.resultHash))throw Error('Graph fix remote Run or Snapshot does not match.');
+ return {attemptId:attempt.id,proposalId:attempt.proposalId,runId:run.id,snapshotId:source.snapshotId,testName:job.payload.testPlan.testName,agentId:run.agentId};
+}
+export function verifiedGraphFix(project:string,executionId:string,a:GraphActivation,attempt:FixAttempt|undefined,snapshot:CoreSnapshot){return graphFixResult(project,executionId,a,attempt,snapshot);}
+export function failedGraphFix(project:string,executionId:string,a:GraphActivation,attempt:FixAttempt|undefined,snapshot:CoreSnapshot){return graphFixResult(project,executionId,a,attempt,snapshot,true);}
+export function graphFixScope(e:Pick<GraphExecution,'id'|'projectId'>,a:GraphActivation,attempts:FixAttempt[]){return attempts.filter(v=>v.projectId===e.projectId&&v.analysisId===a.analysisId&&v.graph?.executionId===e.id&&v.graph.activationId===a.id&&v.graph.leaseId===a.leaseId&&v.graph.nodeId===a.nodeId);}

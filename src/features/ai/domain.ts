@@ -15,14 +15,14 @@ export function validateBudget(value:AnalysisBudget):AnalysisBudget {
  return {...value,...(c?{cost:{...c}}:{})};
 }
 export interface AnalysisMetrics {durationMs:number;providerRequests:number;toolCalls:number;usageComplete:boolean;budget:AnalysisBudget;estimatedCostUsd?:number;costComplete:boolean;outcome:'completed'|AIErrorCode}
-export interface ToolCall { id:string; name:string; arguments:unknown }
+export interface ToolCall { id:string; name:string; arguments:unknown; continuation?:{provider:'google';parts:unknown[]} }
 export interface Message { role:'user'|'assistant'|'tool'; text:string; calls?:ToolCall[]; callId?:string }
 export interface ProviderRequest { messages:Message[] }
 export interface ProviderReply { text:string; calls:ToolCall[]; model:string; usage?:{input:number;output:number} }
-export interface AIProvider { readonly id:string; readonly capabilities:{streaming:boolean;tools:boolean;structured:boolean;images:boolean}; request(input:ProviderRequest, signal:AbortSignal, delta:(text:string)=>void):Promise<ProviderReply> }
+export interface AIProvider { readonly id:string; readonly capabilities:{streaming:boolean;tools:boolean;structured:boolean;images:boolean}; inspect?(signal:AbortSignal):Promise<import('./connection-status.ts').AIConnectionStatus>; request(input:ProviderRequest, signal:AbortSignal, delta:(text:string)=>void):Promise<ProviderReply> }
 export interface Citation { id:string; label:string; kind:string; path?:string; start?:number; end?:number; redacted?:boolean; truncated:boolean; text:string }
 export interface Analysis { summary:string; observedFailure:string; candidates:{cause:string; evidence:string[]; uncertainty:string}[]; evidence:string[]; relatedFiles:{path:string;start:number;end:number;evidence:string}[]; proposal:{path:string;proposed:string;rationale:string;impact:string;tests:string[]}[]; uncertainty:string }
-export interface AnalysisRecord { id:string; projectId:string; conversationId:string; runId?:string; model:string; createdAt:string; result:Analysis; context:Citation[]; originals:Record<string,string>; usage?:ProviderReply['usage']; metrics?:AnalysisMetrics }
+export interface AnalysisRecord {source?:import('./run-source.ts').RunSourceIdentity; task?:{failure?:{runId:string;originalRunId:string;attemptId:string;previousAnalysisId:string};nodeId:string;label:string;profileId:string;graph?:{executionId:string;activationId:string;leaseId:string}}; id:string; projectId:string; conversationId:string; runId?:string; model:string; createdAt:string; result:Analysis; context:Citation[]; originals:Record<string,string>; usage?:ProviderReply['usage']; metrics?:AnalysisMetrics }
 export interface Conversation { id:string; projectId:string; createdAt:string; messages:{role:'user'|'assistant';text:string;analysisId?:string}[] }
 const string={type:'string'}, strings={type:'array',items:string};
 const reference={type:'string',pattern:'^ctx-[1-9][0-9]*$',description:'An exact returned citation ID such as ctx-5. No prose, brackets or Markdown.'},references={type:'array',items:reference};

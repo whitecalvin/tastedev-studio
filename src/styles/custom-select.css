@@ -11,3 +11,5 @@
 .orch-toolbar .custom-select{min-width:100px}
 .orch-runtime label:not(:has(input[type=checkbox])) .custom-select{display:grid;width:100%}
 @media(forced-colors:active){.custom-select>.custom-select-arrow{color:ButtonText}.custom-select select.custom-select-control{border-color:ButtonText}}
+
+.run-selection .custom-select,.run-form .custom-select,.issue-review .custom-select,.orch-ai-fields label>.custom-select,.ai-snapshot-controls label>.custom-select,.studio-debug label>.custom-select{display:grid;width:100%;min-width:0}

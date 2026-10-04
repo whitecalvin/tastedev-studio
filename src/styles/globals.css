@@ -169,3 +169,19 @@ input::placeholder, textarea::placeholder { color: var(--studio-muted); opacity:
 .protocol-form fieldset { display: grid; gap: 8px; min-width: 0; }
 .protocol-form pre { overflow: auto; max-height: 260px; font-size: 11px; }
 .protocol-form-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Initial project and layout loading share viewport-centered theme-aware feedback. */
+.workspace-loading{min-height:100dvh;width:100%;display:grid;place-items:center;padding:24px;background:var(--studio-bg);color:var(--studio-text)}
+.workspace-loading-content{display:flex;flex-direction:column;align-items:center;gap:18px;max-width:100%;text-align:center}
+.workspace-loading-brand{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:600;letter-spacing:.02em}
+.workspace-loading-brand svg,.workspace-loading-spinner{color:var(--studio-accent)}
+.workspace-loading-content p{color:var(--studio-muted);font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+.workspace-loading-spinner{animation:workspace-loading-spin 1s linear infinite}
+@keyframes workspace-loading-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.workspace-loading-spinner{animation:none}}
+
+.app-header>*{min-width:0}.dialog-heading h2{min-width:0;overflow-wrap:anywhere}.dialog-heading>button{flex-shrink:0}
+.dialog-actions,.fs-dialog-actions{flex-wrap:wrap}.form-fields label,.project-folder-input,.section-heading>*{min-width:0}
+.studio-search-field{max-width:100%}.studio-search-field input{min-width:0;max-width:100%}
+@media(max-width:1100px){.app-header{height:auto;min-height:64px;flex-wrap:wrap;gap:12px 20px;padding-block:10px}.app-header .nav-link{height:38px}}
+@media(max-width:520px){.studio-dialog{padding:20px;width:calc(100% - 24px);max-height:calc(100dvh - 24px)}.dialog-heading h2{font-size:18px}.project-folder-input{flex-wrap:wrap}.project-folder-input input{flex-basis:100%}.project-folder-input button{margin-left:auto}}

@@ -24,7 +24,11 @@ import { fileURLToPath } from 'node:url';
 import {artifactGateway,browserResult} from './artifacts.ts';
 import {aiGateway} from './ai-gateway.ts';
 import {OpenAIProvider} from './ai-provider.ts';
+import {AnthropicProvider} from './anthropic-provider.ts';
+import {GoogleProvider} from './google-provider.ts';
+import {OllamaProvider} from './ollama-provider.ts';
 import {CodexProvider} from './codex-provider.ts';
+import {AIConnectionRegistry} from './ai-connections.ts';
 import {GitHubIssueProvider} from './github-provider.ts';
 import {issueGateway} from './issue-gateway.ts';
 import {HistoryStore,historyGateway} from './history.ts';
@@ -107,8 +111,14 @@ export async function startCoreServer(options:ServerOptions) {
   }
   const providerName=process.env.TASTEDEV_AI_PROVIDER??'codex';
   if(!['codex','openai'].includes(providerName))throw new Error('TASTEDEV_AI_PROVIDER must be codex or openai.');
-  const provider=providerName==='openai'?new OpenAIProvider(process.env.OPENAI_API_KEY??'',process.env.TASTEDEV_AI_MODEL??'gpt-4.1-mini'):new CodexProvider(process.env.TASTEDEV_CODEX_MODEL);
-  const ai=aiGateway(provider,options.studioToken,origins,id=>projects.has(id),Object.entries(process.env).filter(([k])=>/key|secret|token|password/i.test(k)).map(([,v])=>v??'').filter(Boolean),Number(process.env.TASTEDEV_AI_TIMEOUT_MS??120000),(req,p,write)=>authorizeHTTP(req,p,write?'ai':'read'));
+  const apiProvider=new OpenAIProvider(process.env.OPENAI_API_KEY??'',process.env.TASTEDEV_AI_MODEL??'gpt-4.1-mini'),accountProvider=new CodexProvider(process.env.TASTEDEV_CODEX_MODEL);
+  const provider=providerName==='openai'?apiProvider:accountProvider;
+  const apiMetadata={provider:'openai' as const,adapter:'openai-api' as const,connection:'api' as const,model:apiProvider.model},accountMetadata={provider:'openai' as const,adapter:'codex-chatgpt' as const,connection:'account' as const,model:accountProvider.model??''};
+  const anthropic=process.env.ANTHROPIC_API_KEY&&process.env.TASTEDEV_ANTHROPIC_MODEL?new AnthropicProvider(process.env.ANTHROPIC_API_KEY,process.env.TASTEDEV_ANTHROPIC_MODEL):undefined;
+  const google=process.env.GEMINI_API_KEY&&process.env.TASTEDEV_GOOGLE_MODEL?new GoogleProvider(process.env.GEMINI_API_KEY,process.env.TASTEDEV_GOOGLE_MODEL):undefined;
+  const local=process.env.TASTEDEV_LOCAL_MODEL?new OllamaProvider(process.env.TASTEDEV_LOCAL_MODEL,process.env.TASTEDEV_OLLAMA_URL):undefined;
+  const connections=new AIConnectionRegistry([{metadata:{id:'default',...(providerName==='openai'?apiMetadata:accountMetadata)},provider},{metadata:{id:'chatgpt-account',...accountMetadata},provider:accountProvider},...(process.env.OPENAI_API_KEY?[{metadata:{id:'openai-api',...apiMetadata},provider:apiProvider}]:[]),...(anthropic?[{metadata:{id:'anthropic-api',provider:'anthropic' as const,adapter:'anthropic-api' as const,connection:'api' as const,model:anthropic.model},provider:anthropic}]:[]),...(google?[{metadata:{id:'google-api',provider:'google' as const,adapter:'google-api' as const,connection:'api' as const,model:google.model},provider:google}]:[]),...(local?[{metadata:{id:'ollama-local',provider:'local' as const,adapter:'ollama-local' as const,connection:'local' as const,model:local.model},provider:local}]:[])]);
+  const ai=aiGateway(provider,options.studioToken,origins,id=>projects.has(id),Object.entries(process.env).filter(([k])=>/key|secret|token|password/i.test(k)).map(([,v])=>v??'').filter(Boolean),Number(process.env.TASTEDEV_AI_TIMEOUT_MS??120000),(req,p,write)=>authorizeHTTP(req,p,write?'ai':'read'),connections);
   const issueSecrets=Object.entries(process.env).filter(([k])=>/key|secret|token|password/i.test(k)).map(([,v])=>v??'').filter(Boolean);
   const pulls=new PullRequestService(options.pullProvider??new GitHubPullProvider(undefined,issueSecrets),issueSecrets,store?{load:()=>store.get('pull-requests')??[],save:value=>store.put('pull-requests',value)}:undefined);
   const issues=issueGateway(options.issueProvider??new GitHubIssueProvider(undefined,issueSecrets),options.studioToken,origins,id=>projects.get(id),id=>service.snapshot(id),id=>(logs.read([id])[id]??[]).map(l=>l.text),issueSecrets,store?{load:()=>store.get('issues')??[],save:value=>store.put('issues',value)}:undefined,(req,p,action,target)=>authorizeHTTP(req,p,['list','get','pr-list','pr-status'].includes(action)?'read':'issue-write',target),pulls);
@@ -176,7 +186,7 @@ export async function startCoreServer(options:ServerOptions) {
     if(a.job.payload.testPlan){advance(a.run.id);return a;}
     const step=a.job.payload.steps[0];send(socket,{type:'execute',agentId:a.agent.id,jobId:a.job.id,runId:a.run.id,projectId,requirements:a.job.requirements,executable:step.executable,args:step.args,cwd:step.cwd,env:step.env??{},timeoutMs:step.timeoutMs??60000});return a;
   }
-  const graphExecution=new GraphExecutionService(service,(p,j)=>dispatch(p,j),(p,j)=>{const job=service.snapshot(p).jobs.find(v=>v.id===j);if(job&&!['queued','assigned','running'].includes(job.status))return;service.cancelJob(p,j);const run=service.snapshot(p).runs.find(r=>r.jobId===j&&activeRun(r));if(run){const ws=agents.get(run.agentId)?.socket;if(ws)send(ws,{type:'cancel',runId:run.id});}},store?{load:()=>store.get('node-orchestration'),save:value=>store.put('node-orchestration',value)}:undefined,(actor,p,action)=>{if(team){const identity=JSON.parse(actor) as TeamIdentity&{requiresScheduleManagement?:boolean;scheduleId?:string};team.require(identity,p,action);if(identity.requiresScheduleManagement&&action==='run')team.require(identity,p,'schedule-manage',identity.scheduleId);}},Date.now,(snapshot,p)=>sources.resolve(snapshot,p));
+  const graphExecution=new GraphExecutionService(service,(p,j)=>dispatch(p,j),(p,j)=>{const job=service.snapshot(p).jobs.find(v=>v.id===j);if(job&&!['queued','assigned','running'].includes(job.status))return;service.cancelJob(p,j);const run=service.snapshot(p).runs.find(r=>r.jobId===j&&activeRun(r));if(run){const ws=agents.get(run.agentId)?.socket;if(ws)send(ws,{type:'cancel',runId:run.id});}},store?{load:()=>store.get('node-orchestration'),save:value=>store.put('node-orchestration',value)}:undefined,(actor,p,action)=>{if(team){const identity=JSON.parse(actor) as TeamIdentity&{requiresScheduleManagement?:boolean;scheduleId?:string};team.require(identity,p,action);if(identity.requiresScheduleManagement&&action==='run')team.require(identity,p,'schedule-manage',identity.scheduleId);}},Date.now,(snapshot,p)=>sources.resolve(snapshot,p),{attempt:(p,id)=>history.get(p,'attempt',id)?.value as import('../src/features/ai/fix-service.ts').FixAttempt|undefined,connections:p=>connections.list(p),analysis:(p,id)=>history.get(p,'analysis',id)?.value as import('../src/features/ai/domain.ts').AnalysisRecord|undefined});
   scheduler.setGraphAdapter({
     validate:(p,target)=>{const d=graphExecution.overview(p).definition;if(!d||d.revision!==target.revision||d.checksum!==target.checksum||!d.graph.nodes.some(n=>n.id===target.entryNodeId&&['task','approval'].includes(n.kind))||d.graph.edges.some(e=>e.to===target.entryNodeId&&e.relation==='success'))throw new CoreError('Review the current graph revision and root.');},
     active:p=>graphExecution.overview(p).executions.some(e=>['running','paused','cancelling'].includes(e.status)),
@@ -184,7 +194,7 @@ export async function startCoreServer(options:ServerOptions) {
     status:(p,id)=>graphExecution.overview(p).executions.find(e=>e.id===id)?.status,
   });
   async function rpc(ws:WebSocket,m:Message){const id=identifier(m.requestId),projectId=studios.get(ws)!;const args=Array.isArray(m.args)?m.args:[];let value:unknown;
-    if(team){const action:TeamAction=m.method==='graph'?(args[0]==='list'?'read':args[0]==='publish'?'history-write':args[0]==='approve'?'approve':args[0]==='cancel'?'cancel':'run'):m.method==='records'?(args[0]==='policy-save'?'history-write':'read'):m.method==='operations'?(args[0]==='link'?'issue-write':'read'):m.method==='storageHealth'||m.method==='team'?'read':m.method==='scheduler'?(args[0]==='list'?'read':args[0]==='run'?'run':'schedule-manage'):m.method==='registerAgent'||m.method==='removeAgent'?'agent-manage':m.method==='cancelJob'?'cancel':'run';team.require(studioIdentities.get(ws)!,projectId,action,typeof args[0]==='string'?args[0]:undefined);if(m.method==='removeAgent'&&!team.allowedAgent(projectId,identifier(args[0])))throw new TeamAccessError();}
+    if(team){const action:TeamAction=m.method==='graph'?(args[0]==='list'?'read':args[0]==='publish'?'history-write':['approve','ai-start','ai-fix-complete','ai-fix-reject','ai-reanalyze'].includes(String(args[0]))?'approve':args[0]==='cancel'?'cancel':'run'):m.method==='records'?(args[0]==='policy-save'?'history-write':'read'):m.method==='operations'?(args[0]==='link'?'issue-write':'read'):m.method==='storageHealth'||m.method==='team'?'read':m.method==='scheduler'?(args[0]==='list'?'read':args[0]==='run'?'run':'schedule-manage'):m.method==='registerAgent'||m.method==='removeAgent'?'agent-manage':m.method==='cancelJob'?'cancel':'run';team.require(studioIdentities.get(ws)!,projectId,action,typeof args[0]==='string'?args[0]:undefined);if(m.method==='removeAgent'&&!team.allowedAgent(projectId,identifier(args[0])))throw new TeamAccessError();}
     if(draining&&m.method!=='storageHealth')throw new CoreError('Core is draining; mutations are disabled.');
     switch(m.method){
       case 'graph':value=await graphExecution!.request(projectId,String(args[0]),args[1],team?JSON.stringify(studioIdentities.get(ws)!):'local');break;
@@ -305,5 +315,4 @@ export async function startCoreServer(options:ServerOptions) {
   const address=server.address();return {service,logs,scheduler,graphExecution,store,port:typeof address==='object'&&address?address.port:0,health,stop,close:shutdown};
   }catch(error){await shutdown();throw error;}
 }
-
 

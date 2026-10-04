@@ -1,0 +1,8 @@
+'use client';
+import {ArrowDownLeft,ArrowUpRight,Trash2} from 'lucide-react';
+import {useI18n} from '@/i18n/react';
+import type {nodeConnections} from './connections';
+export function ConnectionList({connections,onReveal,onRemove,disabled}:{connections:ReturnType<typeof nodeConnections>;onReveal:(id:string)=>void;onRemove:(edgeId:string)=>void;disabled:boolean}){
+ const {t}=useI18n();
+ return <section className="orch-connection-list" aria-label={t('Node relationships')}><p>{t('Select a connected node to follow the relationship. This does not run work.')}</p>{(['incoming','outgoing'] as const).map(direction=>{const items=connections[direction],Icon=direction==='incoming'?ArrowDownLeft:ArrowUpRight;return <div key={direction}><h3><Icon size={14} aria-hidden="true"/>{t(direction==='incoming'?'Incoming relationships':'Outgoing relationships')} <span>{items.length}</span></h3>{items.length?<ul>{items.map(({edge,node})=><li key={edge.id}><button type="button" className="orch-connection-target" title={`${t(node.label)} · ${t(node.kind)}${node.reference?` · ${node.reference}`:''}`} onClick={()=>onReveal(node.id)}><span>{t(node.label)}<small>{t(edge.relation)} · {t(node.kind)}</small></span></button><button type="button" className="orch-connection-remove" disabled={disabled} title={t('Remove relationship')} aria-label={`${t('Remove relationship')}: ${t(edge.relation)} · ${t(node.label)}`} onClick={()=>onRemove(edge.id)}><Trash2 size={14} aria-hidden="true"/></button></li>)}</ul>:<p className="orch-connection-empty">{t('No relationships in this direction.')}</p>}</div>;})}</section>;
+}

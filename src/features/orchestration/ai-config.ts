@@ -1,4 +1,5 @@
 import {mask} from '../ai/security.ts';
+import type {ManagedAIConnection,AIRoute} from '../ai/routing.ts';
 
 export const aiProviders=['openai','anthropic','google','local'] as const;
 export const aiConnections=['core','api','account','local'] as const;
@@ -8,7 +9,7 @@ export interface AIConfiguration {
  id:string;name:string;provider:typeof aiProviders[number];model:string;
  connection:typeof aiConnections[number];tool:typeof aiTools[number];role:typeof aiRoles[number];
  location:'core'|'device'|'external';connectionRef:string;
- maxRequests:number;timeoutSeconds:number;maxAttempts:number;prompt:string;
+ completion?:'analysis'|'verified-fix';maxRequests:number;timeoutSeconds:number;maxAttempts:number;prompt:string;
 }
 export interface AIConfigurationStore {version:1;projectId:string;profiles:AIConfiguration[];bindings:Record<string,string>}
 export const aiConfigurationKey=(projectId:string)=>`tastestudio.orchestration.ai.v1:${encodeURIComponent(projectId)}`;
@@ -20,11 +21,12 @@ export function validateAIConfigurations(value:unknown,projectId:string):AIConfi
  const ids=new Set<string>();
  const profiles=s.profiles.map(p=>{
   if(!p||typeof p.id!=='string'||! /^[A-Za-z0-9_-]{1,120}$/.test(p.id)||ids.has(p.id)||!aiProviders.includes(p.provider)||!aiConnections.includes(p.connection)||!aiTools.includes(p.tool)||!aiRoles.includes(p.role)||!['core','device','external'].includes(p.location))throw Error('Invalid AI configuration.');
+  if(p.completion!==undefined&&!['analysis','verified-fix'].includes(p.completion))throw Error('Invalid AI completion policy.');
   ids.add(p.id);
   for(const [text,max]of [[p.name,120],[p.model,120],[p.connectionRef,200],[p.prompt,3000]] as const)if(typeof text!=='string'||text.length>max||/[\0]/.test(text))throw Error('Invalid AI configuration.');
   if(!p.name.trim()||!p.prompt.trim()||!Number.isInteger(p.maxRequests)||p.maxRequests<1||p.maxRequests>12||!Number.isInteger(p.timeoutSeconds)||p.timeoutSeconds<1||p.timeoutSeconds>120||!Number.isInteger(p.maxAttempts)||p.maxAttempts<1||p.maxAttempts>3)throw Error('Invalid AI configuration.');
   // 인증값은 저장하지 않는다. 표시 문자열과 프롬프트도 기존 마스킹 규칙 적용.
-  return{id:p.id,name:mask(p.name.trim()),provider:p.provider,model:mask(p.model.trim()),connection:p.connection,tool:p.tool,role:p.role,location:p.location,connectionRef:mask(p.connectionRef.trim()),maxRequests:p.maxRequests,timeoutSeconds:p.timeoutSeconds,maxAttempts:p.maxAttempts,prompt:mask(p.prompt)};
+  return{...(p.completion?{completion:p.completion}:{}),id:p.id,name:mask(p.name.trim()),provider:p.provider,model:mask(p.model.trim()),connection:p.connection,tool:p.tool,role:p.role,location:p.location,connectionRef:mask(p.connectionRef.trim()),maxRequests:p.maxRequests,timeoutSeconds:p.timeoutSeconds,maxAttempts:p.maxAttempts,prompt:mask(p.prompt)};
  });
  const bindings:Record<string,string>={};
  for(const [nodeId,profileId]of Object.entries(s.bindings)){
@@ -41,6 +43,14 @@ export function saveAIConfigurations(storage:{getItem(key:string):string|null;se
 export function configurationPrompt(profile:AIConfiguration,task:string):string{
  return mask(`Task: ${task}\nAI role: ${profile.role}\n\n${profile.prompt}`);
 }
-export function canPrepareConfiguration(profile:AIConfiguration|undefined):boolean{
+export function configurationRoute(profile:AIConfiguration|undefined,connections:ManagedAIConnection[]):AIRoute|undefined{
+ if(!profile||profile.tool!=='service'||profile.location!=='core')return;
+ if(!profile.connectionRef&&profile.connection!=='core')return;
+ const entry=connections.find(c=>c.id===(profile.connectionRef||'default'));
+ if(!entry||profile.provider!==entry.provider||profile.connection!=='core'&&profile.connection!==entry.connection||profile.model&&profile.model!==entry.model)return;
+ return {connectionId:entry.id,adapter:entry.adapter,model:entry.model};
+}
+export function canPrepareConfiguration(profile:AIConfiguration|undefined,connections?:ManagedAIConnection[]):boolean{
+ if(connections)return !!configurationRoute(profile,connections);
  return !!profile&&profile.provider==='openai'&&profile.connection==='core'&&profile.tool==='service'&&profile.location==='core'&&!profile.model&&!profile.connectionRef;
 }

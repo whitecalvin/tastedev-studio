@@ -26,6 +26,8 @@ export class Announcements {
   private epoch = 0;
   private lastLanguage = '';
   private loadedAt = 0;
+  private itemsLanguage = '';
+  private pending: { language: string; promise: Promise<void> } | null = null;
   private store: Pick<Storage, 'getItem' | 'setItem'>;
   private load: NoticeLoader;
   private state: { items: Notice[]; preferences: Preferences; loading: boolean; error: string; open: boolean };
@@ -43,18 +45,41 @@ export class Announcements {
   private save(preferences: Preferences) { this.change({ preferences }); try { this.store.setItem(storageKey, JSON.stringify(preferences)); } catch { this.change({ error: 'Announcement preferences could not be saved.' }); } }
   show() { this.change({ open: true }); }
   close() { this.change({ open: false }); }
-  enable(value: boolean) { this.epoch++; this.save({ ...this.state.preferences, enabled: value }); this.change({ loading: false, items: value ? this.state.items : [] }); this.loadedAt = 0; }
+  enable(value: boolean) { this.epoch++; this.pending = null; this.save({ ...this.state.preferences, enabled: value }); this.change({ loading: false, items: value ? this.state.items : [] }); this.loadedAt = 0; this.lastLanguage = ''; if (!value) this.itemsLanguage = ''; }
   markRead(id: string) { if (this.state.items.some(n => n.id === id)) this.save({ ...this.state.preferences, read: rememberDismissed(this.state.preferences.read, id) }); }
   dismiss(id: string) { const item = this.state.items.find(n => n.id === id); if (item && item.level !== 'urgent') this.save({ ...this.state.preferences, dismissed: rememberDismissed(this.state.preferences.dismissed, id) }); }
   snooze(id: string, today = new Date().toLocaleDateString('en-CA')) { const item = this.state.items.find(n => n.id === id); if (item && item.level !== 'urgent') { const entries = Object.entries({ ...this.state.preferences.snoozed, [id]: today }).slice(-50); this.save({ ...this.state.preferences, snoozed: Object.fromEntries(entries) }); } }
   unread() { return this.state.items.filter(n => !this.state.preferences.read.includes(n.id)).length; }
   visible(today = new Date().toLocaleDateString('en-CA')) { return this.state.items.filter(n => n.level === 'urgent' || (!this.state.preferences.dismissed.includes(n.id) && this.state.preferences.snoozed[n.id] !== today)); }
-  async refresh(language: string, force = false, now = Date.now()) {
-    if (!this.state.preferences.enabled) return;
-    if (!force && this.lastLanguage === language && now - this.loadedAt < 300_000) return;
-    const epoch = ++this.epoch; this.lastLanguage = language; this.change({ loading: true, error: '' });
-    try { const text = await this.load(language); if (epoch === this.epoch) { this.loadedAt = now; this.change({ items: parseNotices(text, now), error: '' }); } }
-    catch { if (epoch === this.epoch) this.change({ items: [], error: 'Announcements could not be loaded. Try again.' }); }
-    finally { if (epoch === this.epoch) this.change({ loading: false }); }
+  refresh(language: string, force = false, now = Date.now()): Promise<void> {
+    if (!this.state.preferences.enabled) return Promise.resolve();
+    // 같은 언어의 진행 중 요청은 새로고침 버튼과 주기 조회가 함께 재사용한다.
+    if (this.pending?.language === language) return this.pending.promise;
+    if (!force && !this.pending && this.lastLanguage === language && now - this.loadedAt < 300_000) return Promise.resolve();
+    const epoch = ++this.epoch;
+    this.change({ loading: true, error: '', ...(this.itemsLanguage !== language ? { items: [] } : {}) });
+    const promise = this.fetch(language, epoch, now);
+    if (epoch === this.epoch && this.state.loading) this.pending = { language, promise };
+    return promise;
+  }
+  private async fetch(language: string, epoch: number, now: number) {
+    try {
+      const text = await this.load(language);
+      const value: unknown = JSON.parse(text);
+      if (!value || typeof value !== 'object' || !('announcements' in value) || !Array.isArray(value.announcements)) throw Error('invalid-response');
+      const items = parseNotices(text, now);
+      if (epoch === this.epoch) {
+        this.lastLanguage = language; this.itemsLanguage = language; this.loadedAt = now;
+        this.change({ items, error: '' });
+      }
+    } catch {
+      if (epoch === this.epoch) {
+        // 실패는 캐시하지 않는다. 같은 언어의 마지막 정상 목록은 재시도 동안 보존한다.
+        this.lastLanguage = ''; this.loadedAt = 0;
+        this.change({ error: 'Announcements could not be loaded. Try again.' });
+      }
+    } finally {
+      if (epoch === this.epoch) { this.pending = null; this.change({ loading: false }); }
+    }
   }
 }

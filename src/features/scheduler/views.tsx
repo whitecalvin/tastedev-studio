@@ -1,22 +1,45 @@
 'use client';
 import { CustomSelect } from '@/components/ui/custom-select';
 import { useI18n } from '@/i18n/react';
-import {createContext,useContext,useEffect,useRef,useState} from 'react';
+import {createContext,useContext,useEffect,useLayoutEffect,useRef,useState} from 'react';
 import {useCore} from '../core/context';
 import {useFiles} from '../editor/session';
 import {useWorkspace} from '../workspace/context';
 import {protocolFiles,type ProtocolSources} from '../protocol/domain';
 import {workspaceReader} from '../protocol/loader';
 import type {Schedule,ScheduleInput,Trigger} from './domain';
-import type {ScheduleService} from './service';
+import {currentSchedulerSnapshot,schedulerScopeKey,schedulerSessionAction,type SchedulerSnapshot as Snapshot} from './session';
 import '../issues/issues.css';
 import './scheduler.css';
-type Snapshot=ReturnType<ScheduleService['list']>;
-function useStateService(){const core=useCore(),files=useFiles();const [snapshot,setSnapshot]=useState<Snapshot|null>(null),[selected,setSelected]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);const locked=useRef(false),connected=core.remote&&core.connection.connected;
- useEffect(()=>{let active=true;const reload=()=>{if(connected&&!locked.current)core.connection.schedulerRequest<Snapshot>('list').then(v=>{if(active)setSnapshot(v)},()=>{if(active)setMessage('Scheduler unavailable. Connect to Core in Agents.')});};reload();const timer=setInterval(reload,2000);return()=>{active=false;clearInterval(timer)};},[connected,core.connection,core.project.id]);
- async function action(type:string,...args:unknown[]){if(locked.current)return;locked.current=true;setBusy(true);setMessage('');try{await core.connection.schedulerRequest(type,...args);const next=await core.connection.schedulerRequest<Snapshot>('list');setSnapshot(next);return next;}catch(e){setMessage(e instanceof Error?e.message:'Scheduler operation failed.');}finally{locked.current=false;setBusy(false);}}
- async function sync(){if(!files.connection||files.connection.permission!=='granted'||files.editor.dirtyEditors.some(id=>files.documents.get(id).path.startsWith('.tastedev/'))){setMessage('Connect the project folder and save Protocol files before syncing.');return;}const sources:ProtocolSources={},reader=workspaceReader(files.files.host,files.connection.id);try{for(const name of protocolFiles)if(await reader.exists('.tastedev/'+name))sources[name]=await reader.read('.tastedev/'+name);await action('register',sources);}catch{setMessage('Cannot read saved Protocol. Check folder access.');}}
- return{core,snapshot,selected,setSelected,message,busy,connected,action,sync};}
+function useStateService(){
+ const core=useCore(),files=useFiles(),connected=core.remote&&core.connection.connected;
+ const scope={projectId:core.project.id,generation:core.connection.generation,connectionKey:core.connection.connectionKey,connected},key=schedulerScopeKey(scope);
+ const [record,setRecord]=useState<{key:string;snapshot:Snapshot}|null>(null),[selection,setSelection]=useState({key:'',value:''}),[feedback,setFeedback]=useState({key:'',value:''}),[busy,setBusy]=useState(false);
+ const locked=useRef(false),currentKey=useRef<string|null>(null);
+ useLayoutEffect(()=>{currentKey.current=key;return()=>{currentKey.current=null;};},[key]);
+ const snapshot=currentSchedulerSnapshot(record,scope),selected=selection.key===key?selection.value:'',message=feedback.key===key?feedback.value:'';
+ function setSelected(value:string){if(currentKey.current===key)setSelection({key,value});}
+ function setMessage(value:string){setFeedback({key,value});}
+ const generation=scope.generation,connectionKey=scope.connectionKey,projectId=scope.projectId;
+ function current(){return currentKey.current===key&&connected&&core.connection.connected&&core.connection.generation===generation&&core.connection.connectionKey===connectionKey;}
+ useEffect(()=>{let active=true;const reload=()=>{if(connected&&!locked.current)void core.connection.schedulerRequest<Snapshot>('list').then(value=>{
+  if(!active||currentKey.current!==key||core.connection.generation!==generation||core.connection.connectionKey!==connectionKey)return;
+  if(!currentSchedulerSnapshot({key,snapshot:value},{projectId,generation,connectionKey,connected}))throw Error('Scheduler project mismatch.');
+  setRecord({key,snapshot:value});
+ }).catch(()=>{if(active&&currentKey.current===key){setRecord(null);setFeedback({key,value:'Scheduler unavailable. Connect to Core in Agents.'});}});};reload();const timer=setInterval(reload,2000);return()=>{active=false;clearInterval(timer);};},[connected,key,generation,connectionKey,projectId,core.connection]);
+ async function action(type:string,...args:unknown[]){if(locked.current||!current())return;locked.current=true;setBusy(true);setMessage('');try{
+  const next=await schedulerSessionAction(scope,current,(name,...values)=>core.connection.schedulerRequest(name,...values),type,args);if(!next||!current())return;setRecord({key,snapshot:next});return next;
+ }catch(error){if(current()){setRecord(null);setMessage(error instanceof Error?error.message:'Scheduler operation failed.');}}finally{locked.current=false;setBusy(false);}}
+ async function sync(){
+  if(!files.connection||files.connection.permission!=='granted'||files.editor.dirtyEditors.some(id=>files.documents.get(id).path.startsWith('.tastedev/'))){setMessage('Connect the project folder and save Protocol files before syncing.');return;}
+  const connection=files.connection.id,sources:ProtocolSources={},reader=workspaceReader(files.files.host,connection);
+  try{for(const name of protocolFiles)if(await reader.exists('.tastedev/'+name))sources[name]=await reader.read('.tastedev/'+name);
+   if(!current()||files.files.connection?.id!==connection||files.files.connection?.permission!=='granted'||files.documents.snapshot().dirtyEditors.some(id=>files.documents.get(id).path.startsWith('.tastedev/')))return;
+   await action('register',sources);
+  }catch{if(current())setMessage('Cannot read saved Protocol. Check folder access.');}
+ }
+ return{core,snapshot,selected,setSelected,message,busy,connected,action,sync};
+}
 const Context=createContext<ReturnType<typeof useStateService>|null>(null);
 export function ScheduleProvider({children}:{children:React.ReactNode}){return <Context.Provider value={useStateService()}>{children}</Context.Provider>}
 export function useScheduler(){const s=useContext(Context);if(!s)throw Error('Schedule provider required');return s;}

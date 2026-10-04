@@ -5,6 +5,7 @@ export class OpenAIProvider implements AIProvider {
  readonly id='openai';readonly capabilities={streaming:true,tools:true,structured:true,images:false};
  readonly model:string;private key:string;private fetcher:typeof fetch;
  constructor(key:string,model='gpt-4.1-mini',fetcher:typeof fetch=fetch){this.key=key;this.model=model;this.fetcher=fetcher;}
+ async inspect(signal:AbortSignal):Promise<import('../src/features/ai/connection-status.ts').AIConnectionStatus>{signal.throwIfAborted();return {provider:'openai',adapter:'openai-api',model:this.model,authentication:this.key?'configured':'missing',modelVerified:false};}
  async request(request:ProviderRequest,signal:AbortSignal,delta:(text:string)=>void):Promise<ProviderReply>{
   if(!this.key)throw new AIError('unavailable');
   const input=request.messages.flatMap<unknown>(m=>m.role==='tool'?[{type:'function_call_output',call_id:m.callId,output:m.text}]:m.role==='assistant'&&m.calls?.length?m.calls.map(c=>({type:'function_call',call_id:c.id,name:c.name,arguments:JSON.stringify(c.arguments)})):[{role:m.role,content:m.text}]);

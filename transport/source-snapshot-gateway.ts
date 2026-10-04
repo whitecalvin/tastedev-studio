@@ -5,7 +5,9 @@ import {activeRun} from '../src/features/core/domain.ts';
 import type {ProjectSnapshot} from '../src/features/ai/project-snapshot.ts';
 import {projectReference,verifyProjectReference} from '../src/features/ai/project-snapshot.ts';
 import {projectSnapshotLimits as limits} from '../src/features/ai/snapshot-bytes.ts';
-import {uuid} from '../src/features/ai/security.ts';
+import {runSource} from './run-source.ts';
+import {limits as aiLimits} from '../src/features/ai/domain.ts';
+import {aiPath,uuid} from '../src/features/ai/security.ts';
 import {SourceSnapshotStore} from './source-snapshot-store.ts';
 import {TeamAccessError} from './team-access.ts';
 interface Grant {runId:string;stepId:string;projectId:string;snapshotId:string;checksum:string;expires:number;deadline:number;agentId:string}
@@ -26,7 +28,12 @@ export function sourceSnapshotGateway(core:CoreService,root:string,studioToken:s
    if(parts[5]==='manifest'&&parts.length===6){g.expires=Math.min(g.deadline,now()+300000);json(200,snapshot);return;}
    if(parts[5]!=='blobs'||parts.length!==7){json(404,{error:'SOURCE_NOT_FOUND'});return;}const checksum=parts[6],file=snapshot.files.find(f=>f.checksum===checksum);if(!file){json(403,{error:'SOURCE_OUTSIDE_SCOPE'});return;}if(req.headers['if-match']!==`"${checksum}"`){json(412,{error:'SOURCE_PRECONDITION'});return;}const bytes=await store.blob(g.projectId,checksum,file.size!),range=String(req.headers.range??'');const match=/^bytes=(\d+)-(\d+)$/.exec(range);if(!match){json(416,{error:'SOURCE_RANGE_REQUIRED'});return;}const start=Number(match[1]),end=Number(match[2]);if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||end<start||end>=bytes.length||end-start+1>limits.chunkBytes){json(416,{error:'SOURCE_RANGE_INVALID'});return;}g.expires=Math.min(g.deadline,now()+300000);res.writeHead(206,{'Content-Type':'application/octet-stream','Content-Range':`bytes ${start}-${end}/${bytes.length}`,'Content-Length':end-start+1,ETag:`"${checksum}"`});res.end(bytes.subarray(start,end+1));return;
   }
-  const projectId=String(req.headers['x-project-id']??'');uuid(projectId);if(token.length>512||!equal(token,studioToken)){json(403,{error:'SOURCE_FORBIDDEN'});return;}authorize(req,projectId,'run');
+  const projectId=String(req.headers['x-project-id']??'');uuid(projectId);if(token.length>512||!equal(token,studioToken)){json(403,{error:'SOURCE_FORBIDDEN'});return;}if(parts[2]==='run'&&req.method==='GET'&&parts.length===5){
+   authorize(req,projectId,'read');const reference=runSource(core,projectId,parts[3]),snapshot=await resolve(reference,projectId);
+   if(parts[4]==='manifest'){json(200,snapshot);return;}
+   const file=snapshot.files.find(f=>f.checksum===parts[4]);if(!file||file.encoding!=='utf8'||file.size!>aiLimits.file)throw Error('Run Source outside readable scope.');aiPath(file.path);const bytes=await store.blob(projectId,file.checksum,file.size!);const content=new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(bytes);if(content.includes('\0'))throw Error('Binary Run Source.');json(200,{path:file.path,content,checksum:file.checksum});return;
+  }
+  authorize(req,projectId,'run');
   if(req.method==='POST'&&req.url==='/sources/manifests'){const chunks:Buffer[]=[];let n=0;for await(const chunk of req){n+=chunk.length;if(n>limits.manifestBytes){json(413,{error:'SOURCE_MANIFEST_LIMIT'});return;}chunks.push(Buffer.from(chunk));}const snapshot=JSON.parse(Buffer.concat(chunks).toString()) as ProjectSnapshot;if(snapshot.projectId!==projectId){json(403,{error:'SOURCE_PROJECT_MISMATCH'});return;}await store.begin(snapshot);json(201,{snapshotId:snapshot.snapshotId});return;}
   if(parts[2]==='uploads'&&parts.length===5){uuid(parts[3]);const checksum=parts[4];if(req.method==='HEAD'){const offset=await store.progress(projectId,parts[3],checksum);res.writeHead(200,{'X-Upload-Offset':offset}).end();return;}if(req.method==='PUT'){const raw=String(req.headers['x-upload-offset']??''),chunkHash=String(req.headers['x-upload-chunk-checksum']??'');if(!/^\d+$/.test(raw)||!/^[a-f0-9]{64}$/.test(chunkHash))throw Error('Invalid Source chunk request.');const result=await store.append(projectId,parts[3],checksum,Number(raw),req,chunkHash);res.writeHead(result.complete?201:202,{'X-Upload-Offset':result.offset}).end();return;}}
   if(req.method==='POST'&&parts[2]==='complete'&&parts.length===4){uuid(parts[3]);json(200,projectReference(await store.complete(projectId,parts[3])));return;}
