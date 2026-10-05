@@ -3,6 +3,7 @@ import type { JobRequirement, Runtime } from '../core/domain.ts';
 import { normalizePath } from '../filesystem/paths.ts';
 import { validateSource, validateHealth, validateBrowser } from '../core/test-plan.ts';
 import {affectedPattern} from './affected-files.ts';
+import {validateBuildArtifactDeclaration} from '../orchestration/build-artifact.ts';
 import { ProtocolError, protocolFiles, type EnvironmentDefinition, type ProtocolSources, type ProtocolState, type RequirementDefinition, type TaskDefinition, type TestDefinition, type TasteDevProjectDefinition } from './domain.ts';
 
 type Dict = Record<string, unknown>;
@@ -81,7 +82,9 @@ class Schema {
     return obj;
   }
   task(name: string, value: unknown): TaskDefinition {
-    const obj = this.object(value, name, ['command', 'args', 'cwd', 'environment', 'env', 'timeout', 'requirements']);
+    const obj = this.object(value, name, ['command', 'args', 'cwd', 'environment', 'env', 'timeout', 'requirements','artifacts']);
+    let artifacts;
+    if(own(obj,'artifacts'))try{artifacts=validateBuildArtifactDeclaration(obj.artifacts);}catch(error){this.fail(`${name}.artifacts`,error instanceof Error?error.message:'Invalid artifact declaration.');}
     const command = this.string(obj.command, `${name}.command`, 240);
     if (!/^[A-Za-z0-9_][A-Za-z0-9_.+-]*$/.test(command) || /\.(cmd|bat)$/i.test(command)) this.fail(`${name}.command`, 'Use a portable executable name, not a path, batch file or shell expression.');
     const args = own(obj, 'args') ? obj.args : [];
@@ -89,7 +92,7 @@ class Schema {
     const cwd = own(obj, 'cwd') ? this.string(obj.cwd, `${name}.cwd`, 240) : '.';
     try { if (cwd !== '.' && (normalizePath(cwd) !== cwd || /[%\\]/.test(cwd) || cwd.split('/').some(s => /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(s)))) throw Error(); }
     catch { this.fail(`${name}.cwd`, 'Use a normalized relative path inside the project, or ".".'); }
-    return { name, command, args: [...args], cwd, ...(own(obj, 'environment') ? { environment: this.string(obj.environment, `${name}.environment`, 64) } : {}), env: own(obj, 'env') ? this.environment(obj.env, `${name}.env`) : {}, timeout: own(obj, 'timeout') ? this.timeout(obj.timeout, `${name}.timeout`) : 60, requirements: own(obj, 'requirements') ? this.requirements(obj.requirements, `${name}.requirements`) : {} };
+    return { name, command, args: [...args], cwd, ...(artifacts?{artifacts}:{}), ...(own(obj, 'environment') ? { environment: this.string(obj.environment, `${name}.environment`, 64) } : {}), env: own(obj, 'env') ? this.environment(obj.env, `${name}.env`) : {}, timeout: own(obj, 'timeout') ? this.timeout(obj.timeout, `${name}.timeout`) : 60, requirements: own(obj, 'requirements') ? this.requirements(obj.requirements, `${name}.requirements`) : {} };
   }
 }
 
@@ -138,6 +141,7 @@ export function parseProtocol(sources: ProtocolSources): ProtocolState {
       ts.environment(merged, `${name}.env`);
       definition.tasks[name] = task;
     }
+    for(const task of Object.values(definition.tasks))for(const input of task.artifacts?.inputs??[])if(input.fromTask===task.name||!definition.tasks[input.fromTask]?.artifacts?.outputs.some(v=>v.name===input.name))ts.fail(`${task.name}.artifacts.inputs`,'Artifact input must reference another task and a declared output.');
     const xs = new Schema('tests.yml');
     if (own(root,'executionProfiles')) {
       definition.executionProfiles={};

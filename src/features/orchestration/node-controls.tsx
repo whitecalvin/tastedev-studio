@@ -5,6 +5,7 @@ import type {ProjectGraph} from './domain';
 import type {GraphOverview} from './execution';
 import {graphMonitor} from './monitor';
 import {graphControlRequest,type GraphControlAction} from './control';
+import {GraphActivationDetails} from './activation-details';
 
 type ControlProps={graph:ProjectGraph;overview:GraphOverview|null;executionId:string;nodeId:string;connected:boolean;session:number;dirty:boolean;busy:boolean;message:string;onAction:(action:string,input:unknown)=>Promise<void>};
 export function GraphNodeControls(props:ControlProps) {
@@ -29,6 +30,7 @@ function GraphNodeControlBody({graph,overview,executionId,nodeId,connected,sessi
  return <section className="orch-node-controls" aria-label={t('Execution controls')}>
   <h3>{t('Execution controls')}</h3>
   <p>{execution.id.slice(0,8)} · v{execution.revision} · {t(execution.status)}</p>
+  {monitor.compatible&&activation&&<GraphActivationDetails activation={activation} running={execution.status==='running'} artifactPlans={execution.artifactPlans?.[nodeId]}/>}
   {!monitor.compatible&&<p>{t('This execution differs from the current graph. Node states are hidden.')}</p>}
   {(approval||resume)&&<>
    <details><summary>{t('Review execution scope')}</summary><p>{t(execution.nodeLabels[nodeId]??nodeId)}</p><p>{t('Protocol input checksum')}: {execution.inputChecksum}</p>{execution.source&&<p>Snapshot: {execution.source.snapshotId}<br/>Checksum: {execution.source.checksum}</p>}{activation&&<p>{t('Attempt')}: {activation.attempt}</p>}</details>

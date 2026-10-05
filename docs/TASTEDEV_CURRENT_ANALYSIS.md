@@ -1,5 +1,31 @@
 # TASTEDEV Studio 현재 분석
 
+## 장비–Agent 소속 설정 및 실제 역할 실행 (2026-10-05)
+
+Agent 설정에 소속 장비 선택·변경·해제를 추가하고 장비 설정에 소속 Agent의 실제 연결 상태 및 보고된 OS/architecture를 표시한다. 기존 hosts 관계, 등록 Agent 참조, 그래프 저장·Undo/Redo를 재사용한다. 소속 관계는 사용자 선언이며 Agent 보고로 물리 장비 신원을 인증했다고 표시하지 않는다. 변경은 draft에 적용하며 원격 설정·실행 승인·현재 Run을 변경하지 않는다.
+
+Node918/918·전체 lint 및 변경된 표시/검증 스크립트 lint·production export·최종 TypeScript PASS. 실제 로컬 Core와 Rust Agent를 사용하여 소속 Agent 없는 역할 publish 거부, 승인 전 배포 차단, 승인 후 불변 Source/Artifact에 대한 test PASS, 독립 실패 이력, 실제 취소·cleanup을 확인했다. 실행3개(PASS/FAIL/CANCEL), Run10개. 공용 도구의 동일 무결성 gate는 뒤의 시나리오에서 반복하지 않았다.
+
+실제 GUI·원격 장비·운영 설치·Linux 검증은 미실행이다. 102 전송/배포·Git·게시·버전 변경은 없다. 최신 소스가 이전 Core runtime/Studio embedded frontend 패키지보다 새 입력이므로 영향받는 패키지 재구성이 필요하다. 증거: `resources/verification/dev-01/tasks/tastedev-studio/device-membership-20261005/checkpoint.json`, `RESULT.md`. 전체 목표는 미완료다.
+
+## 역할 배정 Agent 준비 상태 일치 (2026-10-05)
+
+그래프 설정 점검이 all-offline만 대기로 표시하던 공백을 수정했다. 배정된 Agent가 busy/error 또는 offline+error이고 실행 가능한 후보가 없으면 대기 안내를 표시한다. Core matcher와 공통 online/idle 판정을 사용하며 Core의 기존 배정 정책은 유지한다. 다른 배정 Agent가 online/idle이면 준비 상태를 유지하고 배정되지 않은 idle Agent로 대체하지 않는다.
+
+전체 Node914/914·lint·production desktop export/TypeScript PASS. 실제 GUI·설치·장비 배포는 미실행이다. 기존 Core runtime ZIP 및 Studio native embedded frontend는 최신 입력이 아니므로 영향받는 패키지를 다시 구성해야 한다. Agent Rust 및 공용 서비스 host는 변경하지 않았다. 증거: `resources/verification/dev-01/tasks/tastedev-studio/role-availability-20261005/checkpoint.json`, `RESULT.md`. 전체 장비·역할 오케스트레이션 목표는 미완료다.
+
+## 순차 고도화 1단계 — 배포 구성 (2026-10-05, PARTIAL)
+
+Linux 준비 훅에서 frontend export 후 GUI를 빌드하며 기존 공용 Cargo 루프의 Agent 결과와 Core runtime을 함께 패키징한다. 앱 메뉴는 `/usr/bin/tastestudio`를 실행한다. 독립 desktop/core/agent DEB·RPM 및 정확한 동일 버전에 의존하는 전체/서버 묶음을 정의했다. Agent만 포함한 전체 Studio 패키지는 거부한다. Core는 Node24를 요구하며 설정 전 자동 활성화하지 않는다.
+
+패키지 구성 테스트 2/2, 관련 lint·스크립트 문법, 출시 스키마 18개와 공용 도구 무결성 통과. Core runtime 439개 파일 체크섬과 격리된 Windows Node24 readiness 검증을 마쳤고 별도 runtime ZIP을 만들었다. 구성 테스트는 더미 실행 파일과 대체 DEB builder를 사용하므로 실제 Linux 컴파일·DEB/RPM 생성·설치 증거가 아니다.
+
+Windows Core operator ZIP에는 기존 공용 SCM 래퍼와 컴파일한 서비스 host, runtime, 설정 생성기를 담았다. 설정은 외부 보호 credential 파일의 경로만 참조하며 실제 값을 JSON에 복사하지 않는다. 관련 테스트 5/5, host 컴파일·잘못된 입력 거부·압축 파일 446개 체크섬 검증 통과. Node 실행 파일은 포함하지 않으며 새 host의 릴리스 서명과 실제 SCM lifecycle 검증은 미완료다. Windows Agent 독립 operator ZIP은 기존 0.1.42 출시 ZIP의 signed executable과 동일한 hash를 확인하여 재사용했다. Agent ZIP은 foreground 실행용이며 Windows SCM 서비스를 구현했다고 주장하지 않는다.
+
+사용자 정정에 따라 로컬 WSL 준비 요구와 WAITING_FOR_BUILD_ENVIRONMENT 판단을 철회했다. Linux 빌드·패키징은 기존 공용 도구 경로를 사용한다. 전체 출시 명령에는 102 소스 전송·서명·게시도 포함되므로 현재 기능 구현 목표에서 자동 실행하지 않는다. Linux 실제 빌드/설치 검증은 미완료로 유지하되 기능 구현 전체를 차단하지 않는다. 102 전송·배포·서비스 설치·게시·버전 증가·커밋/푸시는 수행하지 않았다.
+
+계획: `resources/guides/dev-01/tastestudio-advancement-next/PLAN.md`. 입력 hash·산출물 SHA256·재개 지점: `resources/verification/dev-01/tasks/tastedev-studio/deployment-foundation-20261005/checkpoint.json`.
+
 ## 4차 고도화 로컬 패키지 마감 (2026-10-02)
 
 1~6단계0.1.18–0.1.23 COMPLETE_LOCAL_PACKAGES. 사용자 최신 범위에 따라 배포·설치 테스트는 사용자 담당입니다. Windows signed installer/ZIP12개와 Core runtime ZIP4개를 resources/packages/tastestudio/fourth-advancement에 보관했습니다. 총16개 artifact SHA-256, installer/payload signature, Core archive manifest/file hash를 확인했습니다. 102 전송/실행, 서비스 설치, GitHub/홈페이지 게시를 수행하지 않았습니다.
@@ -659,3 +685,122 @@ Found remaining stale Scheduler cache after Core/project changes. UI Scheduler r
 ## Final blocked audit — 2026-10-04
 
 Current goal-closure-5 source/build hashes and goal-closure-3 actual evidence/full890 log hashes verified. Production session12927 confirmed live. Prior work made implementation/test progress; remaining actual GUI and shared device deployment/install qualification gap persists across goal-closure2,3/4,5 and this audit. No newly confirmed safe code change remains. Target PARTIAL, goal BLOCKED_EXTERNAL_VERIFICATION, not complete. Browser policy not bypassed,102 operations forbidden, deployment/install testing user-managed. No duplicate test/build/deploy performed. Handoff resources/guides/dev-01/tastestudio-node-orchestration/FINAL-VERIFICATION-HANDOFF.md; evidence completion-audit/RESULT.json. Resume on actual user verification result or relevant external state change, preserving valid gates.
+
+## Core 실행 대기 사유 — 2026-10-05
+
+배정된 Agent가 실행 조건을 만족하지 않을 때 GraphActivation.waitingReasons에 Core matcher의 실제 상태·환경 불일치 사유를 저장한다. 게시된 immutable Agent 배정만 검사하며 다른 Agent로 우회하지 않는다. 사유는 중복 제거·정렬 후 최대 12개로 제한한다. 동일 사유의 tick은 상태 저장을 반복하지 않는다. 실행 가능 시 시작/Job 복구, 취소 시 대기 사유를 제거한다. 재시작은 기존 정책대로 paused이며 사용자 resume 전 자동 실행하지 않는다.
+
+실행 기록과 현재 그래프에 호환되는 선택 노드에 대기 사유를 표시하고, activation 종료 사유도 표시한다. ready 상태의 실행 전 대기를 대상으로 하며, 이미 생성된 queued Job의 상세 대기 진단은 이번 범위에 포함하지 않는다. 한국어 사유 및 다른 언어의 영어 fallback을 제공한다.
+
+전체 Node 920개 중 919 PASS/1 fixture FAIL(누락된 Protocol runtime 조건). fixture만 수정 후 영향받는 graph-execution 13/13 PASS; 나머지 907개 성공 결과는 코드 입력이 동일하여 반복하지 않았다. 전체 lint와 수정 테스트 lint PASS. production build/TypeScript 결과는 resources/verification/dev-01/tasks/tastedev-studio/graph-waiting-20261005/checkpoint.json 참조. Node에는 별도 Debug/Release test 구성이 없다. GUI·설치·실제 Rust Agent 재실행·원격/102 전송 없음. 전체 목표 완료를 주장하지 않는다.
+## Queued Job의 실행 대기 사유 — 2026-10-05
+
+앞 단계의 ready activation 진단을 생성된 queued Job까지 확장했다. 기존 dispatch를 먼저 시도한 뒤 최신 Core Job/Run 상태를 읽어 표시한다. 고정 배정 Agent가 오프라인/환경 불일치면 실제 matcher 사유를 표시하고, 실행 조건이 맞지만 Core가 아직 배정하지 않은 경우에는 내부 정책을 추측하지 않고 Core dispatch 대기로 표시한다. 새 Agent로 우회하거나 새 Job을 생성하지 않는다. 연결 복구 후 같은 Job/Agent로 Run을 생성하며 대기 사유를 제거한다. queued 취소는 Run을 생성하지 않고 사유를 정리한다.
+
+전체 Node 922/922 PASS, fail/skip 0. 전체 lint와 production build/TypeScript 결과는 resources/verification/dev-01/tasks/tastedev-studio/queued-waiting-20261005/checkpoint.json에 기록한다. Node 별도 Debug/Release test 설정 없음. Rust Agent 소스·런타임 인터페이스 변경 없음; 실제 Agent E2E 및 Rust 빌드를 반복하지 않았다. GUI/설치/102 전송/원격 배포 미실행. 전체 목표 완료를 주장하지 않는다.
+## 관계 목표 감사 — 2026-10-05
+
+현재 코드와 실제 증거를 대조하여 관계 실행/승인/스케줄/복구의 미착수 표기를 정정했다. 빌드 산출물의 producer→Core→후속 Agent workspace 전달 계약은 미구현이다. Source Snapshot/Evidence 전송이나 동일 PC의 제어된 복사를 장비 간 산출물 전달 완료로 표시하지 않는다. 다음 구현은 이 계약과 실제 로컬 Agent 2개 작업 공간 검증이다. 최신 queued-waiting 소스4/log3 SHA 일치 확인, docs-only diff check PASS; tests/build 중복 실행 없음. 상세 감사 resources/verification/dev-01/tasks/tastedev-studio/relationship-audit-20261005/RESULT.md. 전체 목표 PARTIAL, 102/원격 배포 금지 유지.
+## 빌드 산출물 전달 기반 — 2026-10-05 / IMPLEMENTATION_IN_PROGRESS
+
+BuildArtifact producer/consumer identity와 별도 스트리밍 파일 저장 계층을 추가했다. Project/execution/revision/activation/Run/Step/Snapshot/checksum 경계, 상대 경로/credential 파일 차단, configured secret의 청크 경계 검사, checksum/size, 동일 identity 충돌/변조/동시 저장 overwrite 방지를 검증했다. HTTP 권한·Protocol 선언·Core graph 실행 binding·Rust Agent 수집/수신·GUI는 아직 연결되지 않았다. 이 기반만으로 실제 Agent 전달/4단계 PASS를 주장하지 않는다.
+
+전체 Node928/928 PASS 후 create-if-absent 저장 보강 및 동시 저장 test 추가; 영향받는 build-artifact7/7 PASS, 입력 불변의 기존922 성공은 반복하지 않았다. 전체 lint·production build/TypeScript PASS. Node 별도 Release test 설정 없음. Rust 변경·실제 Agent·GUI·설치·102 전송 없음. 증거 resources/verification/dev-01/tasks/tastedev-studio/build-artifact-foundation-20261005/{RESULT.md,checkpoint.json}, 계약 resources/guides/dev-01/tastestudio-advancement-next/BUILD-ARTIFACT-CONTRACT.md.
+## Build Artifact Protocol/Core 식별 계약 — 2026-10-05
+
+Task outputs/inputs 선언·참조/중복/경로 검증, Task/TestPlan/payload 보존, version1 capability 조건, immutable success-ancestor/최신 성공 activation과 실제 Core Run/Step 식별 조회를 추가했다. 이전 성공 producer를 최신 실패 attempt에 재사용하지 않는다. environment/Agent metadata로 identity를 위조하지 않으며 게시된 선언과 실제 payload가 달라도 거부한다. 현재 production runtime은 미활성화 상태로 산출물 작업 게시/실행을 차단한다. HTTP grant와 Rust Agent 수집/수신은 미연결이며 전체 기능 PASS가 아니다.
+
+전체 Node936 중932 PASS/4 신규 fixture FAIL. Source resolver/완료 identity fixture 수정 후 graph-artifacts4 PASS, 나머지932 성공 재사용. TypeScript 실패(권한 조회 narrowing/fixture 필드 누락) 수정, 관련 lint/production build 최종 PASS. Next 실패 당시 BUILD_ID/재개용 bundle 부재를 확인하여 export를 재생성했다. Node 별도 Release test 없음. Core 상태 전이 모델 검증이며 실제 Agent/HTTP/GUI/설치/102/원격 배포/Git 작업 없음. 증거 resources/verification/dev-01/tasks/tastedev-studio/build-artifact-protocol-20261005/{RESULT.md,checkpoint.json}.
+## Build Artifact HTTP gateway — 2026-10-05
+
+Scoped ephemeral HTTP upload/download grants and streaming authority checks are implemented. Actual localhost HTTP/Core controlled-state tests verify producer success, explicit approval, checksum download, revoked/expired rights, dummy-secret rejection and tamper protection. Node940/940, lint and production TypeScript build PASS. Production server/Rust Agent wiring remains pending; runtime stays disabled. Evidence: resources/verification/dev-01/tasks/tastedev-studio/build-artifact-http-20261005/RESULT.md. No102/remote/installer/GUI/Git actions.
+
+## Core build-artifact server wiring — 2026-10-05
+
+HTTP routing, asynchronous per-Run grant preparation, connected Agent/team authority, terminal revocation and declared-output proof before successful completion are connected. Whole Node941/941, lint and production TypeScript build PASS. Actual Core HTTP router tested; actual WebSocket graph artifact/Rust producer-consumer flow remains unverified. Production runtime defaults disabled. Evidence: resources/verification/dev-01/tasks/tastedev-studio/build-artifact-server-20261005/RESULT.md. No102/remote/install/GUI/Git.
+
+## Rust Build Artifact contract — 2026-10-05
+
+Agent accepts versioned transfer contracts only with pipeline identity and explicit buildArtifacts v1 requirements. Target/source paths reject traversal, reserved names, credential paths and duplicate targets. Endpoint origin must match locally configured Core (not a received trustedCore value); input metadata must match project, graph execution/revision and Snapshot checksum. Transfer Debug output excludes token values. Actual upload/download execution is not yet integrated, and Agent detection continues to omit buildArtifacts capability. Evidence pending at resources/verification/dev-01/tasks/tastedev-studio/build-artifact-agent-contract-20261005.
+
+Rust artifact contract local gates: Debug42/42, related Release2/2, Clippy/fmt/Release build PASS. Node server inputs SHA unchanged; Node/Web gates not repeated. Actual Rust byte transfer execution remains pending. Evidence: resources/verification/dev-01/tasks/tastedev-studio/build-artifact-agent-contract-20261005/RESULT.md.
+
+## Rust artifact HTTP executor — 2026-10-05
+
+Input staging/checksum/create-if-absent installation and bounded cancellable producer upload are integrated with the existing pipeline. Actual Rust localhost HTTP bytes and command→upload→success tests PASS; Debug retained40+affected7, related Release7/7, Clippy/fmt/Release build PASS. Full Core–Rust Agent two-workspace E2E and multi-input failure/race validation remain pending. Capability and production runtime remain disabled. Evidence: resources/verification/dev-01/tasks/tastedev-studio/build-artifact-agent-transfer-20261005/RESULT.md. No102/remote/GUI/install/Git.
+
+## Actual Build Artifact transfer — 2026-10-05
+
+Real Core and two local Rust Agents in isolated workspaces verified producer→explicit controlled approval→HTTP binary transfer→consumer PASS and intentional FAIL, with exact checksum and Snapshot identity. Multi-file rollback preserves later changes; live HTTP cancellation removes staging. Agent advertises buildArtifacts1 and Core server defaults enabled after actual backend qualification. Node941/lint/production build and Rust scoped Debug/Release/Clippy/fmt/build PASS. Evidence: resources/verification/dev-01/tasks/tastedev-studio/build-artifact-agent-safety-20261005/RESULT.md. Prior disabled-runtime records are historical. GUI artifact metadata, Unix executable-mode handling and installer/GUI qualification remain gaps; no102/remote/Git.
+
+## Captured artifact plan GUI — 2026-10-05
+
+Execution history/selected activation now display captured artifact inputs, outputs, source task and relative paths; whole-plan preview is available before approval. Public projection excludes command/environment/grant data and retains historical definitions. Declaration explicitly does not imply transfer completion. Node945/lint/production build PASS. Actual GUI verification and verified-result receipt display remain pending. Evidence: resources/verification/dev-01/tasks/tastedev-studio/build-artifact-plan-gui-20261005/RESULT.md. No102/remote/install/Git.
+
+## Verified output receipts — 2026-10-05
+
+Core-verified stored outputs now persist per activation and appear separately from declarations with checksum/size/producer/Snapshot identity. Scope and restore validation reject foreign or malformed receipts; save failures preserve prior state. Historical receipt explicitly does not prove full Run success/current blob availability/consumer install. Node947/lint/production build PASS. Actual two Rust Agents PASS+FAIL and actual SQLite restart restored2 receipts. Rust binary SHA unchanged, no repeated compile/tests. GUI visual/overall goal acceptance and Unix mode handling remain gaps. Evidence: resources/verification/dev-01/tasks/tastedev-studio/build-artifact-receipts-20261005/RESULT.md. No102/remote/install/Git.
+
+## Artifact installation contract — 2026-10-05
+
+Exact-set consumer receipt validator implemented; canonical producer and trusted consumer identity, target, size/checksum and captured Snapshot scope. Agent-injected identity or partial set rejected. Node951/lint/production build PASS. Runtime emission, authenticated grant matching, persistence and GUI are not yet connected; no actual consumer receipt qualification claimed. Evidence: resources/verification/dev-01/tasks/tastedev-studio/artifact-installation-contract-20261005/RESULT.md.
+
+## Consumer installation receipts — 2026-10-05
+
+Rust emission → authenticated Core transfer/scope/hash validation → durable producer/consumer history → GUI implemented. Actual two local Rust Agents PASS and intentional FAIL both retain installation identity; actual SQLite restart restores2 receipts. Node951 plus final affected guards PASS, Rust Debug52/related Release12/Clippy/fmt/build and final lint/production build PASS. Optional legacy report absence is not proof of installation. Visual/native GUI, Unix executable policy and actual tastedev-files product qualification remain pending. Evidence: resources/verification/dev-01/tasks/tastedev-studio/artifact-installation-runtime-20261005/RESULT.md. No102/remote deployment.
+
+## Artifact executable policy v2 — 2026-10-05
+
+Declare `executable: true|false` on every input/output of a v2 artifact step; producer and consumer must agree. Requirements/capability2 negotiated; v1 remains supported for declarations without this field. Core rejects downgrade, mismatched upload policy or receipt. Unix staging explicitly uses owner-only0700/0600, no privileged mode propagation; Windows retains metadata only. Actual local two-Agent v2 PASS/FAIL/SQLite receipt restore verified, Node955 plus final11, Rust Debug53 plus final13/related Release13/Clippy/fmt/build, final lint/production build PASS. Unix-specific tests not run here; no Linux or GUI qualification claimed. Existing relative executable restriction retained; configured Protocol test/harness required. Evidence: resources/verification/dev-01/tasks/tastedev-studio/artifact-executable-v2-20261005/RESULT.md.
+
+## Rust Source Snapshot false-positive correction — 2026-10-05
+
+The earlier real-product preflight blocker is resolved. Source transfer now distinguishes Rust typed fields and public URL examples from credential literals while retaining known-secret, credential URL, comment, filename and non-Rust conservative checks. Builder, verifier and Core chunk/cache/reopen use the same path-aware policy; a cached Rust blob cannot bypass a stricter data-file policy. External AI display masking remains unchanged. This pattern policy is not a full Rust parser or comprehensive Secret Manager.
+
+Actual read-only TASTEFILES selection: 219 entries, 218 source files retained and stored/reopened byte-for-byte, zero Rust file exclusions. The existing excluded license issuer src/bin directory remains outside this qualification. Snapshot checksum: 68148d313eec559f8105f06780a525a2f53160760af69dddba0489d1605b3039. No actual product compilation or Agent product run is proven by this preflight.
+
+Initial Node/build failures were repaired and logs preserved. Node resume812 PASS plus148 completed unaffected tests retained; final changed-policy scope21/21 PASS, lint and production export/build PASS. No separate Node Release configuration exists. Rust unchanged, no duplicate Rust gates. Evidence: resources/verification/dev-01/tasks/tastedev-studio/snapshot-rust-source-20261005/{PREFLIGHT-FINAL.json,RESULT.md,checkpoint.json}. Remaining: real product CLI Snapshot -> actual Agent build -> artifact -> consumer test qualification; GUI/native/Unix qualification remains separate. No102 transfer, remote deployment, signing, publication, commit or push.
+
+## Rust src/bin Snapshot path compatibility — 2026-10-05
+
+The first actual TASTEFILES Agent build exposed a further path-policy defect: Cargo requires the src/bin/licensegen.rs path while loading manifests even though issuer remains disabled. General bin directories were incorrectly excluded alongside build output. Studio and Rust Agent now preserve source src/bin directories while continuing to reject normal bin output, credential paths and traversal. No issuer feature/private-key operation was enabled, and product source was not edited.
+
+Node961/961, Rust Debug53/53, related Release Snapshot5/5, Clippy, fmt, Agent Release build, lint and production build PASS. Actual prior run failed at Cargo manifest loading before compilation; preserved evidence actual-1791199555438/FAILURE.json. New Agent SHA256 aeca941dc019be77a2617e89633aabd492fc052d67210b3f132bb45d567eb417. Actual product Snapshot/build/approval/consumer validation is running and is not yet a PASS claim. Evidence resources/verification/dev-01/tasks/tastedev-studio/tastefiles-actual-agent-20261005. No102, remote deployment, signing, publication, Git or GUI action.
+
+## Actual TASTEFILES CLI orchestration qualification — 2026-10-05
+
+Actual source Snapshot -> local Core -> producer Rust Agent offline Release build -> controlled explicit approval -> HTTP artifact transfer -> separate consumer Rust Agent CLI test PASS. Producer Run 9aae70c5-a805-45e3-8892-bd1b625bc265 and consumer Run 13d135ff-b847-4ddc-8272-a59733d3775f both passed. Tests exercise find hit/missing exit code, search, listing and copy content. Proposed build uses existing Cargo product/package/bin contract; no separate test runner or release/signing pipeline was introduced. Producer and consumer bytes/hash, v2 executable policy, source Snapshot identity and Core output/installation receipts match. Approval uses the controlled verification client; it does not prove installed GUI user interaction.
+
+Snapshot 0de806e5-94e2-4535-b7f9-7a2f75818c7a. Original selected219 product source hashes unchanged after workflow. Unexpected Core errors0, Agent stderr0, observed owned Core/two-Agent process residual0. Failed precondition/manifest/SDK attempts remain recorded, not relabeled PASS. Windows SDK environment repair applied only to verification Agent processes.
+
+Node961 PASS, Rust Debug53 PASS, Release5 previously checked Snapshot tests plus48 remaining tests (no repeats) PASS; fmt/Clippy/Agent Release build/lint/production export PASS. Script-only environment repair lint/typecheck PASS; no unrelated recompilation. Evidence: resources/verification/dev-01/tasks/tastedev-studio/tastefiles-actual-agent-20261005/{actual-1791200239625/RESULT.json,SOURCE-INTEGRITY-FINAL.json,PRODUCT-OUTPUT-RECEIPT.json,process-cleanup.json,checkpoint.json}.
+
+This verifies local actual CLI build and isolated workspaces, not remote-device deployment or GUI application packaging. GUI TASTEFILES product build/runtime, installed Studio visual interaction, Unix executable behavior and fresh installer/update/operator-package QA remain unverified or user-owned. No102/remote deployment, signature, publication, Git action. Overall orchestration goal remains active pending requirement-by-requirement audit.
+
+## Branding compiler input Snapshot policy — 2026-10-05
+
+Desktop TASTEFILES build reads resources/branding image files, but the former blanket resources exclusion prevented source Snapshot compilation. Studio/Core and Rust Agent now preserve that branding subtree while keeping resources/verification, guides, other operational resources, credential paths and traversal excluded. Existing size/checksum/binary secret policy remains in force; no arbitrary resources allow-list override was added.
+
+Actual read-only GUI compile inputs (5 PNG/ICO images plus UI icon LICENSE) passed byte-preserving v2 Snapshot build/verification with zero exclusions. This is input qualification only, not a GUI compile, installed visual test or remote deployment. Evidence resources/verification/dev-01/tasks/tastedev-studio/branding-snapshot-20261005/ASSET-PREFLIGHT.json. Node962/full, Rust Debug53/related Release Snapshot5, fmt/Clippy/Agent Release build/lint/production build PASS. Previous actual CLI E2E is historical evidence for its recorded policy/Agent inputs, not proof of the changed branding Agent binary.
+
+Next: real desktop product compile/immutable output qualification, using existing Cargo package/bin contract and required assets. Preserve CLI build/test evidence and avoid recompiling unaffected Studio/Agent source. GUI visual/native/Linux/install/user QA remain separately unverified. No102/remote/sign/publication/Git action.
+
+## Actual TASTEFILES desktop build and delivery — 2026-10-05
+
+Current branding-capable Core/Rust Agent verified actual desktop source Snapshot -> offline Cargo Release build -> controlled explicit approval -> HTTP executable transfer -> separate consumer Agent byte/hash and Windows x64 PE structure verification. Producer Run2cbc6bf0-c44d-4179-b83e-2d9966190c0b and consumer Run2d51ba3f-9cac-40eb-b788-8a82c4eced68 both PASS. The GUI executable was not launched; PE integrity is not a functional UI test or installer qualification. Controlled verification approval is not proof of installed GUI interaction.
+
+The earlier long-path RC failure and missing THIRD_PARTY.md input are preserved. Short-path RC probe succeeded; the current Snapshot includes source, actual branding/icon LICENSE and THIRD_PARTY.md. Cache preconditions verified225 unchanged inputs; cache audit verified234 compiled rlib byte hashes and copied timestamps (1ms tolerance for Node timestamp precision),6 changed/missing libraries. Cargo fingerprints decided rebuilds; no unqualified old desktop executable was reused. The fixed trusted Protocol task invokes the same existing Cargo package/bin/locked/offline/release contract without an unrestricted shell or release/signing runner.
+
+Original selected226 file hashes unchanged after verification. Core unexpected errors0, Agent stderr0. Recorded Core and verification Agent process residual0; verifier awaited owned child exits. No102/remote deployment, native GUI launch, installer, signing, publication or Git action.
+
+Evidence resources/verification/dev-01/tasks/tastedev-studio/tastefiles-desktop-agent-20261005/{actual-1791202013367/RESULT.json,OUTPUT-RECEIPT.json,SOURCE-INTEGRITY-FINAL.json,CACHE-OUTPUT-AUDIT.json,PROCESS-CLEANUP.json,PATH-PROBE.json,checkpoint.json}. Script lint/typecheck PASS, existing Node962/Rust Debug53/related Release5/lint/Clippy/Agent build/production Web gates retained for unchanged application inputs. Remaining overall audit must distinguish implemented relationships/execution/approval/scheduler/recovery from native visual, Unix, latest packaging and user installation/update evidence.
+
+## Current Core runtime packaging audit — 2026-10-05
+
+A fresh current Core bundle failed the packaging credential/secret filename guard on the public snapshot-secrets.ts policy module. Renamed to snapshot-content-policy.ts with byte-identical contents, updating builder/transport/test imports; the safety guard remains unchanged. Current455 source and actual resolved dependency hashes match the standalone bundle. Actual bundled localhost Core readiness PASS, unexpected errors0. Full Node963 (package6 plus remaining957 without duplicate execution), lint and production build/export PASS. Rust unchanged and not recompiled. Evidence: resources/verification/dev-01/tasks/tastedev-studio/completion-audit-20261005/{RESULT.md,INPUT-INTEGRITY.json,BUNDLED-CORE-READINESS.json,checkpoint.json}. This proves current runtime integrity, not a fresh operator ZIP, signed release, service installation, GUI or Linux QA. Overall requirement audit remains active; no102/remote/Git action.
+
+## Relationship orchestration local implementation closure — 2026-10-05
+
+The six node kinds and explicit device/Agent/role/task/approval/schedule relationships, Core publication/execution/queue/approval/recovery, build artifact producer/consumer lineage, receipts, retry/failure safety and current Core packaging are DEV_VERIFIED. The final requirement mapping and actual verification limits are recorded in completion-audit-20261005/ACCEPTANCE.md and EVIDENCE-INDEX.md under resources/verification/dev-01/tasks/tastedev-studio. Current Node964 coverage combines unchanged completed963 with the new packaging host-reuse test1; script-only follow-up used scoped lint/PowerShell syntax, no Studio or Agent rebuild. Rust Release53 combines unchanged completed Snapshot5 with remaining48, without repeated tests or compilation. Actual TASTEFILES CLI and desktop qualification retain their precise recorded scopes; desktop PE/byte validation is not GUI execution.
+
+Current Windows Core operator ZIP contains463 verified manifest files and reuses a source/tool/compiler/executable hash-verified shared service host. Legacy host compiler provenance was absent, so one controlled shared host compilation established the new record; actual package creation reused it. The ZIP is unsigned, requires external Node24 and performs no service installation. OPERATOR-PACKAGE.json records archive SHA. Installed GUI/updater/SCM/Linux/physical remote-device QA remains unperformed and user-owned. Current uncommitted source is not READY_FOR_QA or a published release. No102 transfer, remote deployment, signature, release, commit or push.

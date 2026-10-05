@@ -1,3 +1,4 @@
+import {buildArtifactGateway} from './build-artifact-gateway.ts';
 import {GraphExecutionService} from './graph-execution.ts';
 import {PullRequestService,type PullProvider} from '../src/features/git/pull-requests.ts';
 import {GitHubPullProvider} from './pull-request-provider.ts';
@@ -47,7 +48,7 @@ import { CoreStore, SqliteCoreRepository, storageKey, StorageError, STORAGE_VERS
 import type { LogState } from './protocol.ts';
 import { validateAgent } from '../src/features/core/matcher.ts';
 import { decode, identifier, timestamp, PROTOCOL, MESSAGE_LIMIT, RunLogs, type Message } from './protocol.ts';
-export interface ServerOptions { accessMode?:'local-single-user'|'team';team?:TeamConfiguration;storagePath?:string; storageKey?:Uint8Array; schedulePath?:string; pullProvider?:PullProvider; issueProvider?:IssueProvider; artifactRoot?:string; artifactBaseUrl?:string; port?:number; host?:string; agentToken:string; studioToken:string; allowLan?:boolean; origins?:string[]; heartbeatTimeoutMs?:number; version?:string; shutdownTimeoutMs?:number; runtimeEvent?:(level:'info'|'warn'|'error',event:string,fields?:Record<string,unknown>)=>void }
+export interface ServerOptions { buildArtifactRuntime?:boolean; accessMode?:'local-single-user'|'team';team?:TeamConfiguration;storagePath?:string; storageKey?:Uint8Array; schedulePath?:string; pullProvider?:PullProvider; issueProvider?:IssueProvider; artifactRoot?:string; artifactBaseUrl?:string; port?:number; host?:string; agentToken:string; studioToken:string; allowLan?:boolean; origins?:string[]; heartbeatTimeoutMs?:number; version?:string; shutdownTimeoutMs?:number; runtimeEvent?:(level:'info'|'warn'|'error',event:string,fields?:Record<string,unknown>)=>void }
 const auth=(actual:unknown,expected:string)=>typeof actual==='string'&&actual.length<=512&&timingSafeEqual(createHash('sha256').update(actual).digest(),createHash('sha256').update(expected).digest());
 export async function startCoreServer(options:ServerOptions) {
   const host=options.host??'127.0.0.1';
@@ -77,7 +78,7 @@ export async function startCoreServer(options:ServerOptions) {
   const authorizeHTTP=(req:IncomingMessage,projectId:string,action:TeamAction,target?:string)=>{if(!team)return;const identity=requestIdentities.get(req);if(!identity)throw new TeamAccessError();team.require(identity,projectId,action,target);};
   const projects=new Map<string,Project>(store?.get<[string,Project][]>('projects')??[]);
   const allocation=team?new TeamAllocation(team,()=>service.repository.read()):undefined;
-  const service:CoreService=new CoreService(store?new SqliteCoreRepository(store):new InMemoryCoreRepository(),{get:async id=>projects.get(id)??null},{allowAssignment:(job)=>!graphExecution?.owns(job.id)||graphExecution.allows(job.id),...(team&&allocation?{allowAgent:(p:string,a:string)=>team.allowedAgent(p,a),agentSessionValid:(a:string)=>team.validAgentSession(a,agentSessionHashes.get(a)??''),admitJob:allocation.admit.bind(allocation),allowAssignment:(job:import('../src/features/core/domain.ts').Job,runs:import('../src/features/core/domain.ts').Run[],jobs:import('../src/features/core/domain.ts').Job[])=>permittedJob(job.id,job.projectId)&&allocation.eligible(job,runs,jobs),strategy:allocation.strategy}:{})});
+  const service:CoreService=new CoreService(store?new SqliteCoreRepository(store):new InMemoryCoreRepository(),{get:async id=>projects.get(id)??null},{buildArtifactRuntime:options.buildArtifactRuntime!==false,allowAssignment:(job)=>!graphExecution?.owns(job.id)||graphExecution.allows(job.id),...(team&&allocation?{allowAgent:(p:string,a:string)=>team.allowedAgent(p,a),agentSessionValid:(a:string)=>team.validAgentSession(a,agentSessionHashes.get(a)??''),admitJob:allocation.admit.bind(allocation),allowAssignment:(job:import('../src/features/core/domain.ts').Job,runs:import('../src/features/core/domain.ts').Run[],jobs:import('../src/features/core/domain.ts').Job[])=>permittedJob(job.id,job.projectId)&&allocation.eligible(job,runs,jobs),strategy:allocation.strategy}:{})});
   // Socket presence is never restored. Active execution identities remain reserved.
   if(store)service.repository.transaction(tx=>{for(const a of tx.agents.list())a.status='offline';});
   const logs=new RunLogs(store?.get<LogState>('logs'),store?value=>store.put('logs',value):undefined);const agents=new Map<string,{socket:WebSocket;seen:number}>();const studios=new Map<WebSocket,string>();
@@ -97,7 +98,14 @@ export async function startCoreServer(options:ServerOptions) {
     const remaining=Math.max(0,Date.parse(run.startedAt??run.createdAt)+job.payload.testPlan.timeout-Date.now());
     runTimers.set(runId,setTimeout(()=>{try{orchestrator.terminate(runId,'timeout');send(ws,{type:'cancel',runId});}catch{ws.close(1011,'Core persistence failed; execution retained');}},remaining));
   }
-  function advance(runId:string) {
+  const advancing=new Map<string,Promise<void>>();
+  function advance(runId:string){
+    const previous=advancing.get(runId);if(previous)return previous;
+    operations++;
+    const task=advanceStep(runId).catch(async()=>{event('error','build.step_prepare_failed',{runId});try{const run=service.repository.readEntity?.('runs',runId),step=run&&service.snapshot(run.projectId,undefined,runId).steps.find(s=>s.runId===runId&&s.status==='running');if(step){buildArtifacts.revoke(step.id);sources.revoke(step.id);artifacts.revoke(step.id);}if(run&&step){orchestrator.complete(runId,step.id,'failed',null,'Pipeline step preparation failed.');await advanceStep(runId);}else failRun(runId,'Pipeline step preparation failed.');}catch{event('error','pipeline.prepare_cleanup_failed',{runId});failRun(runId,'Pipeline preparation or cleanup failed.');}}).finally(()=>{advancing.delete(runId);operations--;});
+    advancing.set(runId,task);return task;
+  }
+  async function advanceStep(runId:string) {
     const next=orchestrator.next(runId);
     if(!next){const done=orchestrator.finish(runId);if(done){clearTimeout(runTimers.get(runId));runTimers.delete(runId);const ws=agents.get(done.agentId)?.socket;if(ws)send(ws,{type:'closeRun',runId});}return;}
     const {run,job,step,command}=next,ws=agents.get(run.agentId)?.socket;
@@ -107,7 +115,9 @@ export async function startCoreServer(options:ServerOptions) {
     if(command.stage==='cleanup'){clearTimeout(runTimers.get(runId));runTimers.delete(runId);}
     const source=command.source?.provider==='snapshot'&&command.source.snapshot.schemaVersion===2?{...command.source,snapshot:sources.grant(runId,step.id,command.source.snapshot as ProjectSnapshot,options.artifactBaseUrl??`http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`)}:command.source?transferSource(command.source,run.projectId,sourceCaches.get(run.agentId)):undefined;
     if(source?.provider==='snapshot')event('info','source.transfer',{runId,projectId:run.projectId,files:source.snapshot.files.length,reusedFiles:source.snapshot.files.filter(file=>(file as unknown as {cached?:boolean}).cached).length,transferredBytes:source.snapshot.files.reduce((n,file)=>n+Buffer.byteLength(file.content),0)});
-    send(ws,{type:'execute',agentId:run.agentId,jobId:job.id,runId,runStepId:step.id,projectId:run.projectId,requirements:job.requirements,executable:command.executable,args:command.args,cwd:command.cwd,env:command.env??{},timeoutMs:command.timeoutMs??60000,stage:command.stage,...(command.browser?{browser:command.browser,artifactTransfer:{...artifacts.grant(runId,step.id,options.artifactBaseUrl??`http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`),...(sourceCaches.has(run.agentId)?{resumable:true}:{})}}:{}),...(source?{source}:{}),...(command.healthcheck?{healthcheck:command.healthcheck}:{})});
+    const buildArtifactTransfer=command.buildArtifacts?await buildArtifacts.grant(runId,step.id,options.artifactBaseUrl??`http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`):undefined;
+    if(buildArtifactTransfer){if(draining||agents.get(run.agentId)?.socket!==ws||ws.readyState!==WebSocket.OPEN){buildArtifacts.revoke(step.id);throw Error('Agent transport changed during artifact preparation.');}graphExecution.buildArtifactOrigin(job.id,step.id);}
+    send(ws,{type:'execute',agentId:run.agentId,jobId:job.id,runId,runStepId:step.id,projectId:run.projectId,requirements:job.requirements,executable:command.executable,args:command.args,cwd:command.cwd,env:command.env??{},timeoutMs:command.timeoutMs??60000,stage:command.stage,...(buildArtifactTransfer?{buildArtifactTransfer}:{}),...(command.browser?{browser:command.browser,artifactTransfer:{...artifacts.grant(runId,step.id,options.artifactBaseUrl??`http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`),...(sourceCaches.has(run.agentId)?{resumable:true}:{})}}:{}),...(source?{source}:{}),...(command.healthcheck?{healthcheck:command.healthcheck}:{})});
   }
   const providerName=process.env.TASTEDEV_AI_PROVIDER??'codex';
   if(!['codex','openai'].includes(providerName))throw new Error('TASTEDEV_AI_PROVIDER must be codex or openai.');
@@ -138,7 +148,7 @@ export async function startCoreServer(options:ServerOptions) {
   })();
   const server=createServer((req,res)=>{
     const json=(code:number,value:unknown)=>{res.writeHead(code,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(value)+'\n');};
-    if(team&&req.method!=='OPTIONS'&&!['/health/live','/health/ready','/runtime'].includes(req.url??'')&&!(req.url?.startsWith('/sources/agent/')&&req.method==='GET')&&!(req.url?.startsWith('/artifacts/')&&['PUT','HEAD'].includes(req.method??''))){
+    if(team&&req.method!=='OPTIONS'&&!['/health/live','/health/ready','/runtime'].includes(req.url??'')&&!(req.url?.startsWith('/build-artifacts/')&&['GET','PUT'].includes(req.method??''))&&!(req.url?.startsWith('/sources/agent/')&&req.method==='GET')&&!(req.url?.startsWith('/artifacts/')&&['PUT','HEAD'].includes(req.method??''))){
       try{if(req.headers.origin&&!origins.includes(req.headers.origin))throw new TeamAccessError();const identity=team.authenticate(req.headers.authorization?.replace(/^Bearer /,''));requestIdentities.set(req,identity);
         if(req.url==='/runtime/stop')team.require(identity,null,'access-manage');else team.require(identity,String(req.headers['x-project-id']??''),'read');
         if(req.url?.startsWith('/artifacts/'))authorizeHTTP(req,String(req.headers['x-project-id']??''),req.method==='DELETE'?'history-write':'read');
@@ -152,7 +162,7 @@ export async function startCoreServer(options:ServerOptions) {
       json(202,{state:'draining'});res.once('finish',()=>{void stop().catch(()=>{event('error','core.stop_failed');});});return;
     }
     if(draining){json(503,{error:'Core is draining'});return;}
-    operations++;const task=req.url?.startsWith('/sources/')?sources.handle(req,res):req.url?.startsWith('/ai/')?ai(req,res):req.url?.startsWith('/issues/')?issues.handle(req,res):req.url?.startsWith('/history/')?historyHandler(req,res):artifacts.handle(req,res);
+    operations++;const task=req.url?.startsWith('/build-artifacts/')?buildArtifacts.handle(req,res):req.url?.startsWith('/sources/')?sources.handle(req,res):req.url?.startsWith('/ai/')?ai(req,res):req.url?.startsWith('/issues/')?issues.handle(req,res):req.url?.startsWith('/history/')?historyHandler(req,res):artifacts.handle(req,res);
     void Promise.resolve(task).catch(()=>{event('error','http.operation_failed');if(!res.headersSent)json(500,{error:'Core operation failed'});else res.destroy();}).finally(()=>{operations--;});
   });
   const wss=new WebSocketServer({noServer:true,maxPayload:MESSAGE_LIMIT,perMessageDeflate:false});
@@ -187,6 +197,7 @@ export async function startCoreServer(options:ServerOptions) {
     const step=a.job.payload.steps[0];send(socket,{type:'execute',agentId:a.agent.id,jobId:a.job.id,runId:a.run.id,projectId,requirements:a.job.requirements,executable:step.executable,args:step.args,cwd:step.cwd,env:step.env??{},timeoutMs:step.timeoutMs??60000});return a;
   }
   const graphExecution=new GraphExecutionService(service,(p,j)=>dispatch(p,j),(p,j)=>{const job=service.snapshot(p).jobs.find(v=>v.id===j);if(job&&!['queued','assigned','running'].includes(job.status))return;service.cancelJob(p,j);const run=service.snapshot(p).runs.find(r=>r.jobId===j&&activeRun(r));if(run){const ws=agents.get(run.agentId)?.socket;if(ws)send(ws,{type:'cancel',runId:run.id});}},store?{load:()=>store.get('node-orchestration'),save:value=>store.put('node-orchestration',value)}:undefined,(actor,p,action)=>{if(team){const identity=JSON.parse(actor) as TeamIdentity&{requiresScheduleManagement?:boolean;scheduleId?:string};team.require(identity,p,action);if(identity.requiresScheduleManagement&&action==='run')team.require(identity,p,'schedule-manage',identity.scheduleId);}},Date.now,(snapshot,p)=>sources.resolve(snapshot,p),{attempt:(p,id)=>history.get(p,'attempt',id)?.value as import('../src/features/ai/fix-service.ts').FixAttempt|undefined,connections:p=>connections.list(p),analysis:(p,id)=>history.get(p,'analysis',id)?.value as import('../src/features/ai/domain.ts').AnalysisRecord|undefined});
+  const buildArtifacts=buildArtifactGateway(service,graphExecution,(options.artifactRoot??path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../../../resources/artifacts/tastedev-studio'))+'-builds',origins,(p,a,j)=>!draining&&agents.get(a)?.socket.readyState===WebSocket.OPEN&&(!team||team.allowedAgent(p,a)&&team.validAgentSession(a,agentSessionHashes.get(a)??'')&&permittedJob(j,p)),Date.now,[options.studioToken,options.agentToken,...issueSecrets]);
   scheduler.setGraphAdapter({
     validate:(p,target)=>{const d=graphExecution.overview(p).definition;if(!d||d.revision!==target.revision||d.checksum!==target.checksum||!d.graph.nodes.some(n=>n.id===target.entryNodeId&&['task','approval'].includes(n.kind))||d.graph.edges.some(e=>e.to===target.entryNodeId&&e.relation==='success'))throw new CoreError('Review the current graph revision and root.');},
     active:p=>graphExecution.overview(p).executions.some(e=>['running','paused','cancelling'].includes(e.status)),
@@ -271,17 +282,19 @@ export async function startCoreServer(options:ServerOptions) {
           if(m.type==='accepted'){if(pipelineJob.cancellationRequestedAt&&pipelineJob.payload.steps[step.order].stage!=='cleanup')send(ws,{type:'cancel',runId});return;}
           if(m.type==='result'||m.type==='rejected'){
             if(step.status==='pending')throw new CoreError('Step result before durable assignment.');
-            if(step.status!=='running'){send(ws,{type:'ack',runId,runStepId:stepId});advance(runId);return;}
+            if(step.status!=='running'){send(ws,{type:'ack',runId,runStepId:stepId});await advance(runId);return;}
             const status=m.type==='rejected'?'failed':run.termination==='timeout'&&m.status==='cancelled'&&pipelineJob.payload.steps[step.order].stage!=='cleanup'?'timeout':m.status;
             if(!['passed','failed','timeout','cancelled'].includes(status as string))throw new CoreError('Invalid step result.');
             try {
               if(m.type==='result'&&Date.parse(timestamp(m.finishedAt))<Date.parse(timestamp(m.startedAt)))throw new CoreError('Invalid step timestamps.');
               let summary:ReturnType<typeof browserResult>|undefined;try{summary=m.browserResult?browserResult(m.browserResult,Object.values(pipelineJob.payload.steps[step.order].env??{})):undefined;}catch{throw new CoreError('Invalid browser result.');}
               let verifiedContent:string|undefined;const assignedSource=pipelineJob.payload.steps[step.order].source;if(m.revision&&assignedSource?.provider==='snapshot'){const manifest=assignedSource.snapshot.schemaVersion===2?await sources.resolve(assignedSource.snapshot as import('../src/features/ai/project-snapshot.ts').ProjectSnapshot,run.projectId):assignedSource.snapshot;verifiedContent=await sourceContentHash(manifest);}const environment=executionEnvironment(m.executionEnvironment,pipelineJob.requirements);
+              if(m.artifactInstallation!==undefined&&!pipelineJob.cancellationRequestedAt&&['passed','failed'].includes(status as string)){const receipt=await buildArtifacts.verifyInstallation(pipelineJob.id,stepId,m.artifactInstallation);graphExecution.recordArtifactInstallation(pipelineJob.id,stepId,receipt);}
+              if(status==='passed'&&pipelineJob.payload.steps[step.order].buildArtifacts){const outputs=await buildArtifacts.verifyOutputs(pipelineJob.id,stepId);graphExecution.recordBuildArtifactOutputs(pipelineJob.id,stepId,outputs);}
               orchestrator.complete(runId,stepId,status as TerminalStatus,m.type==='rejected'?null:m.exitCode as number|null,m.type==='rejected'?'Agent rejected step.':status==='passed'?undefined:(summary?.failures[0]?.message??`${step.name} ${status}.`),m.revision as SourceRevision|undefined,typeof m.serviceId==='string'?m.serviceId:undefined,summary,executionReport(m),environment,verifiedContent);
-            } catch(error) {if(!(error instanceof CoreError))throw error;orchestrator.complete(runId,stepId,'failed',null,'Agent returned an invalid step result.');send(ws,{type:'cancel',runId});}
+            } catch(error) {if(error instanceof StorageError)throw error;if(!(error instanceof CoreError)&&!pipelineJob.payload.steps[step.order].buildArtifacts)throw error;orchestrator.complete(runId,stepId,'failed',null,'Agent returned an invalid step result.');send(ws,{type:'cancel',runId});}
             if(pipelineJob.payload.steps[step.order].stage==='source'&&status!=='passed')sourceCaches.delete(agentId);
-            artifacts.revoke(stepId);sources.revoke(stepId);send(ws,{type:'ack',runId,runStepId:stepId});advance(runId);schedule();return;
+            artifacts.revoke(stepId);sources.revoke(stepId);buildArtifacts.revoke(stepId);send(ws,{type:'ack',runId,runStepId:stepId});advance(runId);schedule();return;
           }
           throw new CoreError('Unknown pipeline message.');
         }

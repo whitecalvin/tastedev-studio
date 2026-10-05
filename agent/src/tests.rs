@@ -1,6 +1,6 @@
 use super::*;
 use crate::executor::execute;
-fn request() -> Request {
+pub(crate) fn request() -> Request {
     Request {
         protocol_version: 1,
         kind: "execute".into(),
@@ -23,7 +23,16 @@ fn request() -> Request {
         healthcheck: None,
         browser: None,
         artifact_transfer: None,
+        build_artifact_transfer: None,
     }
+}
+#[test]
+fn build_artifact_capability_does_not_require_transfer_on_cleanup() {
+    let mut r = request();
+    r.run_step_id = Some(uuid::Uuid::new_v4().to_string());
+    r.stage = Some("cleanup".into());
+    r.requirements.build_artifacts = Some(1);
+    assert!(r.validate("test-agent").is_ok());
 }
 #[test]
 fn browser_request_requires_capabilities_and_safe_config() {
@@ -63,6 +72,7 @@ fn capability_recheck_rejects_a_stale_advertised_runtime_before_execution() {
     request.requirements.runtimes = Some([("node".into(), ">=999".into())].into());
     let advertised = Capabilities {
         source_snapshot: Some(2),
+        build_artifacts: None,
         cpu_cores: 2,
         memory_mi_b: 1024,
         docker: false,
@@ -79,6 +89,7 @@ fn execution_observation_omits_unrequested_stale_runtime_inventory() {
     let request = request();
     let advertised = Capabilities {
         source_snapshot: Some(2),
+        build_artifacts: None,
         cpu_cores: 2,
         memory_mi_b: 2048,
         docker: false,
@@ -98,6 +109,7 @@ fn capability_check_observes_cancellation_before_starting_a_tool_probe() {
     request.requirements.runtimes = Some([("node".into(), ">=24".into())].into());
     let advertised = Capabilities {
         source_snapshot: Some(2),
+        build_artifacts: None,
         cpu_cores: 2,
         memory_mi_b: 1024,
         docker: false,
@@ -133,6 +145,7 @@ fn capability_probe_respects_task_path_instead_of_agent_path() {
     request.requirements.runtimes = Some([("git".into(), ">=1".into())].into());
     let advertised = Capabilities {
         source_snapshot: Some(2),
+        build_artifacts: None,
         cpu_cores: 2,
         memory_mi_b: 1024,
         docker: false,
@@ -354,6 +367,7 @@ fn capability_matching() {
     let r = request();
     let c = Capabilities {
         source_snapshot: Some(2),
+        build_artifacts: None,
         cpu_cores: 2,
         memory_mi_b: 4096,
         docker: false,
@@ -465,4 +479,61 @@ fn compiler_environment_is_narrow_and_never_inherits_credentials() {
         assert!(!keys.contains(&"TASTEDEV_AGENT_TOKEN"));
         assert!(!keys.contains(&"OPENAI_API_KEY"));
     }
+}
+
+#[test]
+fn build_artifact_paths_and_contract_fail_closed() {
+    for path in [
+        "../app.exe",
+        "/tmp/app",
+        "out\\app.exe",
+        "out/con.exe",
+        ".env",
+        "a/credentials.json",
+        "out/app:p",
+        "out//app",
+        "out/app.",
+    ] {
+        assert!(crate::build_artifact::safe_path(path).is_err(), "{path}");
+    }
+    assert!(crate::build_artifact::safe_path("out/app.exe").is_ok());
+    let mut r = request();
+    r.run_step_id = Some(uuid::Uuid::new_v4().to_string());
+    r.stage = Some("build".into());
+    r.requirements.build_artifacts = Some(1);
+    r.env.insert("TASTEDEV_GRAPH_CONTEXT".into(),serde_json::json!({"executionId":"execution-1","revision":1,"snapshotId":"snapshot-1","sourceChecksum":"a".repeat(64)}).to_string());
+    let value = serde_json::json!({"version":1,"outputs":[{"name":"desktop","path":"out/app.exe","id":"a".repeat(64),"url":format!("http://127.0.0.1:4340/build-artifacts/upload/{}","a".repeat(64)),"token":"b".repeat(64)}],"inputs":[]});
+    let mut transfer: crate::build_artifact::Transfer = serde_json::from_value(value).unwrap();
+    assert!(transfer.validate(&r).is_err());
+    transfer.trusted_core = Some("ws://127.0.0.1:4340/agent".into());
+    assert!(transfer.validate(&r).is_ok());
+    assert!(!format!("{transfer:?}").contains(&"b".repeat(64)));
+    transfer.outputs[0].url = format!(
+        "http://example.invalid/build-artifacts/upload/{}",
+        "a".repeat(64)
+    );
+    assert!(transfer.validate(&r).is_err());
+    transfer.outputs[0].url = format!(
+        "http://127.0.0.1:4340/build-artifacts/upload/{}",
+        "a".repeat(64)
+    );
+    transfer.outputs[0].path = "../escape.exe".into();
+    assert!(transfer.validate(&r).is_err());
+}
+#[test]
+fn build_artifact_input_project_and_snapshot_lineage_are_required() {
+    let mut r = request();
+    r.run_step_id = Some(uuid::Uuid::new_v4().to_string());
+    r.stage = Some("test".into());
+    r.requirements.build_artifacts = Some(1);
+    r.env.insert("TASTEDEV_GRAPH_CONTEXT".into(),serde_json::json!({"executionId":"execution-1","revision":1,"snapshotId":"snapshot-1","sourceChecksum":"a".repeat(64)}).to_string());
+    let value = serde_json::json!({"version":1,"outputs":[],"inputs":[{"name":"desktop","path":"received/app.exe","url":format!("http://127.0.0.1:4340/build-artifacts/download/{}","a".repeat(64)),"token":"b".repeat(64),"artifact":{"version":1,"id":"a".repeat(64),"projectId":r.project_id,"executionId":"execution-1","graphRevision":1,"producerActivationId":"producer-1","producerNodeId":"build","producerRunId":"run-1","producerStepId":"step-1","snapshotId":"snapshot-1","sourceChecksum":"a".repeat(64),"name":"desktop","path":"out/app.exe","size":5,"checksum":"c".repeat(64)}}]});
+    let mut transfer: crate::build_artifact::Transfer = serde_json::from_value(value).unwrap();
+    transfer.trusted_core = Some("ws://127.0.0.1:4340/agent".into());
+    assert!(transfer.validate(&r).is_ok());
+    transfer.inputs[0].artifact.project_id = "other".into();
+    assert!(transfer.validate(&r).is_err());
+    transfer.inputs[0].artifact.project_id = r.project_id.clone();
+    transfer.inputs[0].artifact.snapshot_id = "other".into();
+    assert!(transfer.validate(&r).is_err());
 }

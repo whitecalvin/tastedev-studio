@@ -8,6 +8,7 @@ import {once} from 'node:events';
 import {WebSocket} from 'ws';
 import {startCoreServer} from './server.ts';
 import {initialGraph,newNode} from '../src/features/orchestration/domain.ts';
+import {assignAgentDevice} from '../src/features/orchestration/device-membership.ts';
 import {buildProjectSnapshot,snapshotBytes} from '../src/features/ai/project-snapshot.ts';
 import {uploadProjectSnapshot} from '../src/features/core/source-upload.ts';
 import type {GraphOverview} from '../src/features/orchestration/execution.ts';
@@ -37,8 +38,11 @@ try{
  const snapshot=await uploadProjectSnapshot(built.snapshot,request);checks.push('Authenticated Source upload; dummy .env excluded');
  const agentConfig=path.join(root,'agent.json');fs.writeFileSync(agentConfig,JSON.stringify({endpoint:`ws://127.0.0.1:${server.port}/agent`,name:'Actual graph Agent',workspaceRoot:path.join(root,'agent'),heartbeatMs:200,reconnectMaxMs:500,logLevel:'error'}));
  agent=spawn(agentBinary,['--config',agentConfig],{windowsHide:true,env:{...process.env,TASTEDEV_AGENT_TOKEN:token},stdio:['ignore','ignore','pipe']});agent.stderr!.on('data',b=>agentErrors+=b.toString());agent.on('error',()=>{agentErrors+='Agent failed to start';});await wait(()=>server.service.listAgents().some(a=>a.status==='idle'));const agentId=server.service.listAgents()[0].id;
- const graph=initialGraph(project.id);graph.nodes.push({...newNode('agent','agent',0),reference:agentId},{...newNode('role','deploy-role',1),role:'deployment'},{...newNode('role','test-role',2),role:'testing'},newNode('approval','review',3),...['build','shared','deploy','test'].map((id,i)=>({...newNode('task',id,i+4),reference:id==='test'?'verification':id,taskType:id==='test'?'test' as const:'task' as const})));
- graph.edges.push({id:'host',from:'current-pc',to:'agent',relation:'hosts'},{id:'deploy-assign',from:'current-pc',to:'deploy-role',relation:'assigns'},{id:'test-assign',from:'current-pc',to:'test-role',relation:'assigns'},...['build','shared','deploy','test'].map(id=>({id:'performs-'+id,from:id==='deploy'?'deploy-role':id==='test'?'test-role':'role-implementation',to:id,relation:'performs' as const})),...['build','shared','review','deploy','test'].slice(0,-1).map((from,i)=>({id:'flow-'+i,from,to:['shared','review','deploy','test'][i],relation:'success' as const})));
+ let graph=initialGraph(project.id);graph.nodes.push({...newNode('agent','agent',0),reference:agentId},{...newNode('role','deploy-role',1),role:'deployment'},{...newNode('role','test-role',2),role:'testing'},newNode('approval','review',3),...['build','shared','deploy','test'].map((id,i)=>({...newNode('task',id,i+4),reference:id==='test'?'verification':id,taskType:id==='test'?'test' as const:'task' as const})));
+ graph.edges.push({id:'deploy-assign',from:'current-pc',to:'deploy-role',relation:'assigns'},{id:'test-assign',from:'current-pc',to:'test-role',relation:'assigns'},...['build','shared','deploy','test'].map(id=>({id:'performs-'+id,from:id==='deploy'?'deploy-role':id==='test'?'test-role':'role-implementation',to:id,relation:'performs' as const})),...['build','shared','review','deploy','test'].slice(0,-1).map((from,i)=>({id:'flow-'+i,from,to:['shared','review','deploy','test'][i],relation:'success' as const})));
+ graph=assignAgentDevice(graph,project.id,'agent','current-pc','host');
+ const withoutDevice=assignAgentDevice(graph,project.id,'agent','','unused');
+ await assert.rejects(rpc('publish',{graph:withoutDevice,sources,snapshot,expectedRevision:0}));assert.equal(server.service.snapshot(project.id).jobs.length,0);checks.push('Role without a declared device Agent rejected; no execution created');
  await assert.rejects(rpc('publish',{graph,sources,snapshot:{...snapshot,checksum:'a'.repeat(64),transfer:{...snapshot.transfer,manifestChecksum:'a'.repeat(64)}},expectedRevision:0}));assert.equal(server.service.snapshot(project.id).jobs.length,0);checks.push('Unstored/tampered Source publication rejected');
  const d=(await rpc('publish',{graph,sources,snapshot,expectedRevision:0})).definition!;
  const start=async(id:string)=>{await rpc('start',{revision:d.revision,checksum:d.checksum,entryNodeId:'build',requestId:id});};
@@ -48,6 +52,8 @@ try{
  // Changing the original working tree cannot alter the frozen Source on later nodes.
  fs.writeFileSync(path.join(source,'artifact.txt'),'changed after publication');await approve();await wait(()=>server.graphExecution.overview(project.id).executions[0].status==='passed');assert.equal(hash(fs.readFileSync(path.join(output,'deployed.bin'))),artifactHash);checks.push('Approved local deployment and actual Rust Agent Test PASS; immutable Source and artifact checksum matched');
  // New publication and approval for a controlled failing Test and independent history.
+ // Shared tool inputs are unchanged; its successful gate is not repeated in later scenarios.
+ graph.nodes=graph.nodes.filter(n=>n.id!=='shared');graph.edges=graph.edges.filter(edge=>edge.from!=='shared'&&edge.to!=='shared');graph.edges.push({id:'build-review',from:'build',to:'review',relation:'success'});
  graph.nodes.find(n=>n.id==='test')!.reference='fail';graph.nodes.find(n=>n.id==='test')!.taskType='task';const failedD=(await rpc('publish',{graph,sources,snapshot,expectedRevision:1})).definition!;
  await rpc('start',{revision:failedD.revision,checksum:failedD.checksum,entryNodeId:'build',requestId:'actual-fail'});await wait(()=>approval()?.activations.some(a=>a.status==='approval'));await approve();await wait(()=>server.graphExecution.overview(project.id).executions.find(e=>e.id==='actual-fail')?.status==='failed');checks.push('Actual failed Test preserves independent history and failure logs');
  graph.nodes.find(n=>n.id==='test')!.reference='wait';const cancelD=(await rpc('publish',{graph,sources,snapshot,expectedRevision:2})).definition!;

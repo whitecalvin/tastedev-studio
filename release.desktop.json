@@ -67,9 +67,12 @@
     "rpmLicense": "MIT OR Apache-2.0",
     "packageScript": "scripts/package-linux-release.sh",
     "extraPackages": [
+      "tastedev-studio-desktop",
+      "tastedev-studio-core",
       "tastedev-studio-agent",
       "tastedev-studio-server"
-    ]
+    ],
+    "prepareScript": "scripts/prepare-linux-release.sh"
   },
   "ssh": {
     "identityFileFromUserProfile": ".ssh/id_ed25519",
@@ -86,5 +89,12 @@
       "moduleVersion": "0.1.4",
       "expectedSubjectContains": "O=GXSOFT"
     }
+  },
+  "buildResources": {
+    "root": "../tools/cross-platform-release/service-runtime",
+    "files": [
+      "New-NodeRuntimeBundle.mjs"
+    ],
+    "environmentVariable": "TASTESTUDIO_RELEASE_RESOURCES"
   }
 }

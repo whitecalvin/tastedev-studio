@@ -1,3 +1,4 @@
+import {artifactProtocolVersion} from '../orchestration/build-artifact.ts';
 import type { JobRequirement, Runtime } from '../core/domain.ts';
 import { validatePayload, validateRequirements } from '../core/matcher.ts';
 import type { CreateJob } from '../core/service.ts';
@@ -26,8 +27,8 @@ export function resolveProtocol(state: ProtocolState, kind: 'task' | 'test', nam
   if (!task) throw new Error('The selected task or test no longer exists. Reload Protocol.');
   const env = resolveEnvironment(d, task, test);
   return {
-    name: `${kind}: ${name}`, requirements: combineRequirements([mergeRequirements(d.requirements, task.requirements, test?.requirements ?? {}),mergeRequirements(test?.executionProfile?d.executionProfiles![test.executionProfile].requirements:{})]),
-    payload: validatePayload({ task: task.name, steps: [{ name: task.name, executable: task.command, args: [...task.args], cwd: task.cwd, env, timeoutMs: (test?.timeout ?? task.timeout) * 1000 }] }),
+    name: `${kind}: ${name}`, requirements: combineRequirements([...(task.artifacts?[{buildArtifacts:artifactProtocolVersion(task.artifacts)}]:[]),mergeRequirements(d.requirements, task.requirements, test?.requirements ?? {}),mergeRequirements(test?.executionProfile?d.executionProfiles![test.executionProfile].requirements:{})]),
+    payload: validatePayload({ task: task.name, steps: [{ ...(task.artifacts?{buildArtifacts:task.artifacts,taskReference:task.name}:{}), name: task.name, executable: task.command, args: [...task.args], cwd: task.cwd, env, timeoutMs: (test?.timeout ?? task.timeout) * 1000 }] }),
   };
 }
 
@@ -35,6 +36,7 @@ export function resolveProtocol(state: ProtocolState, kind: 'task' | 'test', nam
 export function combineRequirements(layers: JobRequirement[]): JobRequirement {
   const result: JobRequirement = { runtimes: {} };
   for (const layer of layers) {
+    if(layer.buildArtifacts)result.buildArtifacts=Math.max(result.buildArtifacts??1,layer.buildArtifacts) as 1|2;
     for (const key of ['platform', 'architecture', 'browser'] as const) {
       if (result[key] && layer[key] && result[key] !== layer[key]) throw new Error(`Pipeline has conflicting ${key} requirements.`);
       if (layer[key]) Object.assign(result, { [key]: layer[key] });
@@ -60,8 +62,9 @@ export function resolveTestPlan(state: ProtocolState, projectId: string, name: s
   if (d.source) { steps.push(gitSourceProvider.prepare(d.source)); requirements.push({ runtimes: { git: '>=0' } }); }
   const addTask = (stage: ExecutionStep['stage'], ref: string) => {
     const t = d.tasks[ref];
+    if(t.artifacts)requirements.push({buildArtifacts:artifactProtocolVersion(t.artifacts)});
     requirements.push(mergeRequirements(d.requirements, t.requirements, test.requirements));
-    steps.push({ name: stage![0].toUpperCase() + stage!.slice(1), stage, taskReference: ref, executable: t.command, args: [...t.args], cwd: d.source ? (t.cwd === '.' ? 'source' : `source/${t.cwd}`) : t.cwd, env: resolveEnvironment(d, t, test), timeoutMs: t.timeout * 1000 });
+    steps.push({ ...(t.artifacts?{buildArtifacts:t.artifacts}:{}), name: stage![0].toUpperCase() + stage!.slice(1), stage, taskReference: ref, executable: t.command, args: [...t.args], cwd: d.source ? (t.cwd === '.' ? 'source' : `source/${t.cwd}`) : t.cwd, env: resolveEnvironment(d, t, test), timeoutMs: t.timeout * 1000 });
   };
   for (const stage of ['install', 'build', 'start'] as const) {const task=test.pipeline?.[stage]??(stage==='install'?profile?.installTask:undefined);if(task)addTask(stage,task);}
   if (test.healthcheck) steps.push({ name: 'Health check', stage: 'healthcheck', executable: 'http', args: [], cwd: '.', healthcheck: test.healthcheck, timeoutMs: test.healthcheck.timeout * 1000 });

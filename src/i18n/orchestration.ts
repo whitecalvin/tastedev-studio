@@ -421,6 +421,29 @@ const duplicateNodeMessages={
 for(const locale of locales)Object.assign(orchestrationMessages[locale],Object.fromEntries(Object.keys(duplicateNodeMessages).map(key=>[key,key])));
 Object.assign(orchestrationMessages.ko,duplicateNodeMessages);Object.assign(orchestrationKorean,duplicateNodeMessages);
 const readinessMessages={
+ 'Build artifact transfer v1 unavailable':'빌드 산출물 전달 v1을 지원하지 않습니다.',
+ 'Execution waiting reason':'실행 대기 사유',
+ 'Waiting for Core dispatch.':'Core의 실행 배정을 기다리고 있습니다.',
+ 'Waiting for an assigned Agent':'배정된 Agent를 기다리는 중',
+ 'Assigned Agent is no longer registered.':'배정된 Agent가 더 이상 등록되어 있지 않습니다.',
+ 'Agent is offline':'Agent가 오프라인입니다.',
+ 'Agent is busy':'Agent가 사용 중입니다.',
+ 'Agent is error':'Agent가 오류 상태입니다.',
+ 'OS mismatch':'운영체제가 실행 조건과 다릅니다.',
+ 'Architecture mismatch':'아키텍처가 실행 조건과 다릅니다.',
+ 'Workspace snapshot v2 unavailable':'작업 공간 Snapshot v2를 지원하지 않습니다.',
+ 'Browser unavailable':'필요한 브라우저를 사용할 수 없습니다.',
+ 'cpuCores insufficient':'CPU 코어 수가 부족합니다.',
+ 'memoryMiB insufficient':'메모리가 부족합니다.',
+ 'docker unavailable':'Docker를 사용할 수 없습니다.',
+ 'gpu unavailable':'GPU를 사용할 수 없습니다.',
+ 'pty unavailable':'PTY를 사용할 수 없습니다.',
+ 'node version insufficient':'Node 실행 환경의 버전이 부족합니다.',
+ 'java version insufficient':'Java 실행 환경의 버전이 부족합니다.',
+ 'python version insufficient':'Python 실행 환경의 버전이 부족합니다.',
+ 'rust version insufficient':'Rust 실행 환경의 버전이 부족합니다.',
+ 'git version insufficient':'Git 실행 환경의 버전이 부족합니다.',
+ 'playwright version insufficient':'Playwright 실행 환경의 버전이 부족합니다.',
  'Graph setup checklist':'그래프 설정 점검',
  'These are setup checks. Core validates saved inputs, capabilities and permissions before execution.':'설정 점검 안내입니다. 실행 전 Core가 저장된 입력·실행 기능·권한을 최종 검증합니다.',
  'No setup issues found. Execution still requires Core validation and review.':'설정 점검에서 문제가 발견되지 않았습니다. 실행하려면 Core 검증과 사용자 검토가 필요합니다.',
@@ -452,6 +475,46 @@ const readinessMessages={
  'Waiting for Agent references.':'Agent 참조 확인을 기다리고 있습니다.',
  'The responsible role has no registered Agent.':'담당 역할에 등록된 Agent가 없습니다.',
  'Assigned Agents are offline; execution must wait.':'배정된 Agent가 오프라인입니다. 연결될 때까지 실행이 대기합니다.',
+ 'Assigned Agents are busy or unavailable; execution must wait.':'배정된 Agent가 사용 중이거나 실행할 수 없는 상태입니다. 실행 가능한 Agent를 기다립니다.',
+ 'Device membership':'소속 장비',
+ 'No declared device':'소속 장비 미설정',
+ 'Agents on this device':'장비 소속 Agent',
+ 'No Agent nodes linked to this device. Choose the device in Agent node settings.':'소속 Agent 노드가 없습니다. Agent 노드 설정에서 이 장비를 선택하세요.',
+ 'Changing device membership changes which device roles can use this Agent. No remote configuration is changed.':'소속 장비를 변경하면 이 Agent를 사용할 수 있는 장비 역할이 달라집니다. 원격 장비 설정은 변경하지 않습니다.',
+ 'This is declared membership. A live Agent report does not prove physical device identity.':'선언한 소속 관계입니다. Agent의 연결 정보로 실제 장비 신원을 확인한 것은 아닙니다.',
 };
 for(const locale of locales)Object.assign(orchestrationMessages[locale],Object.fromEntries(Object.keys(readinessMessages).map(key=>[key,key])));
 Object.assign(orchestrationMessages.ko,readinessMessages);Object.assign(orchestrationKorean,readinessMessages);
+
+const artifactFlowMessages:Record<string,string>={
+ 'Build artifact flow':'빌드 산출물 흐름',
+ 'Declared outputs':'생성할 산출물',
+ 'Required inputs':'필요한 산출물',
+ 'Declared transfer scope. A declaration does not prove that files were transferred.':'선언된 전송 범위입니다. 실제 파일 전송 완료를 의미하지 않습니다.',
+ 'Paths are relative to this step’s working directory. Existing input files are protected.':'경로는 이 단계의 작업 폴더 기준입니다. 기존 입력 파일은 덮어쓰지 않습니다.',
+ 'Captured build artifact plan':'실행 시 확정된 산출물 계획',
+};
+for(const locale of locales)Object.assign(orchestrationMessages[locale],Object.fromEntries(Object.keys(artifactFlowMessages).map(key=>[key,key])));
+Object.assign(orchestrationMessages.ko,artifactFlowMessages);Object.assign(orchestrationKorean,artifactFlowMessages);
+
+const artifactReceiptMessages:Record<string,string>={
+ 'Outputs verified by Core':'Core가 검증한 산출물',
+ 'Historical verification only. This does not prove the entire Run passed or the artifact is still available.':'당시 검증한 기록입니다. 전체 Run 성공이나 현재 파일 보관 상태를 의미하지 않습니다.',
+ 'Verified at':'검증 시각',
+ 'Artifact ID':'산출물 ID',
+ 'Output path':'출력 경로',
+ 'Producer Run':'생산 Run',
+ 'Producer Step':'생산 단계',
+ 'Source checksum':'소스 체크섬',
+ 'bytes':'바이트',
+};
+for(const locale of locales)Object.assign(orchestrationMessages[locale],Object.fromEntries(Object.keys(artifactReceiptMessages).map(key=>[key,key])));
+Object.assign(orchestrationMessages.ko,artifactReceiptMessages);Object.assign(orchestrationKorean,artifactReceiptMessages);
+
+const artifactInstallationMessages:Record<string,string>={'Agent installation receipts':'Agent 설치 기록','Authenticated Agent installation report. This does not mean the test passed or attest the physical device.':'인증된 Agent의 설치 보고입니다. 테스트 성공이나 물리 장비 인증을 의미하지 않습니다.','Installation path':'설치 경로','Consumer Run':'소비 Run','Consumer Step':'소비 단계'};
+for(const locale of locales)Object.assign(orchestrationMessages[locale],Object.fromEntries(Object.keys(artifactInstallationMessages).map(key=>[key,key])));
+Object.assign(orchestrationMessages.ko,artifactInstallationMessages);Object.assign(orchestrationKorean,artifactInstallationMessages);
+
+const artifactModeMessages:Record<string,string>={'Executable policy':'실행 권한 정책','Executable (owner only on Unix)':'실행 파일 (Unix 소유자만 접근)','Data file (owner only on Unix)':'데이터 파일 (Unix 소유자만 접근)','Build artifact transfer v2 unavailable':'산출물 전송 v2 미지원'};
+for(const locale of locales)Object.assign(orchestrationMessages[locale],Object.fromEntries(Object.keys(artifactModeMessages).map(key=>[key,key])));
+Object.assign(orchestrationMessages.ko,artifactModeMessages);Object.assign(orchestrationKorean,artifactModeMessages);

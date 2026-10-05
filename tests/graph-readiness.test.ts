@@ -22,6 +22,22 @@ test('offline/loading references are waiting, not fabricated missing references'
  assert(graphReadiness(graph,context).some(issue=>issue.nodeId==='task'&&issue.severity==='waiting'));
  context.agents=[];assert(graphReadiness(graph,context).some(issue=>issue.message==='The responsible role has no registered Agent.'));
 });
+test('role readiness waits for busy/error Agents and accepts another available assigned Agent',()=>{
+ const {graph,context}=fixture();
+ for(const status of ['busy','error'] as const){
+  context.agents=[{id:'a',status}];
+  const issues=graphReadiness(graph,context);
+  assert.equal(issues.length,1);assert.equal(issues[0].nodeId,'task');assert.equal(issues[0].severity,'waiting');
+  assert.equal(issues[0].message,'Assigned Agents are busy or unavailable; execution must wait.');
+ }
+ graph.nodes.push({...newNode('agent','second-agent',3),reference:'b'});
+ graph.edges.push({id:'second-host',from:'current-pc',to:'second-agent',relation:'hosts'});
+ context.agents=[{id:'a',status:'error'},{id:'b',status:'offline'}];
+ assert.equal(graphReadiness(graph,context).filter(issue=>issue.nodeId==='task').length,1);
+ for(const status of ['online','idle'] as const){context.agents=[{id:'a',status:'busy'},{id:'b',status}];assert.deepEqual(graphReadiness(graph,context),[]);}
+ context.agents=[{id:'a',status:'error'},{id:'unassigned',status:'idle'}];
+ assert(graphReadiness(graph,context).some(issue=>issue.nodeId==='task'&&issue.severity==='waiting'));
+});
 test('missing Protocol, role and declared Agent are independently actionable',()=>{
  const {graph,context}=fixture();graph.nodes.find(node=>node.id==='task')!.reference='missing';
  graph.edges=graph.edges.filter(edge=>edge.relation!=='performs');const issues=graphReadiness(graph,context);

@@ -1,0 +1,52 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+
+const evidence = path.resolve('../../../resources/verification/dev-01/tasks/tastedev-studio/deployment-foundation-20261005/package-contract');
+const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : '/bin/bash';
+const unix = (value: string) => value.replaceAll('\\', '/').replace(/^([A-Za-z]):/, (_, drive: string) => `/${drive.toLowerCase()}`);
+function fixture() {
+  fs.mkdirSync(evidence, { recursive: true });
+  const root = fs.mkdtempSync(path.join(evidence, 'fixture-'));
+  for (const dir of ['payload/core/transport', 'output', 'bin', 'captured']) fs.mkdirSync(path.join(root, dir), { recursive: true });
+  for (const name of ['tastestudio', 'tastestudio-agent']) fs.writeFileSync(path.join(root, 'payload', name), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  fs.writeFileSync(path.join(root, 'payload/core/transport/main.ts'), '// Controlled package layout fixture');
+  fs.writeFileSync(path.join(root, 'payload/core/runtime-manifest.json'), '{"schemaVersion":1,"files":[]}');
+  // Only the DEB builder is intercepted; the real shell stages files, service units and controls.
+  fs.writeFileSync(path.join(root, 'bin/dpkg-deb'), '#!/bin/sh\ncp -R "$3" "$CAPTURE/$(basename "$3")"\nprintf controlled-package > "$4"\n', { mode: 0o755 });
+  return root;
+}
+function run(root: string) {
+  const command = 'chmod +x "$FIXTURE/bin/dpkg-deb" "$FIXTURE/payload/tastestudio" "$FIXTURE/payload/tastestudio-agent"; export PATH="$FIXTURE/bin:$PATH"; bash scripts/package-linux-release.sh --payload-dir "$FIXTURE/payload" --output-dir "$FIXTURE/output" --package-name tastedev-studio-0.1.42-linux-x86_64 --version 0.1.42 --packager-script /unused --icon resources/branding/tastedev-studio-desktop/icons/icon.png --desktop-categories-base64 RGV2ZWxvcG1lbnQ7SURFOw== --formats deb';
+  return spawnSync(bash, ['-c', command], { cwd: process.cwd(), env: { ...process.env, FIXTURE: unix(root), CAPTURE: unix(path.join(root, 'captured')), MSYS_NO_PATHCONV: '1' }, encoding: 'utf8' });
+}
+test('Linux package layout separates GUI/Core/Agent and bundles exact component versions', () => {
+  const root = fixture(); const result = run(root);
+  assert.equal(result.status, 0, result.stderr);
+  const read = (pkg: string, file: string) => fs.readFileSync(path.join(root, 'captured', `deb-tastedev-studio${pkg}`, file), 'utf8');
+  assert.match(read('-desktop', 'usr/share/applications/tastestudio.desktop'), /^Exec=\/usr\/bin\/tastestudio$/m);
+  assert.doesNotMatch(read('-desktop', 'usr/share/applications/tastestudio.desktop'), /Exec=.*agent/);
+  assert.match(read('-desktop', 'DEBIAN/control'), /Replaces: tastedev-studio/);
+  assert.match(read('-core', 'lib/systemd/system/tastestudio-core.service'), /ExecStart=\/usr\/bin\/node.*transport\/main.ts/);
+  assert.match(read('-core', 'DEBIAN/control'), /nodejs \(>= 24\), nodejs \(<< 25\)/);
+  assert.doesNotMatch(read('-core', 'DEBIAN/postinst'), /systemctl (start|restart|enable)/);
+  assert.match(read('-core', 'usr/share/doc/tastedev-studio-core/README-CORE.txt'), /chmod 0640/);
+  const archive = spawnSync(bash, ['-c', 'tar -tzf "$FIXTURE/output/tastedev-studio-0.1.42-linux-x86_64.tar.gz"'], { env: { ...process.env, FIXTURE: unix(root) }, encoding: 'utf8' });
+  assert.equal(archive.status, 0, archive.stderr);
+  assert.match(archive.stdout, /\/core.env.example\n/);
+  assert.match(archive.stdout, /\/README-CORE.txt\n/);
+  assert.match(read('-agent', 'lib/systemd/system/tastestudio-agent.service'), /ExecStart=\/usr\/bin\/tastestudio-agent --config/);
+  const full = read('', 'DEBIAN/control');
+  for (const component of ['desktop', 'core', 'agent']) assert.ok(full.includes(`tastedev-studio-${component} (= 0.1.42)`));
+  const server = read('-server', 'DEBIAN/control');
+  assert.ok(server.includes('tastedev-studio-core (= 0.1.42)'));
+  assert.doesNotMatch(server, /studio-desktop/);
+});
+test('an Agent-only payload cannot be published as a complete Studio package', () => {
+  const root = fixture(); fs.unlinkSync(path.join(root, 'payload/tastestudio'));
+  const result = run(root);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /refusing an Agent-only/);
+});

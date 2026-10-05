@@ -7,9 +7,7 @@
 #   tastedev-studio-core     Core 서비스     tastedev-studio-server  코어 + 에이전트
 #   tastedev-studio-agent    Agent 서비스
 #
-# 지금 리눅스에서 만들 수 있는 구성은 agent 뿐이다(데스크톱 앱은 Windows 판만, Core 리눅스 묶음은 아직 출시 빌드에 없다).
-# 묶음은 이번에 만든 구성에만 기댄다. desktop · core 를 만들게 되면 payload 에 그 실행 파일 · 폴더를 넣고,
-# release.desktop.json linux.extraPackages · release.product.json artifacts 에 그 이름을 더하면 된다.
+# 준비 훅이 만든 desktop · core · agent가 모두 있어야 묶음을 만든다. Agent만 든 전체 패키지는 거부한다.
 # 기본 패키지(--package-name, tastedev-studio-<판>-linux-x86_64)는 "전체" 묶음이고, tar.gz 는 그 이름으로 구성 파일을 한 폴더에 담는다.
 set -Eeuo pipefail
 trap 'echo "package-linux-release.sh: ${LINENO} 번째 줄에서 멈췄습니다: ${BASH_COMMAND}" >&2' ERR
@@ -68,7 +66,7 @@ for format in "${requested_formats[@]}"; do
     "") ;;
     deb) build_deb=true ;;
     rpm) build_rpm=true ;;
-    # AppImage 는 설치 과정이 없어 서비스(Core · Agent)를 등록할 수 없고, 리눅스 데스크톱 앱도 아직 없다.
+    # AppImage 는 서비스(Core · Agent) 설치 형식이 아니므로 통합 묶음에서는 사용하지 않는다.
     *) echo "unsupported TASTESTUDIO Linux package format: ${format} (deb, rpm)" >&2; exit 2 ;;
   esac
 done
@@ -92,6 +90,9 @@ if [[ ! -f "$agent_binary" || ! -x "$agent_binary" ]]; then
   echo "release binary is missing: ${payload_dir}/tastestudio-agent" >&2
   exit 1
 fi
+[[ -x "$payload_dir/tastestudio" && -f "$payload_dir/core/transport/main.ts" && -f "$payload_dir/core/runtime-manifest.json" ]] || {
+  echo 'Desktop/Core payload missing; refusing an Agent-only TASTESTUDIO package' >&2; exit 1;
+}
 
 install -d -m 0755 "$output_dir"
 stage_dir="$(mktemp -d "${TMPDIR:-/tmp}/tastestudio-linux-package.XXXXXX")"
@@ -214,6 +215,92 @@ install -m 0644 "$agent_env_example" "$agent_root/usr/share/doc/tastedev-studio-
 install -m 0644 "$agent_readme" "$agent_root/usr/share/doc/tastedev-studio-agent/README-AGENT.txt"
 [[ -f "${source_dir}/README.md" ]] && install -m 0644 "${source_dir}/README.md" "$agent_root/usr/share/doc/tastedev-studio-agent/README.md"
 
+# Desktop: 앱 메뉴는 GUI만 실행하며 Agent를 연결하지 않는다.
+desktop_root="$stage_dir/desktop-root"
+install -d "$desktop_root/usr/bin" "$desktop_root/usr/share/applications" "$desktop_root/usr/share/icons/hicolor/256x256/apps"
+install -m 0755 "$payload_dir/tastestudio" "$desktop_root/usr/bin/tastestudio"
+install -m 0644 "$icon_path" "$desktop_root/usr/share/icons/hicolor/256x256/apps/tastestudio.png"
+cat >"$desktop_root/usr/share/applications/tastestudio.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=TASTESTUDIO
+Exec=/usr/bin/tastestudio
+Icon=tastestudio
+Terminal=false
+Categories=Development;IDE;
+StartupWMClass=com.gxsoft.tastedev.studio
+EOF
+
+# Core: 설정·토큰은 예제만 제공하고 설치만으로 서비스를 실행하지 않는다.
+core_root="$stage_dir/core-root"
+install -d "$core_root/usr/lib/tastestudio-core" "$core_root/lib/systemd/system" "$core_root/usr/share/doc/tastedev-studio-core"
+cp -a -- "$payload_dir/core/." "$core_root/usr/lib/tastestudio-core/"
+cat >"$core_root/lib/systemd/system/tastestudio-core.service" <<'EOF'
+[Unit]
+Description=TASTESTUDIO Core
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/tastestudio/core.env
+StartLimitIntervalSec=60
+StartLimitBurst=3
+[Service]
+Type=simple
+User=tastestudio
+Group=tastestudio
+WorkingDirectory=/usr/lib/tastestudio-core
+EnvironmentFile=/etc/tastestudio/core.env
+ExecStart=/usr/bin/node --experimental-strip-types /usr/lib/tastestudio-core/transport/main.ts
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillMode=control-group
+NoNewPrivileges=true
+UMask=0077
+[Install]
+WantedBy=multi-user.target
+EOF
+cat >"$core_root/usr/share/doc/tastedev-studio-core/core.env.example" <<'EOF'
+# Node 24 required. Two distinct tokens of at least 16 characters must be supplied.
+CORE_AGENT_TOKEN=
+CORE_STUDIO_TOKEN=
+CORE_HOST=127.0.0.1
+CORE_PORT=4340
+CORE_DATA_DIR=/var/lib/tastestudio-core
+CORE_LOG_DIR=/var/log/tastestudio-core
+EOF
+cat >"$core_root/usr/share/doc/tastedev-studio-core/README-CORE.txt" <<'EOF'
+TASTESTUDIO Core (Linux)
+
+Node 24가 필요합니다. 설치 후 설정을 완료하기 전에는 서비스를 시작하지 않습니다.
+1. sudo cp /usr/share/doc/tastedev-studio-core/core.env.example /etc/tastestudio/core.env
+2. sudo editor /etc/tastestudio/core.env
+   CORE_AGENT_TOKEN과 CORE_STUDIO_TOKEN에 서로 다른 16자 이상의 값을 설정하세요.
+3. sudo chown root:tastestudio /etc/tastestudio/core.env
+   sudo chmod 0640 /etc/tastestudio/core.env
+4. sudo systemctl enable --now tastestudio-core
+5. systemctl status tastestudio-core
+   journalctl -u tastestudio-core
+
+기본 리스너는 localhost:4340입니다. 다른 장비의 연결은 Core의 LAN/TLS 정책 설정이 필요합니다.
+Agent에는 CORE_AGENT_TOKEN을, Studio에는 CORE_STUDIO_TOKEN을 사용하세요.
+브라우저 테스트용 Playwright/브라우저와 프로젝트 도구는 별도 실행 환경에서 준비해야 합니다.
+
+tar.gz는 자동 설치하지 않습니다. systemd 예제는 DEB/RPM의 절대 설치 경로를 사용합니다.
+압축 해제 위치에서 즉시 systemd 서비스를 실행하지 말고 경로·계정·설정을 먼저 구성하세요.
+EOF
+core_postinst="$stage_dir/core-postinst"
+cat >"$core_postinst" <<'EOF'
+#!/bin/sh
+set -e
+getent group tastestudio >/dev/null || groupadd --system tastestudio
+id -u tastestudio >/dev/null 2>&1 || useradd --system --gid tastestudio --home-dir /var/lib/tastestudio --shell /usr/sbin/nologin tastestudio
+install -d -m 0750 -o root -g tastestudio /etc/tastestudio
+install -d -m 0750 -o tastestudio -g tastestudio /var/lib/tastestudio-core /var/log/tastestudio-core
+if command -v systemctl >/dev/null 2>&1; then systemctl daemon-reload || true; fi
+exit 0
+EOF
+core_preun_body='if command -v systemctl >/dev/null 2>&1; then systemctl disable --now tastestudio-core.service || true; fi'
+
 # ── tar.gz: 구성 파일을 한 폴더에(설치 패키지를 쓰지 않는 장비용) ───────────────────────────────────
 package_root="$stage_dir/$package_name"
 install -d -m 0755 "$package_root/systemd"
@@ -222,6 +309,11 @@ install -m 0644 "$agent_unit" "$package_root/systemd/tastestudio-agent.service"
 install -m 0644 "$agent_config_example" "$package_root/agent.json.example"
 install -m 0644 "$agent_env_example" "$package_root/agent.env.example"
 install -m 0644 "$agent_readme" "$package_root/README-AGENT.txt"
+install -m 0755 "$payload_dir/tastestudio" "$package_root/tastestudio"
+cp -a -- "$payload_dir/core" "$package_root/core"
+install -m 0644 "$core_root/lib/systemd/system/tastestudio-core.service" "$package_root/systemd/tastestudio-core.service"
+install -m 0644 "$core_root/usr/share/doc/tastedev-studio-core/core.env.example" "$package_root/core.env.example"
+install -m 0644 "$core_root/usr/share/doc/tastedev-studio-core/README-CORE.txt" "$package_root/README-CORE.txt"
 printf '%s\n' "$version" >"$package_root/release-version.txt"
 tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
   -C "$stage_dir" -cf - "$package_name" | gzip -n -9 >"$output_dir/$package_name.tar.gz.tmp"
@@ -305,13 +397,17 @@ agent_takeover_rpm="Conflicts: tastedev-studio < ${version}
 Conflicts: tastestudio < ${version}"
 
 # 이번에 만든 구성(묶음이 기댈 것)
-built_components=(tastedev-studio-agent)
-server_components=(tastedev-studio-agent)
+built_components=(tastedev-studio-desktop tastedev-studio-core tastedev-studio-agent)
+server_components=(tastedev-studio-core tastedev-studio-agent)
 
 deb_depends() { local out="" c; for c in "$@"; do out+="${out:+, }$c (= ${version})"; done; printf '%s' "$out"; }
 rpm_requires() { local out="" c; for c in "$@"; do out+="${out:+, }$c = ${version}-1"; done; printf '%s' "$out"; }
 
 if [[ "$build_deb" == true ]]; then
+  build_deb tastedev-studio-desktop "$desktop_root" 'TASTESTUDIO desktop application' \
+    'libgtk-3-0, libwebkit2gtk-4.1-0' "$agent_takeover_deb" '' '' ''
+  build_deb tastedev-studio-core "$core_root" 'TASTESTUDIO Core orchestration service' \
+    'systemd, nodejs (>= 24), nodejs (<< 25)' '' "$core_postinst" "$core_preun_body" "$agent_postrm"
   build_deb tastedev-studio-agent "$agent_root" 'TASTESTUDIO Agent - runs build, test and deploy jobs for TASTESTUDIO Core' \
     'systemd' "$agent_takeover_deb" "$agent_postinst" "$agent_preun_body" "$agent_postrm"
   build_deb tastedev-studio-server '' 'TASTESTUDIO Core and Agent (server bundle)' \
@@ -322,6 +418,10 @@ Replaces: tastestudio
 Conflicts: tastestudio' '' '' ''
 fi
 if [[ "$build_rpm" == true ]]; then
+  build_rpm tastedev-studio-desktop "$desktop_root" 'TASTESTUDIO desktop application' \
+    'gtk3, webkit2gtk4.1' "$agent_takeover_rpm" '' '' ''
+  build_rpm tastedev-studio-core "$core_root" 'TASTESTUDIO Core orchestration service' \
+    'systemd, nodejs >= 24, nodejs < 25' '' "$core_postinst" "$core_preun_body" "$agent_postrm"
   build_rpm tastedev-studio-agent "$agent_root" 'TASTESTUDIO Agent - runs build, test and deploy jobs for TASTESTUDIO Core' \
     'systemd' "$agent_takeover_rpm" "$agent_postinst" "$agent_preun_body" "$agent_postrm"
   build_rpm tastedev-studio-server '' 'TASTESTUDIO Core and Agent (server bundle)' \

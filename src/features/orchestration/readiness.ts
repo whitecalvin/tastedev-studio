@@ -1,6 +1,6 @@
 import {validateGraph,type ProjectGraph} from './domain.ts';
 import type {ProtocolState} from '../protocol/domain.ts';
-import type {Agent} from '../core/domain.ts';
+import {availableAgentStatus,type Agent} from '../core/domain.ts';
 import type {Schedule} from '../scheduler/domain.ts';
 import type {AIConfigurationStore} from './ai-config.ts';
 import type {ManagedAIConnection} from '../ai/routing.ts';
@@ -64,6 +64,7 @@ export function graphReadiness(graph:ProjectGraph,context:ReadinessContext):Read
     const registered=context.agents.filter(agent=>candidates.some(candidate=>candidate.reference===agent.id));
     if(!registered.length)add('The responsible role has no registered Agent.',node.id);
     else if(registered.every(agent=>agent.status==='offline'))add('Assigned Agents are offline; execution must wait.',node.id,'waiting');
+    else if(!registered.some(agent=>availableAgentStatus(agent.status)))add('Assigned Agents are busy or unavailable; execution must wait.',node.id,'waiting');
    }
   }
  }

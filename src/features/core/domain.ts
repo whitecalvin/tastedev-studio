@@ -3,9 +3,11 @@ export type Architecture = 'x86_64' | 'arm64';
 export type Runtime = 'node' | 'java' | 'python' | 'rust' | 'git' | 'playwright';
 export type Browser = 'chromium' | 'firefox' | 'webkit';
 export type AgentStatus = 'offline' | 'online' | 'idle' | 'busy' | 'error';
-export interface AgentCapability { sourceSnapshot?:2; cpuCores: number; memoryMiB: number; docker: boolean; gpu: boolean; pty: boolean; runtimes: Partial<Record<Runtime, string>>; browsers: Browser[] }
+/** 구성 화면과 Core 배정이 같은 Agent 상태 기준을 사용한다. capability 검증은 별도다. */
+export const availableAgentStatus = (status: AgentStatus) => status === 'online' || status === 'idle';
+export interface AgentCapability { buildArtifacts?:1|2; sourceSnapshot?:2; cpuCores: number; memoryMiB: number; docker: boolean; gpu: boolean; pty: boolean; runtimes: Partial<Record<Runtime, string>>; browsers: Browser[] }
 export interface Agent { id: string; name: string; status: AgentStatus; platform: Platform; architecture: Architecture; capabilities: AgentCapability; lastSeenAt: string | null; createdAt: string; updatedAt: string }
-export interface JobRequirement { sourceSnapshot?:2; platform?: Platform; architecture?: Architecture; cpuCores?: number; memoryMiB?: number; docker?: 'required'; gpu?: 'required' | 'optional'; pty?: 'required'; runtimes?: Partial<Record<Runtime, string>>; browser?: Browser }
+export interface JobRequirement { buildArtifacts?:1|2; sourceSnapshot?:2; platform?: Platform; architecture?: Architecture; cpuCores?: number; memoryMiB?: number; docker?: 'required'; gpu?: 'required' | 'optional'; pty?: 'required'; runtimes?: Partial<Record<Runtime, string>>; browser?: Browser }
 export interface JobPayload { task: string; steps: import('./test-plan.ts').ExecutionStep[]; testPlan?: import('./test-plan.ts').TestPlan }
 export type JobStatus = 'queued' | 'assigned' | 'running' | 'succeeded' | 'failed' | 'cancelled';
 export interface Job { pinnedAgentId?:string; id: string; projectId: string; createdBy?:string; type: 'task'; name: string; status: JobStatus; requirements: JobRequirement; payload: JobPayload; priority: number; queuedAt: string; createdAt: string; updatedAt: string; agentId: string | null; sourceJobId: string | null; attempt: number; maxAttempts: number; cancellationRequestedAt: string | null; idempotencyKey?:string }
@@ -26,4 +28,3 @@ export function transition<T extends string>(current: T, next: T, allowed: Recor
 export const jobTransitions: Record<JobStatus, JobStatus[]> = { queued: ['assigned', 'cancelled'], assigned: ['running', 'failed', 'cancelled'], running: ['succeeded', 'failed', 'cancelled'], succeeded: [], failed: [], cancelled: [] };
 export const runTransitions: Record<RunStatus, RunStatus[]> = { pending: ['running', 'failed', 'cancelled'], running: ['passed', 'failed', 'cancelled', 'timeout'], passed: [], failed: [], cancelled: [], timeout: [] };
 export const stepTransitions: Record<StepStatus, StepStatus[]> = { pending: ['running', 'skipped', 'cancelled'], running: ['passed', 'failed', 'cancelled', 'timeout'], passed: [], failed: [], skipped: [], cancelled: [], timeout: [] };
-

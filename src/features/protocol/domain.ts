@@ -9,6 +9,7 @@ export type RequirementDefinition = Omit<JobRequirement, 'docker' | 'browser' | 
 export type EnvironmentDefinition = Record<string, string>;
 export interface ExecutionProfileDefinition {requirements: RequirementDefinition; installTask?:string}
 export interface TaskDefinition {
+  artifacts?:import('../orchestration/build-artifact.ts').BuildArtifactDeclaration;
   name: string; command: string; args: string[]; cwd: string;
   environment?: string; env: EnvironmentDefinition; timeout: number;
   requirements: RequirementDefinition;

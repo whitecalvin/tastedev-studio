@@ -73,6 +73,8 @@ impl Config {
 pub struct Capabilities {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_snapshot: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub build_artifacts: Option<u32>,
     pub cpu_cores: u64,
     pub memory_mi_b: u64,
     pub docker: bool,
@@ -86,6 +88,8 @@ pub struct Capabilities {
 pub struct Requirements {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_snapshot: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub build_artifacts: Option<u32>,
     pub platform: Option<String>,
     pub architecture: Option<String>,
     pub cpu_cores: Option<u64>,
@@ -124,6 +128,8 @@ pub struct Request {
     pub browser: Option<BrowserTest>,
     #[serde(default)]
     pub artifact_transfer: Option<ArtifactTransfer>,
+    #[serde(default)]
+    pub build_artifact_transfer: Option<crate::build_artifact::Transfer>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -258,6 +264,9 @@ impl Request {
         } else if self.artifact_transfer.is_some() {
             return Err("Browser required for transfer".into());
         }
+        if let Some(transfer) = &self.build_artifact_transfer {
+            transfer.validate(self)?;
+        }
         // Bare executable name or explicit absolute binary; no relative executable path / shell wrapper.
         let exe = &self.executable;
         if exe.is_empty()
@@ -286,6 +295,9 @@ impl Request {
         let r = &self.requirements;
         r.source_snapshot
             .is_none_or(|v| v == 2 && c.source_snapshot == Some(2))
+            && r.build_artifacts.is_none_or(|v| {
+                matches!(v, 1 | 2) && c.build_artifacts.is_some_and(|cap| cap >= v && cap <= 2)
+            })
             && r.platform.as_ref().is_none_or(|v| v == platform())
             && r.architecture.as_ref().is_none_or(|v| v == architecture())
             && r.cpu_cores.is_none_or(|v| c.cpu_cores >= v)

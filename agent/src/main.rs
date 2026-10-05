@@ -1,4 +1,5 @@
 mod browser;
+mod build_artifact;
 mod executor;
 mod model;
 mod pipeline;
@@ -300,6 +301,9 @@ fn run(config: Config) -> Result<()> {
                                 };
                                 if let Some(source) = request.source.as_mut() {
                                     source.trusted_core = Some(config.endpoint.clone());
+                                }
+                                if let Some(transfer) = request.build_artifact_transfer.as_mut() {
+                                    transfer.trusted_core = Some(config.endpoint.clone());
                                 }
                                 let valid = request.validate(&id).and_then(|_| {
                                     if request.matches(&capabilities) {

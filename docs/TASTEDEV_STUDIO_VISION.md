@@ -9,11 +9,31 @@
 
 ## 제품 정의와 핵심 목표
 
-TASTEDEV Studio는 Project 생성부터 편집, 실행, 원격 테스트, 결과 분석, 수정 및 재검증까지 하나의 GUI에서 제공하는 AI 기반 통합 개발·테스트 환경이다. Dashboard 또는 QA Controller에 한정하지 않는다.
+TASTESTUDIO는 프로젝트의 장비·Agent·역할·작업·승인·스케줄 관계를 구성하고 실제 실행을 조율하는 오케스트레이션 시스템이다. 사용자는 관계 그래프에서 구현·빌드·배포·테스트 흐름을 정의하고 실행 상태와 결과를 확인한다. 파일 편집·터미널·Git·AI 분석은 선택한 작업을 수행하고 검증하는 보조 도구다.
 
 사용자 Workflow:
 
-`Project → Create / Open / Clone → Edit → Save → Terminal → Git → Build → Run → Test → Remote Agent → Result → AI Analyze → Fix → Retest → Issue`
+`Project → Device / Agent / Role → Task / Approval / Schedule → Core validation → Queue / Dispatch → Execution → Result / Evidence → Analysis / Fix / Retest`
+
+장비는 실행 환경이 있는 PC 또는 서버이고 Agent는 그 장비에서 실제 작업을 수행하는 실행자다. 역할은 구현·배포·테스트의 책임이며 장비 자체의 종류가 아니다. 한 장비가 여러 역할을 담당하거나 여러 Agent를 실행할 수 있다. 그래프의 장비 노드와 Agent의 연결 관계는 명시적으로 선언하며 Agent 이름으로 소속 장비를 추측하지 않는다. 선언된 관계와 실제 연결·실행 가능 상태도 구분한다.
+
+```mermaid
+flowchart LR
+    Studio[TASTESTUDIO 관계 그래프] --> Core[TASTESTUDIO Core]
+    Device[장비 PC 또는 서버] -->|Agent 실행| Agent[TASTESTUDIO Agent]
+    Device -->|배정| Role[구현·배포·테스트 역할]
+    Agent -->|배정| Role
+    Role -->|책임| Task[Protocol 작업 또는 테스트]
+    Schedule[스케줄] -->|시작 조건| Task
+    Task --> Approval[사용자 승인]
+    Approval --> Deploy[배포 작업]
+    Deploy --> Test[검증 작업]
+    Core -->|권한·배정·실행 상태| Agent
+    Agent --> Evidence[Run·결과·Evidence]
+    Evidence --> Studio
+```
+
+그래프는 구성·의도를 표현하고 Core는 저장된 정의, 권한, Agent capability와 실행 입력을 검증한다. 노드 연결이나 구성 저장만으로 작업이 실행됐거나 성공했다고 표시하지 않는다. 배포 및 Source 변경은 각 승인 정책을 유지한다. 구현 장비·배포 장비·테스트 장비에 대한 실제 설치/외부 검증은 로컬 코드 검증과 별도 근거로 기록한다.
 
 장기적으로 로컬 개발과 원격 실행의 결과를 같은 Project 문맥에서 추적한다. 기능별 진행 상태와 실패 원인, 실행 환경, 소스 revision, 증거를 연결하여 재현 가능한 개발 흐름을 제공한다.
 

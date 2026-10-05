@@ -56,7 +56,8 @@ pub(crate) fn safe(path: &str) -> Result<()> {
     {
         return Err("Snapshot path escape".into());
     }
-    for part in path.split('/') {
+    let parts: Vec<_> = path.split('/').collect();
+    for (index, part) in parts.iter().enumerate() {
         let p = part.to_ascii_lowercase();
         if p.is_empty()
             || p == "."
@@ -76,12 +77,13 @@ pub(crate) fn safe(path: &str) -> Result<()> {
                 ".next",
                 ".cache",
                 "artifacts",
-                "resources",
                 "vendor",
-                "bin",
                 "obj",
             ]
             .contains(&p.as_str())
+            || (p == "resources"
+                && !(index + 1 == parts.len() || parts[index + 1].eq_ignore_ascii_case("branding")))
+            || (p == "bin" && !(index > 0 && parts[index - 1].eq_ignore_ascii_case("src")))
             || [
                 "secret",
                 "credential",
@@ -421,6 +423,13 @@ mod tests {
     }
     #[test]
     fn traversal_and_secret_paths_blocked() {
+        assert!(safe("crates/license/src/bin/licensegen.rs").is_ok());
+        assert!(safe("bin/app.exe").is_err());
+        assert!(safe("crates/license/bin/app.exe").is_err());
+        assert!(safe("src/bin/.env").is_err());
+        assert!(safe("resources/branding/product/app.ico").is_ok());
+        assert!(safe("resources/verification/report.json").is_err());
+        assert!(safe("resources/branding/.env").is_err());
         for path in [
             "../escape",
             "/outside",

@@ -296,13 +296,14 @@ impl SourcePreparation for GitProvider {
     }
 }
 pub fn execute(
-    request: Request,
+    mut request: Request,
     root: &Path,
     cancel: Arc<AtomicBool>,
     events: SyncSender<Value>,
     sessions: Sessions,
 ) -> Value {
     let started = chrono::Utc::now().to_rfc3339();
+    let mut installed = None;
     let operation = (|| -> Result<Value> {
         {
             let mut guard = sessions.lock().map_err(|_| "Session unavailable")?;
@@ -318,7 +319,21 @@ pub fn execute(
                 });
             }
         }
-        match request.stage.as_deref() {
+        let transfer_cancel = cancel.clone();
+        let deadline = std::time::Instant::now() + Duration::from_millis(request.timeout_ms);
+        crate::build_artifact::download(&request, root, &transfer_cancel, deadline)?;
+        // 설치 완료 증거는 후속 명령 실패와 구분해 결과에 보존한다.
+        installed = request.build_artifact_transfer.as_ref().filter(|t| !t.inputs.is_empty()).map(|t| json!(t.inputs.iter().map(|i| { let mut report = json!({"id":i.artifact.id,"path":i.path,"size":i.artifact.size,"checksum":i.artifact.checksum}); if let Some(executable) = i.artifact.executable { report["executable"] = json!(executable); } report }).collect::<Vec<_>>()));
+        if request.build_artifact_transfer.is_some() {
+            let remaining = deadline
+                .saturating_duration_since(std::time::Instant::now())
+                .as_millis() as u64;
+            if remaining < 100 {
+                return Err("Build transfer exhausted step timeout".into());
+            }
+            request.timeout_ms = remaining;
+        }
+        let outcome = match request.stage.as_deref() {
             Some("test") if request.browser.is_some() => Ok(crate::browser::execute(
                 request.clone(),
                 root,
@@ -387,7 +402,16 @@ pub fn execute(
                 events,
                 None,
             )),
+        }?;
+        if outcome["status"] == "passed" {
+            crate::build_artifact::upload(&request, root, &transfer_cancel, deadline)?;
         }
+        Ok(outcome)
     })();
-    operation.unwrap_or_else(|error| result(&request, "failed", Some(&error), &started))
+    let mut outcome =
+        operation.unwrap_or_else(|error| result(&request, "failed", Some(&error), &started));
+    if let Some(report) = installed {
+        outcome["artifactInstallation"] = report;
+    }
+    outcome
 }
