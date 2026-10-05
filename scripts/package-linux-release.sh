@@ -108,7 +108,7 @@ trap cleanup EXIT
 agent_unit="$stage_dir/tastestudio-agent.service"
 cat >"$agent_unit" <<'EOF'
 [Unit]
-Description=TASTESTUDIO Agent
+Description=tastestudio-agent — runs build, test and deploy jobs for tastestudio-core
 Documentation=https://tastedev.net/
 After=network-online.target
 Wants=network-online.target
