@@ -52,7 +52,7 @@
             "memberPath": "tastestudio_0.1.42_windows_x64/tastestudio-agent.exe"
           }
         ],
-        "expectedSubjectContains": "O=지엑스소프트",
+        "expectedSubjectContains": "O=GXSOFT",
         "requireTimestamp": true
       }
     },
@@ -68,7 +68,7 @@
         "files": [
           "artifacts/release/windows-x86_64/tastestudio_0.1.42_windows_x64.msi"
         ],
-        "expectedSubjectContains": "O=지엑스소프트",
+        "expectedSubjectContains": "O=GXSOFT",
         "requireTimestamp": true
       }
     },
@@ -84,7 +84,7 @@
         "files": [
           "artifacts/release/windows-x86_64/tastestudio_0.1.42_windows_x64-setup.exe"
         ],
-        "expectedSubjectContains": "O=지엑스소프트",
+        "expectedSubjectContains": "O=GXSOFT",
         "requireTimestamp": true
       }
     },

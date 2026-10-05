@@ -84,7 +84,7 @@
       "accountName": "whitecalvin",
       "certificateProfileName": "gxsoft-public",
       "moduleVersion": "0.1.4",
-      "expectedSubjectContains": "O=지엑스소프트"
+      "expectedSubjectContains": "O=GXSOFT"
     }
   }
 }
