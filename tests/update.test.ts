@@ -42,3 +42,48 @@ test('initial native failure can recover on reopening without leaving controls p
 test('network failure gets actionable safe feedback without exposing arbitrary diagnostics',async()=>{
  const service=new UpdateService(true,async()=>{throw 'network';});await service.action('check');assert.match(service.snapshot().error,/connection/);
 });
+
+test('post-restart result uses a toast without reopening the update dialog or repeating after polling', async () => {
+  for (const result of ['installed', 'failed']) {
+    const service = new UpdateService(true, async () => ({ ...initial, stage: 'current', autoCheck: false, previousResult: result }));
+    await service.start();
+    assert.equal(service.snapshot().visible, false);
+    assert.equal(service.snapshot().toast?.error, result !== 'installed');
+    assert.match(service.snapshot().toast!.message, /previous update/);
+    service.dismissToast(); await service.action('status');
+    assert.equal(service.snapshot().toast, null);
+    assert.equal(service.snapshot().visible, false);
+    service.show(); assert.equal(service.snapshot().visible, true);
+  }
+});
+test('install closes the dialog immediately and retains a progress toast during native invocation', async () => {
+  let finish!: (status: UpdateStatus) => void;
+  const service = new UpdateService(true, async action => action === 'install' ? new Promise(resolve => { finish = resolve; }) : ({ ...initial, stage: 'ready' }), () => false);
+  await service.action('status'); service.show();
+  const install = service.action('install');
+  assert.equal(service.snapshot().visible, false);
+  assert.equal(service.snapshot().toast?.message, 'Installing update…');
+  finish({ ...initial, stage: 'installing' }); await install;
+  assert.equal(service.snapshot().visible, false);
+  assert.equal(service.snapshot().pending, false);
+});
+test('install errors and workspace protection remain visible as toasts without reopening a dialog', async () => {
+  const blocked = new UpdateService(true, async () => { throw Error('must not invoke'); }, () => true);
+  await blocked.action('install');
+  assert.equal(blocked.snapshot().visible, false);
+  assert.equal(blocked.snapshot().toast?.error, true);
+  assert.match(blocked.snapshot().toast!.message, /Save your files/);
+  const failed = new UpdateService(true, async () => { throw Error('private installer diagnostic'); }, () => false);
+  await failed.action('install');
+  assert.equal(failed.snapshot().visible, false);
+  assert.equal(failed.snapshot().toast?.error, true);
+  assert.doesNotMatch(failed.snapshot().toast!.message, /private/);
+});
+test('a native asynchronous installation failure replaces the progress toast', async () => {
+  let fail = false;
+  const service = new UpdateService(true, async () => ({ ...initial, stage: fail ? 'error' : 'installing', error: fail ? 'network' : null }), () => false);
+  await service.action('install'); fail = true; await service.action('status');
+  assert.equal(service.snapshot().visible, false);
+  assert.equal(service.snapshot().toast?.error, true);
+  assert.match(service.snapshot().toast!.message, /connection/);
+});

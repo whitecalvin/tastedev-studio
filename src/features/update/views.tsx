@@ -4,7 +4,7 @@ import { useI18n } from '@/i18n/react';
 import { Dialog } from '@/components/ui/dialog';
 import { UpdateService, protections, updateFailure } from './service';
 import {version as buildVersion} from '../../../package.json';
-import {Download,RefreshCw,ShieldCheck,AlertCircle} from 'lucide-react';
+import {Download,RefreshCw,ShieldCheck,AlertCircle,X} from 'lucide-react';
 import './update.css';
 
 const Context = createContext<UpdateService | null>(null);
@@ -25,7 +25,21 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
     const poll = setInterval(() => { if (desktop) void next.action('status'); }, 1000);
     return () => { clearTimeout(timer); clearInterval(poll); };
   }, []);
-  return <Context.Provider value={service}>{children}{service && <UpdateDialog service={service} />}</Context.Provider>;
+  return <Context.Provider value={service}>{children}{service && <><UpdateDialog service={service} /><UpdateToast service={service} /></>}</Context.Provider>;
+}
+function UpdateToast({ service }: { service: UpdateService }) {
+  const { t } = useI18n();
+  const { toast } = useSyncExternalStore(service.subscribe, service.snapshot, service.snapshot);
+  useEffect(() => {
+    if (!toast || toast.error || toast.message === 'Installing update…') return;
+    const timer = setTimeout(() => service.dismissToast(), 6000);
+    return () => clearTimeout(timer);
+  }, [service, toast]);
+  if (!toast) return null;
+  return <div className={`update-toast${toast.error ? ' update-error' : ''}`}>
+    <div className="update-toast-message" role={toast.error ? 'alert' : 'status'}>{toast.error ? <AlertCircle size={18} aria-hidden="true" /> : <ShieldCheck size={18} aria-hidden="true" />}<p>{t(toast.message)}</p></div>
+    <button className="button button-quiet" aria-label={t('Close dialog')} onClick={() => service.dismissToast()}><X size={16} aria-hidden="true" /></button>
+  </div>;
 }
 export function UpdateButton() {
   const service = useContext(Context); const { t } = useI18n();
