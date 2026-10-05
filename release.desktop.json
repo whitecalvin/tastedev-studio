@@ -60,8 +60,16 @@
     "icon": "resources/branding/tastedev-studio-desktop/icons/icon.png",
     "desktopCategories": "Development;IDE;",
     "startupWmClass": "com.gxsoft.tastedev.studio",
-    "packageFormats": ["deb", "appimage", "rpm"],
-    "rpmLicense": "MIT OR Apache-2.0"
+    "packageFormats": [
+      "deb",
+      "rpm"
+    ],
+    "rpmLicense": "MIT OR Apache-2.0",
+    "packageScript": "scripts/package-linux-release.sh",
+    "extraPackages": [
+      "tastedev-studio-agent",
+      "tastedev-studio-server"
+    ]
   },
   "ssh": {
     "identityFileFromUserProfile": ".ssh/id_ed25519",
