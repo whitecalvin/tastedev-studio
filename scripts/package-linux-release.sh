@@ -362,11 +362,19 @@ build_rpm() {
       mv -- "$rpm_root/lib/systemd/system/"* "$rpm_root/usr/lib/systemd/system/"
       rm -rf -- "$rpm_root/lib"
     fi
-    files_section="$(cd -- "$rpm_root" && find . \( -type f -o -type l \) -print | sed 's|^\.||' | LC_ALL=C sort)"
-    if grep -q '[[:space:]%*?[]' <<<"$files_section"; then
-      echo "RPM file list contains characters that need escaping ($name)" >&2
-      exit 1
-    fi
+    # 의존성의 공백·대괄호 경로도 literal 파일로 등록한다. RPM 매크로와 인용 문자는 별도로 이스케이프한다.
+    local file escaped
+    while IFS= read -r -d '' file; do
+      file="${file#.}"
+      if [[ "$file" == *$'\n'* || "$file" == *$'\r'* ]]; then
+        echo "RPM file path contains an unsupported line break ($name)" >&2
+        exit 1
+      fi
+      escaped="${file//\\/\\\\}"
+      escaped="${escaped//\"/\\\"}"
+      escaped="${escaped//%/%%}"
+      files_section+="\"$escaped\""$'\n'
+    done < <(cd -- "$rpm_root" && find . \( -type f -o -type l \) -print0 | LC_ALL=C sort -z)
   fi
   tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -C "$rpm_root" -czf "$top/SOURCES/rootfs.tar.gz" .
   {
@@ -382,7 +390,9 @@ build_rpm() {
     printf '\n%%files\n'
     if [[ -n "$files_section" ]]; then printf '%s\n' "$files_section"; fi
   } >"$top/SPECS/$name.spec"
-  rpmbuild -bb --quiet --define "_topdir $top" --define '_build_id_links none' "$top/SPECS/$name.spec"
+  # 빌드 전용 DB는 임시 폴더에 둔다. 호스트의 /var/lib/rpm 권한이나 설치 상태를 사용하지 않는다.
+  mkdir -p -- "$top/rpmdb"
+  rpmbuild -bb --quiet --define "_topdir $top" --define "_dbpath $top/rpmdb" --define '_build_id_links none' "$top/SPECS/$name.spec"
   local built
   built="$(find "$top/RPMS" -type f -name "$name-$version-1.*.rpm" -print | head -n 1)"
   [[ -n "$built" ]] || { echo "expected one RPM for $name" >&2; exit 1; }

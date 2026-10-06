@@ -18,8 +18,8 @@ function fixture() {
   fs.writeFileSync(path.join(root, 'bin/dpkg-deb'), '#!/bin/sh\ncp -R "$3" "$CAPTURE/$(basename "$3")"\nprintf controlled-package > "$4"\n', { mode: 0o755 });
   return root;
 }
-function run(root: string) {
-  const command = 'chmod +x "$FIXTURE/bin/dpkg-deb" "$FIXTURE/payload/tastestudio" "$FIXTURE/payload/tastestudio-agent"; export PATH="$FIXTURE/bin:$PATH"; bash scripts/package-linux-release.sh --payload-dir "$FIXTURE/payload" --output-dir "$FIXTURE/output" --package-name tastedev-studio-0.1.42-linux-x86_64 --version 0.1.42 --packager-script /unused --icon resources/branding/tastedev-studio-desktop/icons/icon.png --desktop-categories-base64 RGV2ZWxvcG1lbnQ7SURFOw== --formats deb';
+function run(root: string, formats = 'deb') {
+  const command = 'chmod +x "$FIXTURE/bin/"* "$FIXTURE/payload/tastestudio" "$FIXTURE/payload/tastestudio-agent"; export PATH="$FIXTURE/bin:$PATH"; bash scripts/package-linux-release.sh --payload-dir "$FIXTURE/payload" --output-dir "$FIXTURE/output" --package-name tastedev-studio-0.1.42-linux-x86_64 --version 0.1.42 --packager-script /unused --icon resources/branding/tastedev-studio-desktop/icons/icon.png --desktop-categories-base64 RGV2ZWxvcG1lbnQ7SURFOw== --formats ' + formats + ' --rpm-license MIT';
   return spawnSync(bash, ['-c', command], { cwd: process.cwd(), env: { ...process.env, FIXTURE: unix(root), CAPTURE: unix(path.join(root, 'captured')), MSYS_NO_PATHCONV: '1' }, encoding: 'utf8' });
 }
 test('Linux package layout separates GUI/Core/Agent and bundles exact component versions', () => {
@@ -49,4 +49,34 @@ test('an Agent-only payload cannot be published as a complete Studio package', (
   const result = run(root);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /refusing an Agent-only/);
+});
+
+test('RPM staging preserves dependency paths and isolates the build database', () => {
+  const root = fixture();
+  const dependency = path.join(root, 'payload/core/node_modules/example/[types]');
+  fs.mkdirSync(dependency, { recursive: true });
+  fs.writeFileSync(path.join(dependency, 'license notice %{name}.txt'), 'controlled');
+  // Real shell staging/spec generation; rpmbuild is intercepted, not claimed as a Linux RPM build.
+  fs.writeFileSync(path.join(root, 'bin/rpmbuild'), `#!/bin/bash
+set -eu
+spec="\${!#}"
+top="$(dirname "$(dirname "$spec")")"
+name="$(sed -n 's/^Name: //p' "$spec")"
+printf '%s\\n' "$@" > "$CAPTURE/$name.args"
+cp "$spec" "$CAPTURE/$name.spec"
+mkdir -p "$top/RPMS/x86_64"
+printf controlled-rpm > "$top/RPMS/x86_64/$name-0.1.42-1.x86_64.rpm"
+`, { mode: 0o755 });
+  const result = run(root, 'rpm');
+  assert.equal(result.status, 0, result.stderr);
+  const spec = fs.readFileSync(path.join(root, 'captured/tastedev-studio-core.spec'), 'utf8');
+  assert.ok(spec.includes('"/usr/lib/tastestudio-core/node_modules/example/[types]/license notice %%{name}.txt"'));
+  assert.ok(spec.includes('"/usr/lib/systemd/system/tastestudio-core.service"'));
+  for (const component of ['desktop', 'core', 'agent', 'server', '']) {
+    const name = `tastedev-studio${component ? '-' + component : ''}`;
+    const args = fs.readFileSync(path.join(root, 'captured', `${name}.args`), 'utf8');
+    assert.match(args, /_dbpath .*\/rpmdb\n/);
+    assert.doesNotMatch(args, /\/var\/lib\/rpm/);
+    assert.ok(fs.existsSync(path.join(root, 'output', `${name}-0.1.42-linux-x86_64.rpm`)));
+  }
 });
