@@ -1,4 +1,93 @@
+#[cfg(windows)]
 use crate::filesystem::{error, Result};
+
+/// Unix에서는 이 실행에서 만든 독립 프로세스 그룹만 정리한다.
+#[cfg(unix)]
+pub struct ProcessJob {
+    pid: u32,
+    terminated: std::sync::atomic::AtomicBool,
+}
+#[cfg(unix)]
+impl ProcessJob {
+    pub fn attach(child: &std::process::Child) -> crate::filesystem::Result<Self> {
+        Self::attach_pid(child.id())
+    }
+    pub fn attach_pid(pid: u32) -> crate::filesystem::Result<Self> {
+        if pid <= 1 || pid > i32::MAX as u32 {
+            return Err(crate::filesystem::error("process"));
+        }
+        Ok(Self {
+            pid,
+            terminated: std::sync::atomic::AtomicBool::new(false),
+        })
+    }
+    pub fn terminate(&self) {
+        use std::sync::atomic::Ordering;
+        if self.terminated.swap(true, Ordering::SeqCst) {
+            return;
+        }
+        // 고정된 kill 프로그램과 숫자 그룹 ID만 사용하며 shell 문자열을 실행하지 않는다.
+        let group = format!("-{}", self.pid);
+        let live = std::process::Command::new("/bin/kill")
+            .args(["-0", "--", &group])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .is_ok_and(|status| status.success());
+        if live
+            && !std::process::Command::new("/bin/kill")
+                .args(["-KILL", "--", &group])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status()
+                .is_ok_and(|status| status.success())
+        {
+            crate::diagnostics::record("cleanup", "process-group-terminate");
+        }
+    }
+}
+#[cfg(unix)]
+impl Drop for ProcessJob {
+    fn drop(&mut self) {
+        self.terminate();
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::os::unix::process::CommandExt;
+    #[test]
+    fn owned_process_group_is_terminated_once() {
+        let mut child = std::process::Command::new("/bin/sh")
+            .args(["-c", "sleep 30 & wait"])
+            .process_group(0)
+            .spawn()
+            .unwrap();
+        let job = ProcessJob::attach(&child).unwrap();
+        job.terminate();
+        job.terminate();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            if let Some(status) = child.try_wait().unwrap() {
+                assert!(!status.success());
+                break;
+            }
+            if std::time::Instant::now() >= deadline {
+                let _ = child.kill();
+                let _ = child.wait();
+                panic!("Owned group did not terminate");
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    }
+    #[test]
+    fn unsafe_group_identifiers_are_rejected() {
+        for pid in [0, 1, u32::MAX] {
+            assert!(ProcessJob::attach_pid(pid).is_err());
+        }
+    }
+}
 #[cfg(windows)]
 pub struct ProcessJob(isize);
 #[cfg(windows)]

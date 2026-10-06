@@ -108,11 +108,17 @@ impl Processes {
             writer,
             readers,
         } = launch(request, &cwd)?;
-        let job = match child
+        #[cfg(windows)]
+        let attached = child
             .as_raw_handle()
             .ok_or_else(|| error("process"))
-            .and_then(ProcessJob::attach)
-        {
+            .and_then(ProcessJob::attach);
+        #[cfg(unix)]
+        let attached = child
+            .process_id()
+            .ok_or_else(|| error("process"))
+            .and_then(ProcessJob::attach_pid);
+        let job = match attached {
             Ok(job) => job,
             Err(e) => {
                 let _ = child.kill();
@@ -267,6 +273,7 @@ fn emit(app: &tauri::AppHandle, id: &str, sequence: &Mutex<u64>, mut event: serd
         crate::diagnostics::record("process", "event-lock");
     }
 }
+#[cfg(windows)]
 fn default_shell() -> String {
     let root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".into());
     let powershell = format!("{root}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe");
@@ -275,6 +282,13 @@ fn default_shell() -> String {
     } else {
         format!("{root}\\System32\\cmd.exe")
     }
+}
+#[cfg(unix)]
+fn default_shell() -> String {
+    std::env::var("SHELL")
+        .ok()
+        .filter(|shell| std::path::Path::new(shell).is_absolute())
+        .unwrap_or_else(|| "/bin/sh".into())
 }
 struct Launch {
     child: Box<dyn portable_pty::Child + Send + Sync>,
@@ -296,18 +310,26 @@ fn launch(mut request: Request, cwd: &std::path::Path) -> Result<Launch> {
     };
     let executable_path = resolve_executable(&executable)?;
     if request.terminal_mode == "output" {
-        use std::os::windows::process::CommandExt;
         use std::process::{Command, Stdio};
-        let mut child = Command::new(executable_path)
+        let mut command = Command::new(executable_path);
+        command
             .args(request.args)
             .current_dir(cwd)
             .envs(request.environment)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .creation_flags(0x08000000)
-            .spawn()
-            .map_err(|_| error("executable"))?;
+            .stderr(Stdio::piped());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            command.creation_flags(0x08000000);
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            command.process_group(0);
+        }
+        let mut child = command.spawn().map_err(|_| error("executable"))?;
         let readers = vec![
             (
                 "stdout",
@@ -367,11 +389,18 @@ fn resolve_executable(command: &str) -> Result<std::path::PathBuf> {
             .collect()
     };
     for candidate in candidates {
-        if candidate.is_file()
-            && candidate
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("exe"))
-        {
+        #[cfg(windows)]
+        let executable = candidate
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("exe"));
+        #[cfg(unix)]
+        let executable = {
+            use std::os::unix::fs::PermissionsExt;
+            candidate
+                .metadata()
+                .is_ok_and(|metadata| metadata.permissions().mode() & 0o111 != 0)
+        };
+        if candidate.is_file() && executable {
             return Ok(candidate);
         }
     }
@@ -459,6 +488,7 @@ mod tests {
         assert!(validate(&r).is_err());
     }
     #[test]
+    #[cfg(windows)]
     fn output_process_has_separate_streams_and_exit_code() {
         let temp = tempfile::tempdir().unwrap();
         let request = Request {
@@ -488,6 +518,7 @@ mod tests {
         assert_eq!(result.child.wait().unwrap().exit_code(), 7);
     }
     #[test]
+    #[cfg(windows)]
     fn conpty_runs_command_resizes_and_terminates() {
         let temp = tempfile::tempdir().unwrap();
         let request = Request {
@@ -547,4 +578,42 @@ mod tests {
         drop(result.master);
         assert!(String::from_utf8_lossy(&read.join().unwrap()).contains("NATIVE_PTY_VERIFIED"));
     }
+}
+#[cfg(unix)]
+#[test]
+fn unix_output_and_executable_permissions() {
+    use std::os::unix::fs::PermissionsExt;
+    let temp = tempfile::tempdir().unwrap();
+    let file = temp.path().join("command");
+    std::fs::write(
+        &file,
+        "#!/bin/sh\nprintf native-output\nprintf native-error >&2\nexit 7\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o600)).unwrap();
+    assert!(resolve_executable(file.to_str().unwrap()).is_err());
+    std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let request = Request {
+        command: file.to_string_lossy().into_owned(),
+        args: vec![],
+        cwd: String::new(),
+        environment: HashMap::new(),
+        terminal_mode: "output".into(),
+        workspace_id: None,
+    };
+    let mut result = launch(request, temp.path()).unwrap();
+    let mut output = vec![];
+    for (name, mut reader) in result.readers.drain(..) {
+        let mut text = String::new();
+        reader.read_to_string(&mut text).unwrap();
+        output.push((name, text));
+    }
+    assert_eq!(
+        output,
+        vec![
+            ("stdout", "native-output".into()),
+            ("stderr", "native-error".into())
+        ]
+    );
+    assert_eq!(result.child.wait().unwrap().exit_code(), 7);
 }

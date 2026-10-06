@@ -407,11 +407,14 @@ pub fn run() {
             // Builder::build. WebView2's shared browser must not inherit our job.
             // Later command processes retain the app/session cleanup boundaries.
             diagnostics::record("native", "attaching-command-job");
-            let app_job = job::ProcessJob::attach_app(unsafe {
-                windows_sys::Win32::System::Threading::GetCurrentProcess()
-            })
-            .expect("Process cleanup boundary could not initialize");
-            std::mem::forget(app_job);
+            #[cfg(windows)]
+            {
+                let app_job = job::ProcessJob::attach_app(unsafe {
+                    windows_sys::Win32::System::Threading::GetCurrentProcess()
+                })
+                .expect("Process cleanup boundary could not initialize");
+                std::mem::forget(app_job);
+            }
             diagnostics::record("native", "runtime-ready");
         }
         if matches!(

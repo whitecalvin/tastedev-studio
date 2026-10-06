@@ -283,6 +283,11 @@ impl Languages {
         if self.cancelled.lock().unwrap().remove(&r.session_id) {
             return Err(error("cancelled"));
         }
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            command.process_group(0);
+        }
         let mut child = command.spawn().map_err(|_| error("language-start"))?;
         #[cfg(windows)]
         let job = {

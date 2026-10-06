@@ -3,6 +3,7 @@ mod python;
 #[path = "debugger_source_map.rs"]
 mod source_map;
 use crate::filesystem::{error, resolve, Result, Workspaces};
+#[cfg(windows)]
 use crate::job::ProcessJob;
 use serde::Deserialize;
 use serde_json::{json, Value};

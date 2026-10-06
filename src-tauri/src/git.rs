@@ -74,6 +74,12 @@ fn run_program_with_input(
         use std::os::windows::process::CommandExt;
         command.creation_flags(0x08000000);
     }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
+    #[cfg(windows)]
     use std::os::windows::io::AsRawHandle;
     use std::{
         io::Read,
@@ -94,7 +100,11 @@ fn run_program_with_input(
                 "git"
             })
         })?;
-    let job = match crate::job::ProcessJob::attach(child.as_raw_handle()) {
+    #[cfg(windows)]
+    let attached = crate::job::ProcessJob::attach(child.as_raw_handle());
+    #[cfg(unix)]
+    let attached = crate::job::ProcessJob::attach(&child);
+    let job = match attached {
         Ok(job) => job,
         Err(e) => {
             let _ = child.kill();
