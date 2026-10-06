@@ -93,6 +93,14 @@ fi
 [[ -x "$payload_dir/tastestudio" && -f "$payload_dir/core/transport/main.ts" && -f "$payload_dir/core/runtime-manifest.json" ]] || {
   echo 'Desktop/Core payload missing; refusing an Agent-only TASTESTUDIO package' >&2; exit 1;
 }
+node_root="$payload_dir/core/node"
+[[ -x "$node_root/bin/node" && -s "$node_root/LICENSE" && -s "$node_root/SHA256SUMS" ]] || {
+  echo 'Bundled Node runtime missing; regenerate Core payload using shared New-NodeRuntimeBundle with nodeRuntime enabled' >&2; exit 1;
+}
+[[ "$(cat "$node_root/VERSION")" =~ ^v24\. ]] || { echo 'Bundled Node 24 required' >&2; exit 1; }
+(cd -- "$node_root" && sha256sum --check --strict SHA256SUMS >/dev/null) || {
+  echo 'Bundled Node checksum verification failed' >&2; exit 1;
+}
 
 install -d -m 0755 "$output_dir"
 stage_dir="$(mktemp -d "${TMPDIR:-/tmp}/tastestudio-linux-package.XXXXXX")"
@@ -249,7 +257,7 @@ User=tastestudio
 Group=tastestudio
 WorkingDirectory=/usr/lib/tastestudio-core
 EnvironmentFile=/etc/tastestudio/core.env
-ExecStart=/usr/bin/node --experimental-strip-types /usr/lib/tastestudio-core/transport/main.ts
+ExecStart=/usr/lib/tastestudio-core/node/bin/node --experimental-strip-types /usr/lib/tastestudio-core/transport/main.ts
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=30
@@ -260,7 +268,7 @@ UMask=0077
 WantedBy=multi-user.target
 EOF
 cat >"$core_root/usr/share/doc/tastedev-studio-core/core.env.example" <<'EOF'
-# Node 24 required. Two distinct tokens of at least 16 characters must be supplied.
+# Node 24 is bundled. Two distinct tokens of at least 16 characters must be supplied.
 CORE_AGENT_TOKEN=
 CORE_STUDIO_TOKEN=
 CORE_HOST=127.0.0.1
@@ -271,7 +279,7 @@ EOF
 cat >"$core_root/usr/share/doc/tastedev-studio-core/README-CORE.txt" <<'EOF'
 TASTESTUDIO Core (Linux)
 
-Node 24가 필요합니다. 설치 후 설정을 완료하기 전에는 서비스를 시작하지 않습니다.
+Node 24가 패키지에 내장되어 시스템 Node 설치가 필요하지 않습니다. 설치 후 설정을 완료하기 전에는 서비스를 시작하지 않습니다.
 1. sudo cp /usr/share/doc/tastedev-studio-core/core.env.example /etc/tastestudio/core.env
 2. sudo editor /etc/tastestudio/core.env
    CORE_AGENT_TOKEN과 CORE_STUDIO_TOKEN에 서로 다른 16자 이상의 값을 설정하세요.
@@ -417,7 +425,7 @@ if [[ "$build_deb" == true ]]; then
   build_deb tastedev-studio-desktop "$desktop_root" 'TASTESTUDIO desktop application' \
     'libgtk-3-0, libwebkit2gtk-4.1-0' "$agent_takeover_deb" '' '' ''
   build_deb tastedev-studio-core "$core_root" 'TASTESTUDIO Core orchestration service' \
-    'systemd, nodejs (>= 24), nodejs (<< 25)' '' "$core_postinst" "$core_preun_body" "$agent_postrm"
+    'systemd, libc6 (>= 2.28), libstdc++6, libgcc-s1' '' "$core_postinst" "$core_preun_body" "$agent_postrm"
   build_deb tastedev-studio-agent "$agent_root" 'TASTESTUDIO Agent - runs build, test and deploy jobs for TASTESTUDIO Core' \
     'systemd' "$agent_takeover_deb" "$agent_postinst" "$agent_preun_body" "$agent_postrm"
   build_deb tastedev-studio-server '' 'TASTESTUDIO Core and Agent (server bundle)' \
@@ -431,7 +439,7 @@ if [[ "$build_rpm" == true ]]; then
   build_rpm tastedev-studio-desktop "$desktop_root" 'TASTESTUDIO desktop application' \
     'gtk3, webkit2gtk4.1' "$agent_takeover_rpm" '' '' ''
   build_rpm tastedev-studio-core "$core_root" 'TASTESTUDIO Core orchestration service' \
-    'systemd, nodejs >= 24, nodejs < 25' '' "$core_postinst" "$core_preun_body" "$agent_postrm"
+    'systemd, glibc >= 2.28, libstdc++, libgcc' '' "$core_postinst" "$core_preun_body" "$agent_postrm"
   build_rpm tastedev-studio-agent "$agent_root" 'TASTESTUDIO Agent - runs build, test and deploy jobs for TASTESTUDIO Core' \
     'systemd' "$agent_takeover_rpm" "$agent_postinst" "$agent_preun_body" "$agent_postrm"
   build_rpm tastedev-studio-server '' 'TASTESTUDIO Core and Agent (server bundle)' \
