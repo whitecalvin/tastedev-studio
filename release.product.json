@@ -4,7 +4,7 @@
   "product": {
     "id": "studio",
     "name": "TASTESTUDIO",
-    "version": "0.1.44",
+    "version": "0.1.45",
     "documentationUrl": "https://tastedev.net/docs/studio"
   },
   "git": {
@@ -17,10 +17,10 @@
     "distributionRepository": "whitecalvin/tastedev-releases",
     "websiteRepository": "whitecalvin/tastedev-web",
     "eventType": "product-release-published",
-    "sourceTag": "v0.1.44",
-    "distributionTag": "studio-v0.1.44",
-    "title": "TASTESTUDIO 0.1.44",
-    "notesFile": "docs/releases/v0.1.44.md"
+    "sourceTag": "v0.1.45",
+    "distributionTag": "studio-v0.1.45",
+    "title": "TASTESTUDIO 0.1.45",
+    "notesFile": "docs/releases/v0.1.45.md"
   },
   "websitePromotion": {
     "delivery": "local-push",
@@ -32,8 +32,8 @@
     {
       "platform": "Windows",
       "architecture": "x64",
-      "fileName": "tastestudio_0.1.44_windows_x64.zip",
-      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.44_windows_x64.zip",
+      "fileName": "tastestudio_0.1.45_windows_x64.zip",
+      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.45_windows_x64.zip",
       "codeSigned": true,
       "signaturePublisher": "GXSOFT",
       "verification": {
@@ -45,11 +45,11 @@
         "archiveMembers": [
           {
             "sourcePath": "artifacts/release/windows-x86_64/tastestudio.exe",
-            "memberPath": "tastestudio_0.1.44_windows_x64/tastestudio.exe"
+            "memberPath": "tastestudio_0.1.45_windows_x64/tastestudio.exe"
           },
           {
             "sourcePath": "artifacts/release/windows-x86_64/tastestudio-agent.exe",
-            "memberPath": "tastestudio_0.1.44_windows_x64/tastestudio-agent.exe"
+            "memberPath": "tastestudio_0.1.45_windows_x64/tastestudio-agent.exe"
           }
         ],
         "expectedSubjectContains": "O=GXSOFT",
@@ -59,14 +59,14 @@
     {
       "platform": "Windows",
       "architecture": "x64",
-      "fileName": "tastestudio_0.1.44_windows_x64.msi",
-      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.44_windows_x64.msi",
+      "fileName": "tastestudio_0.1.45_windows_x64.msi",
+      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.45_windows_x64.msi",
       "codeSigned": true,
       "signaturePublisher": "GXSOFT",
       "verification": {
         "type": "authenticode",
         "files": [
-          "artifacts/release/windows-x86_64/tastestudio_0.1.44_windows_x64.msi"
+          "artifacts/release/windows-x86_64/tastestudio_0.1.45_windows_x64.msi"
         ],
         "expectedSubjectContains": "O=GXSOFT",
         "requireTimestamp": true
@@ -75,14 +75,14 @@
     {
       "platform": "Windows",
       "architecture": "x64",
-      "fileName": "tastestudio_0.1.44_windows_x64-setup.exe",
-      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.44_windows_x64-setup.exe",
+      "fileName": "tastestudio_0.1.45_windows_x64-setup.exe",
+      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.45_windows_x64-setup.exe",
       "codeSigned": true,
       "signaturePublisher": "GXSOFT",
       "verification": {
         "type": "authenticode",
         "files": [
-          "artifacts/release/windows-x86_64/tastestudio_0.1.44_windows_x64-setup.exe"
+          "artifacts/release/windows-x86_64/tastestudio_0.1.45_windows_x64-setup.exe"
         ],
         "expectedSubjectContains": "O=GXSOFT",
         "requireTimestamp": true
@@ -91,13 +91,13 @@
     {
       "platform": "Linux",
       "architecture": "x64",
-      "fileName": "tastedev-studio-0.1.44-linux-x86_64.tar.gz",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.44-linux-x86_64.tar.gz",
+      "fileName": "tastedev-studio-0.1.45-linux-x86_64.tar.gz",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.45-linux-x86_64.tar.gz",
       "codeSigned": true,
       "signaturePublisher": "GXSOFT",
       "verification": {
         "type": "ssh",
-        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-0.1.44-linux-x86_64.tar.gz.sig",
+        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-0.1.45-linux-x86_64.tar.gz.sig",
         "publicKeyFromUserProfile": ".ssh/id_ed25519.pub",
         "expectedFingerprint": "SHA256:DpGg4oWYas1GSPxa6bb0Xq3EtYbq5A2rxyfdv8O9G1k",
         "principal": "release@tastedev.net",
@@ -107,13 +107,13 @@
     {
       "platform": "Linux",
       "architecture": "x64",
-      "fileName": "tastedev-studio-0.1.44-linux-x86_64.deb",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.44-linux-x86_64.deb",
+      "fileName": "tastedev-studio-0.1.45-linux-x86_64.deb",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.45-linux-x86_64.deb",
       "codeSigned": true,
       "signaturePublisher": "GXSOFT",
       "verification": {
         "type": "ssh",
-        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-0.1.44-linux-x86_64.deb.sig",
+        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-0.1.45-linux-x86_64.deb.sig",
         "publicKeyFromUserProfile": ".ssh/id_ed25519.pub",
         "expectedFingerprint": "SHA256:DpGg4oWYas1GSPxa6bb0Xq3EtYbq5A2rxyfdv8O9G1k",
         "principal": "release@tastedev.net",
@@ -123,13 +123,13 @@
     {
       "platform": "Linux",
       "architecture": "x64",
-      "fileName": "tastedev-studio-0.1.44-linux-x86_64.rpm",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.44-linux-x86_64.rpm",
+      "fileName": "tastedev-studio-0.1.45-linux-x86_64.rpm",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.45-linux-x86_64.rpm",
       "codeSigned": true,
       "signaturePublisher": "GXSOFT",
       "verification": {
         "type": "ssh",
-        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-0.1.44-linux-x86_64.rpm.sig",
+        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-0.1.45-linux-x86_64.rpm.sig",
         "publicKeyFromUserProfile": ".ssh/id_ed25519.pub",
         "expectedFingerprint": "SHA256:DpGg4oWYas1GSPxa6bb0Xq3EtYbq5A2rxyfdv8O9G1k",
         "principal": "release@tastedev.net",
@@ -139,13 +139,13 @@
     {
       "platform": "Linux",
       "architecture": "x64",
-      "fileName": "tastedev-studio-agent-0.1.44-linux-x86_64.deb",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-agent-0.1.44-linux-x86_64.deb",
+      "fileName": "tastedev-studio-agent-0.1.45-linux-x86_64.deb",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-agent-0.1.45-linux-x86_64.deb",
       "codeSigned": true,
       "signaturePublisher": "GXSOFT",
       "verification": {
         "type": "ssh",
-        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-agent-0.1.44-linux-x86_64.deb.sig",
+        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-agent-0.1.45-linux-x86_64.deb.sig",
         "publicKeyFromUserProfile": ".ssh/id_ed25519.pub",
         "expectedFingerprint": "SHA256:DpGg4oWYas1GSPxa6bb0Xq3EtYbq5A2rxyfdv8O9G1k",
         "principal": "release@tastedev.net",
@@ -155,13 +155,13 @@
     {
       "platform": "Linux",
       "architecture": "x64",
-      "fileName": "tastedev-studio-agent-0.1.44-linux-x86_64.rpm",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-agent-0.1.44-linux-x86_64.rpm",
+      "fileName": "tastedev-studio-agent-0.1.45-linux-x86_64.rpm",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-agent-0.1.45-linux-x86_64.rpm",
       "codeSigned": true,
       "signaturePublisher": "GXSOFT",
       "verification": {
         "type": "ssh",
-        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-agent-0.1.44-linux-x86_64.rpm.sig",
+        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-agent-0.1.45-linux-x86_64.rpm.sig",
         "publicKeyFromUserProfile": ".ssh/id_ed25519.pub",
         "expectedFingerprint": "SHA256:DpGg4oWYas1GSPxa6bb0Xq3EtYbq5A2rxyfdv8O9G1k",
         "principal": "release@tastedev.net",
@@ -171,13 +171,13 @@
     {
       "platform": "Linux",
       "architecture": "x64",
-      "fileName": "tastedev-studio-server-0.1.44-linux-x86_64.deb",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-server-0.1.44-linux-x86_64.deb",
+      "fileName": "tastedev-studio-server-0.1.45-linux-x86_64.deb",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-server-0.1.45-linux-x86_64.deb",
       "codeSigned": true,
       "signaturePublisher": "GXSOFT",
       "verification": {
         "type": "ssh",
-        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-server-0.1.44-linux-x86_64.deb.sig",
+        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-server-0.1.45-linux-x86_64.deb.sig",
         "publicKeyFromUserProfile": ".ssh/id_ed25519.pub",
         "expectedFingerprint": "SHA256:DpGg4oWYas1GSPxa6bb0Xq3EtYbq5A2rxyfdv8O9G1k",
         "principal": "release@tastedev.net",
@@ -187,13 +187,13 @@
     {
       "platform": "Linux",
       "architecture": "x64",
-      "fileName": "tastedev-studio-server-0.1.44-linux-x86_64.rpm",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-server-0.1.44-linux-x86_64.rpm",
+      "fileName": "tastedev-studio-server-0.1.45-linux-x86_64.rpm",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-server-0.1.45-linux-x86_64.rpm",
       "codeSigned": true,
       "signaturePublisher": "GXSOFT",
       "verification": {
         "type": "ssh",
-        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-server-0.1.44-linux-x86_64.rpm.sig",
+        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-server-0.1.45-linux-x86_64.rpm.sig",
         "publicKeyFromUserProfile": ".ssh/id_ed25519.pub",
         "expectedFingerprint": "SHA256:DpGg4oWYas1GSPxa6bb0Xq3EtYbq5A2rxyfdv8O9G1k",
         "principal": "release@tastedev.net",
@@ -203,13 +203,13 @@
     {
       "platform": "Linux",
       "architecture": "x64",
-      "fileName": "tastedev-studio-desktop-0.1.44-linux-x86_64.deb",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-desktop-0.1.44-linux-x86_64.deb",
+      "fileName": "tastedev-studio-desktop-0.1.45-linux-x86_64.deb",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-desktop-0.1.45-linux-x86_64.deb",
       "codeSigned": true,
       "signaturePublisher": "GXSOFT",
       "verification": {
         "type": "ssh",
-        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-desktop-0.1.44-linux-x86_64.deb.sig",
+        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-desktop-0.1.45-linux-x86_64.deb.sig",
         "publicKeyFromUserProfile": ".ssh/id_ed25519.pub",
         "expectedFingerprint": "SHA256:DpGg4oWYas1GSPxa6bb0Xq3EtYbq5A2rxyfdv8O9G1k",
         "principal": "release@tastedev.net",
@@ -219,13 +219,13 @@
     {
       "platform": "Linux",
       "architecture": "x64",
-      "fileName": "tastedev-studio-desktop-0.1.44-linux-x86_64.rpm",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-desktop-0.1.44-linux-x86_64.rpm",
+      "fileName": "tastedev-studio-desktop-0.1.45-linux-x86_64.rpm",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-desktop-0.1.45-linux-x86_64.rpm",
       "codeSigned": true,
       "signaturePublisher": "GXSOFT",
       "verification": {
         "type": "ssh",
-        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-desktop-0.1.44-linux-x86_64.rpm.sig",
+        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-desktop-0.1.45-linux-x86_64.rpm.sig",
         "publicKeyFromUserProfile": ".ssh/id_ed25519.pub",
         "expectedFingerprint": "SHA256:DpGg4oWYas1GSPxa6bb0Xq3EtYbq5A2rxyfdv8O9G1k",
         "principal": "release@tastedev.net",
@@ -235,13 +235,13 @@
     {
       "platform": "Linux",
       "architecture": "x64",
-      "fileName": "tastedev-studio-core-0.1.44-linux-x86_64.deb",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-core-0.1.44-linux-x86_64.deb",
+      "fileName": "tastedev-studio-core-0.1.45-linux-x86_64.deb",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-core-0.1.45-linux-x86_64.deb",
       "codeSigned": true,
       "signaturePublisher": "GXSOFT",
       "verification": {
         "type": "ssh",
-        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-core-0.1.44-linux-x86_64.deb.sig",
+        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-core-0.1.45-linux-x86_64.deb.sig",
         "publicKeyFromUserProfile": ".ssh/id_ed25519.pub",
         "expectedFingerprint": "SHA256:DpGg4oWYas1GSPxa6bb0Xq3EtYbq5A2rxyfdv8O9G1k",
         "principal": "release@tastedev.net",
@@ -251,13 +251,13 @@
     {
       "platform": "Linux",
       "architecture": "x64",
-      "fileName": "tastedev-studio-core-0.1.44-linux-x86_64.rpm",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-core-0.1.44-linux-x86_64.rpm",
+      "fileName": "tastedev-studio-core-0.1.45-linux-x86_64.rpm",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-core-0.1.45-linux-x86_64.rpm",
       "codeSigned": true,
       "signaturePublisher": "GXSOFT",
       "verification": {
         "type": "ssh",
-        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-core-0.1.44-linux-x86_64.rpm.sig",
+        "signaturePath": "artifacts/release/linux-x86_64/tastedev-studio-core-0.1.45-linux-x86_64.rpm.sig",
         "publicKeyFromUserProfile": ".ssh/id_ed25519.pub",
         "expectedFingerprint": "SHA256:DpGg4oWYas1GSPxa6bb0Xq3EtYbq5A2rxyfdv8O9G1k",
         "principal": "release@tastedev.net",
@@ -267,16 +267,16 @@
   ],
   "releaseAssets": [
     {
-      "fileName": "tastestudio_0.1.44_windows_x64.zip",
-      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.44_windows_x64.zip"
+      "fileName": "tastestudio_0.1.45_windows_x64.zip",
+      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.45_windows_x64.zip"
     },
     {
-      "fileName": "tastestudio_0.1.44_windows_x64.msi",
-      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.44_windows_x64.msi"
+      "fileName": "tastestudio_0.1.45_windows_x64.msi",
+      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.45_windows_x64.msi"
     },
     {
-      "fileName": "tastestudio_0.1.44_windows_x64-setup.exe",
-      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.44_windows_x64-setup.exe"
+      "fileName": "tastestudio_0.1.45_windows_x64-setup.exe",
+      "path": "artifacts/release/windows-x86_64/tastestudio_0.1.45_windows_x64-setup.exe"
     },
     {
       "fileName": "tastestudio.exe",
@@ -287,96 +287,96 @@
       "path": "artifacts/release/windows-x86_64/tastestudio-agent.exe"
     },
     {
-      "fileName": "tastedev-studio-0.1.44-linux-x86_64.tar.gz",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.44-linux-x86_64.tar.gz"
+      "fileName": "tastedev-studio-0.1.45-linux-x86_64.tar.gz",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.45-linux-x86_64.tar.gz"
     },
     {
-      "fileName": "tastedev-studio-0.1.44-linux-x86_64.tar.gz.sig",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.44-linux-x86_64.tar.gz.sig"
+      "fileName": "tastedev-studio-0.1.45-linux-x86_64.tar.gz.sig",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.45-linux-x86_64.tar.gz.sig"
     },
     {
-      "fileName": "tastedev-studio-0.1.44-linux-x86_64.deb",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.44-linux-x86_64.deb"
+      "fileName": "tastedev-studio-0.1.45-linux-x86_64.deb",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.45-linux-x86_64.deb"
     },
     {
-      "fileName": "tastedev-studio-0.1.44-linux-x86_64.deb.sig",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.44-linux-x86_64.deb.sig"
+      "fileName": "tastedev-studio-0.1.45-linux-x86_64.deb.sig",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.45-linux-x86_64.deb.sig"
     },
     {
-      "fileName": "tastedev-studio-0.1.44-linux-x86_64.rpm",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.44-linux-x86_64.rpm"
+      "fileName": "tastedev-studio-0.1.45-linux-x86_64.rpm",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.45-linux-x86_64.rpm"
     },
     {
-      "fileName": "tastedev-studio-0.1.44-linux-x86_64.rpm.sig",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.44-linux-x86_64.rpm.sig"
+      "fileName": "tastedev-studio-0.1.45-linux-x86_64.rpm.sig",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-0.1.45-linux-x86_64.rpm.sig"
     },
     {
       "fileName": "SHA256SUMS.txt",
       "path": "artifacts/release/SHA256SUMS.txt"
     },
     {
-      "fileName": "tastedev-studio-agent-0.1.44-linux-x86_64.deb",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-agent-0.1.44-linux-x86_64.deb"
+      "fileName": "tastedev-studio-agent-0.1.45-linux-x86_64.deb",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-agent-0.1.45-linux-x86_64.deb"
     },
     {
-      "fileName": "tastedev-studio-agent-0.1.44-linux-x86_64.deb.sig",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-agent-0.1.44-linux-x86_64.deb.sig"
+      "fileName": "tastedev-studio-agent-0.1.45-linux-x86_64.deb.sig",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-agent-0.1.45-linux-x86_64.deb.sig"
     },
     {
-      "fileName": "tastedev-studio-agent-0.1.44-linux-x86_64.rpm",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-agent-0.1.44-linux-x86_64.rpm"
+      "fileName": "tastedev-studio-agent-0.1.45-linux-x86_64.rpm",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-agent-0.1.45-linux-x86_64.rpm"
     },
     {
-      "fileName": "tastedev-studio-agent-0.1.44-linux-x86_64.rpm.sig",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-agent-0.1.44-linux-x86_64.rpm.sig"
+      "fileName": "tastedev-studio-agent-0.1.45-linux-x86_64.rpm.sig",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-agent-0.1.45-linux-x86_64.rpm.sig"
     },
     {
-      "fileName": "tastedev-studio-server-0.1.44-linux-x86_64.deb",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-server-0.1.44-linux-x86_64.deb"
+      "fileName": "tastedev-studio-server-0.1.45-linux-x86_64.deb",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-server-0.1.45-linux-x86_64.deb"
     },
     {
-      "fileName": "tastedev-studio-server-0.1.44-linux-x86_64.deb.sig",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-server-0.1.44-linux-x86_64.deb.sig"
+      "fileName": "tastedev-studio-server-0.1.45-linux-x86_64.deb.sig",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-server-0.1.45-linux-x86_64.deb.sig"
     },
     {
-      "fileName": "tastedev-studio-server-0.1.44-linux-x86_64.rpm",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-server-0.1.44-linux-x86_64.rpm"
+      "fileName": "tastedev-studio-server-0.1.45-linux-x86_64.rpm",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-server-0.1.45-linux-x86_64.rpm"
     },
     {
-      "fileName": "tastedev-studio-server-0.1.44-linux-x86_64.rpm.sig",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-server-0.1.44-linux-x86_64.rpm.sig"
+      "fileName": "tastedev-studio-server-0.1.45-linux-x86_64.rpm.sig",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-server-0.1.45-linux-x86_64.rpm.sig"
     },
     {
-      "fileName": "tastedev-studio-desktop-0.1.44-linux-x86_64.deb",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-desktop-0.1.44-linux-x86_64.deb"
+      "fileName": "tastedev-studio-desktop-0.1.45-linux-x86_64.deb",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-desktop-0.1.45-linux-x86_64.deb"
     },
     {
-      "fileName": "tastedev-studio-desktop-0.1.44-linux-x86_64.deb.sig",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-desktop-0.1.44-linux-x86_64.deb.sig"
+      "fileName": "tastedev-studio-desktop-0.1.45-linux-x86_64.deb.sig",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-desktop-0.1.45-linux-x86_64.deb.sig"
     },
     {
-      "fileName": "tastedev-studio-desktop-0.1.44-linux-x86_64.rpm",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-desktop-0.1.44-linux-x86_64.rpm"
+      "fileName": "tastedev-studio-desktop-0.1.45-linux-x86_64.rpm",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-desktop-0.1.45-linux-x86_64.rpm"
     },
     {
-      "fileName": "tastedev-studio-desktop-0.1.44-linux-x86_64.rpm.sig",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-desktop-0.1.44-linux-x86_64.rpm.sig"
+      "fileName": "tastedev-studio-desktop-0.1.45-linux-x86_64.rpm.sig",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-desktop-0.1.45-linux-x86_64.rpm.sig"
     },
     {
-      "fileName": "tastedev-studio-core-0.1.44-linux-x86_64.deb",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-core-0.1.44-linux-x86_64.deb"
+      "fileName": "tastedev-studio-core-0.1.45-linux-x86_64.deb",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-core-0.1.45-linux-x86_64.deb"
     },
     {
-      "fileName": "tastedev-studio-core-0.1.44-linux-x86_64.deb.sig",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-core-0.1.44-linux-x86_64.deb.sig"
+      "fileName": "tastedev-studio-core-0.1.45-linux-x86_64.deb.sig",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-core-0.1.45-linux-x86_64.deb.sig"
     },
     {
-      "fileName": "tastedev-studio-core-0.1.44-linux-x86_64.rpm",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-core-0.1.44-linux-x86_64.rpm"
+      "fileName": "tastedev-studio-core-0.1.45-linux-x86_64.rpm",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-core-0.1.45-linux-x86_64.rpm"
     },
     {
-      "fileName": "tastedev-studio-core-0.1.44-linux-x86_64.rpm.sig",
-      "path": "artifacts/release/linux-x86_64/tastedev-studio-core-0.1.44-linux-x86_64.rpm.sig"
+      "fileName": "tastedev-studio-core-0.1.45-linux-x86_64.rpm.sig",
+      "path": "artifacts/release/linux-x86_64/tastedev-studio-core-0.1.45-linux-x86_64.rpm.sig"
     }
   ]
 }

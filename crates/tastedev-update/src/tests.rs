@@ -2,8 +2,8 @@
 //! (가짜 [`Runner`] 가 명령만 기록한다).
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use crate::sha256;
@@ -250,9 +250,11 @@ fn manual_download_uses_the_release_file_names() {
         &InstallKind::Deb,
         "x86_64"
     ));
-    assert!(manual_kinds(Os::Windows)
-        .iter()
-        .all(|k| !matches!(k, InstallKind::Portable { .. })));
+    assert!(
+        manual_kinds(Os::Windows)
+            .iter()
+            .all(|k| !matches!(k, InstallKind::Portable { .. }))
+    );
 }
 
 #[test]
