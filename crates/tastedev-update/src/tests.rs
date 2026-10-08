@@ -2,8 +2,8 @@
 //! (가짜 [`Runner`] 가 명령만 기록한다).
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::sha256;
@@ -250,11 +250,9 @@ fn manual_download_uses_the_release_file_names() {
         &InstallKind::Deb,
         "x86_64"
     ));
-    assert!(
-        manual_kinds(Os::Windows)
-            .iter()
-            .all(|k| !matches!(k, InstallKind::Portable { .. }))
-    );
+    assert!(manual_kinds(Os::Windows)
+        .iter()
+        .all(|k| !matches!(k, InstallKind::Portable { .. })));
 }
 
 #[test]
@@ -1184,5 +1182,112 @@ fn flow_cannot_install_opens_the_page_instead() {
             "open https://github.com/whitecalvin/tastedev-releases/releases/tag/files-v0.2.0"
                 .to_owned()
         ]
+    );
+}
+
+#[test]
+fn sha256_block_and_padding_boundaries_match_independent_vectors() {
+    // .NET SHA256 독립 결과: 완전 블록/잔여 조각/두 블록 패딩의 경계를 확인한다.
+    let vectors = [
+        (
+            0,
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        ),
+        (
+            1,
+            "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+        ),
+        (
+            55,
+            "463eb28e72f82e0a96c0a4cc53690c571281131f672aa229e0d45ae59b598b59",
+        ),
+        (
+            56,
+            "da2ae4d6b36748f2a318f23e7ab1dfdf45acdc9d049bd80e59de82a60895f562",
+        ),
+        (
+            63,
+            "29af2686fd53374a36b0846694cc342177e428d1647515f078784d69cdb9e488",
+        ),
+        (
+            64,
+            "fdeab9acf3710362bd2658cdc9a29e8f9c757fcf9811603a8c447cd1d9151108",
+        ),
+        (
+            65,
+            "4bfd2c8b6f1eec7a2afeb48b934ee4b2694182027e6d0fc075074f2fabb31781",
+        ),
+        (
+            127,
+            "92ca0fa6651ee2f97b884b7246a562fa71250fedefe5ebf270d31c546bfea976",
+        ),
+        (
+            128,
+            "471fb943aa23c511f6f72f8d1652d9c880cfa392ad80503120547703e56a2be5",
+        ),
+        (
+            129,
+            "5099c6a56203f9687f7d33f4bfdf576d31dc91f6b695ecea38b2770c87631135",
+        ),
+        (
+            4096,
+            "d67c656e01756650d77717b0839985a056ec28ffe174601d690fc407a2ceffca",
+        ),
+    ];
+    for (len, expected) in vectors {
+        let data: Vec<u8> = (0..len).map(|n| (n % 251) as u8).collect();
+        assert_eq!(sha256::digest_hex(&data), expected, "length {len}");
+        for size in [1, 7, 37, 63, 64, 65, 128, 4096] {
+            let mut hash = sha256::Sha256::new();
+            for chunk in data.chunks(size) {
+                hash.update(chunk);
+                hash.update(&[]);
+            }
+            assert_eq!(hash.finish_hex(), expected, "length {len}, chunk {size}");
+        }
+    }
+    assert_eq!(
+        sha256::digest_hex(&vec![b'a'; 1_000_000]),
+        "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0"
+    );
+}
+
+#[test]
+fn sha256_reader_retries_interrupts_but_preserves_real_errors() {
+    use std::io::{self, Read};
+    struct Interrupted {
+        data: io::Cursor<Vec<u8>>,
+        interrupt: bool,
+    }
+    impl Read for Interrupted {
+        fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+            self.interrupt = !self.interrupt;
+            if self.interrupt {
+                return Err(io::ErrorKind::Interrupted.into());
+            }
+            let len = buffer.len().min(3);
+            self.data.read(&mut buffer[..len])
+        }
+    }
+    let reader = Interrupted {
+        data: io::Cursor::new(b"abc".to_vec()),
+        interrupt: false,
+    };
+    assert_eq!(
+        sha256::read_hex(reader).unwrap(),
+        (
+            3,
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad".into()
+        )
+    );
+    struct Denied;
+    impl Read for Denied {
+        fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
+            Err(io::ErrorKind::PermissionDenied.into())
+        }
+    }
+    assert_eq!(
+        sha256::read_hex(Denied).unwrap_err().kind(),
+        io::ErrorKind::PermissionDenied
     );
 }

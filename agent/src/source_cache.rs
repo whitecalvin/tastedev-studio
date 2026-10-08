@@ -66,7 +66,9 @@ pub fn read(root: &Path, project: &str, checksum: &str) -> Result<Vec<u8>> {
     if !metadata.is_file() || metadata.len() > FILE_LIMIT as u64 {
         return Err("Cached source limit".into());
     }
-    let mut bytes = Vec::new();
+    // 이미 검증한 최대 8MiB 파일 크기만 예약해 읽기 중 반복 재할당을 줄인다.
+    // 읽기 도중 파일이 바뀌어도 아래 take 상한과 checksum 검증은 그대로 적용한다.
+    let mut bytes = Vec::with_capacity(metadata.len() as usize);
     fs::File::open(file)
         .map_err(|_| "Cached source unavailable")?
         .take(FILE_LIMIT as u64 + 1)
@@ -228,6 +230,20 @@ mod tests {
         );
         assert_eq!(inventory(dir.path()), vec![format!("{project}:{checksum}")]);
         assert!(read(dir.path(), &uuid::Uuid::new_v4().to_string(), &checksum).is_err());
+    }
+    #[test]
+    fn bounded_read_accepts_empty_and_limit_files_but_rejects_oversize() {
+        let dir = root();
+        let project = uuid::Uuid::new_v4().to_string();
+        for bytes in [Vec::new(), vec![31; FILE_LIMIT]] {
+            let checksum = digest(&bytes);
+            let path = location(dir.path(), &project, &checksum).unwrap();
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, &bytes).unwrap();
+            assert_eq!(read(dir.path(), &project, &checksum).unwrap(), bytes);
+            fs::write(&path, vec![31; FILE_LIMIT + 1]).unwrap();
+            assert!(read(dir.path(), &project, &checksum).is_err());
+        }
     }
     #[test]
     fn corruption_and_escape_are_not_advertised() {

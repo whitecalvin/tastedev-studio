@@ -7,7 +7,7 @@ import type {GraphOverview} from '../src/features/orchestration/execution.ts';
 
 function fixture():GraphOverview {
  const graph=initialGraph('p');graph.nodes.push(newNode('approval','gate',1));
- return {durable:true,definition:{graph,projectId:'p',revision:1,checksum:'hash',inputChecksum:'input',publishedAt:'now',agents:{}},executions:[{id:'e',projectId:'p',revision:1,checksum:'hash',inputChecksum:'input',status:'paused',actor:'actor',createdAt:'now',deadline:'later',nodeLabels:{gate:'Gate'},activations:[{id:'a',nodeId:'gate',attempt:1,status:'approval'}]}]};
+ return {durable:true,definition:{graph,projectId:'p',revision:1,checksum:'hash',inputChecksum:'input',publishedAt:'now',agents:{}},executions:[{id:'e',projectId:'p',revision:1,checksum:'hash',inputChecksum:'input',status:'paused',actor:'actor',createdAt:'now',deadline:'2099-01-01T00:00:00Z',nodeLabels:{gate:'Gate'},activations:[{id:'a',nodeId:'gate',attempt:1,status:'approval'}]}]};
 }
 test('only the connected current Core session exposes project history',()=>{
  const overview=fixture(),before=JSON.stringify(overview);

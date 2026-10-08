@@ -48,17 +48,29 @@ impl OutputSummary {
         }
     }
 }
-fn output_chunks(mut text: &str) -> Vec<&str> {
-    let mut chunks = Vec::new();
-    while !text.is_empty() {
+fn output_chunks(mut text: &str) -> impl Iterator<Item = &str> {
+    // 청크 목록을 할당하지 않고 UTF-8 경계를 지키며 필요한 조각만 전달한다.
+    std::iter::from_fn(move || {
+        if text.is_empty() {
+            return None;
+        }
         let mut end = text.len().min(4096);
         while !text.is_char_boundary(end) {
             end -= 1;
         }
-        chunks.push(&text[..end]);
+        let chunk = &text[..end];
         text = &text[end..];
+        Some(chunk)
+    })
+}
+fn read_output(reader: &mut (impl Read + ?Sized), buffer: &mut [u8]) -> std::io::Result<usize> {
+    loop {
+        match reader.read(buffer) {
+            // 일시적인 인터럽트를 EOF로 처리하면 이후 로그와 마스킹 문맥을 잃는다.
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            result => return result,
+        }
     }
-    chunks
 }
 impl Redactor {
     pub fn new(mut values: Vec<String>) -> Self {
@@ -208,7 +220,7 @@ pub fn command(
                 let mut pending = Vec::new();
                 let mut redactor = Redactor::new(secrets);
                 loop {
-                    match pipe.read(&mut buf) {
+                    match read_output(pipe.as_mut(), &mut buf) {
                         Ok(0) | Err(_) => {
                             let text = redactor.feed(&decode_chunk(&mut pending, &[], true), true);
                             for chunk in output_chunks(&text) {
@@ -557,9 +569,54 @@ mod output_tests {
     fn masking_expansion_stays_bounded_without_breaking_utf8() {
         let mut redactor = super::Redactor::new(vec!["a".into()]);
         let output = redactor.feed(&format!("{}한글", "a".repeat(2048)), true);
-        let chunks = super::output_chunks(&output);
+        let chunks: Vec<_> = super::output_chunks(&output).collect();
         assert!(chunks.iter().all(|s| s.len() <= 4096));
         assert_eq!(chunks.concat(), output);
         assert!(!output.contains("aaaa"));
+    }
+    #[test]
+    fn interrupted_output_read_retries_without_losing_bytes() {
+        struct InterruptedOnce {
+            interrupted: bool,
+            bytes: std::io::Cursor<Vec<u8>>,
+        }
+        impl std::io::Read for InterruptedOnce {
+            fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+                if !self.interrupted {
+                    self.interrupted = true;
+                    return Err(std::io::ErrorKind::Interrupted.into());
+                }
+                self.bytes.read(buffer)
+            }
+        }
+        let mut reader = InterruptedOnce {
+            interrupted: false,
+            bytes: std::io::Cursor::new(b"after interruption".to_vec()),
+        };
+        let mut buffer = [0; 32];
+        let size = super::read_output(&mut reader, &mut buffer).unwrap();
+        assert_eq!(&buffer[..size], b"after interruption");
+        assert_eq!(super::read_output(&mut reader, &mut buffer).unwrap(), 0);
+    }
+    #[test]
+    fn output_chunks_preserve_utf8_boundaries_and_empty_output() {
+        let text = format!("{}한글{}", "x".repeat(4095), "y".repeat(4096));
+        let chunks: Vec<_> = super::output_chunks(&text).collect();
+        assert!(chunks.iter().all(|chunk| chunk.len() <= 4096));
+        assert_eq!(chunks.concat(), text);
+        assert_eq!(super::output_chunks("").count(), 0);
+        let mut failing = std::io::ErrorKind::PermissionDenied;
+        struct FailedRead<'a>(&'a mut std::io::ErrorKind);
+        impl std::io::Read for FailedRead<'_> {
+            fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+                Err((*self.0).into())
+            }
+        }
+        assert_eq!(
+            super::read_output(&mut FailedRead(&mut failing), &mut [0; 1])
+                .unwrap_err()
+                .kind(),
+            std::io::ErrorKind::PermissionDenied
+        );
     }
 }

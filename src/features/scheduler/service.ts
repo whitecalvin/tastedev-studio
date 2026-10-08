@@ -1,4 +1,5 @@
-import {CronExpressionParser} from 'cron-parser';
+import {nextExecution} from './next-execution.ts';
+export {nextExecution} from './next-execution.ts';
 import type {Project} from '../projects/types/project.ts';
 import {protocolFiles,type ProtocolSources,type ProtocolState} from '../protocol/domain.ts';
 import {parseProtocol} from '../protocol/parser.ts';
@@ -10,14 +11,6 @@ export interface GraphScheduleAdapter {validate(projectId:string,target:GraphSch
 type ScheduleIntent=CreateJob|{graphTarget:GraphScheduleTarget};
 export const MIN_INTERVAL_SECONDS=60;
 const iso=(n:number)=>new Date(n).toISOString();
-export function nextExecution(trigger:Trigger,timezone:string,after:number):string|null {
- try{new Intl.DateTimeFormat('en',{timeZone:timezone}).format(after);}catch{throw new SchedulerError('invalid-timezone')}
- if(trigger.type==='manual'||trigger.type==='event')return null;
- if(trigger.type==='interval'){if(!Number.isInteger(trigger.seconds)||trigger.seconds<60||trigger.seconds>31536000)throw new SchedulerError('invalid-trigger');return iso(after+trigger.seconds*1000);}
- if(trigger.type==='time'){if(typeof trigger.at!=='string'||!/^\d{4}-\d\d-\d\dT/.test(trigger.at)||!/(Z|[+-]\d\d:\d\d)$/.test(trigger.at)||!Number.isFinite(Date.parse(trigger.at)))throw new SchedulerError('invalid-trigger');return Date.parse(trigger.at)>after?iso(Date.parse(trigger.at)):null;}
- if(trigger.type==='cron'){try{if(typeof trigger.expression!=='string'||trigger.expression.length>120||trigger.expression.trim().split(/\s+/).length!==5)throw Error();return CronExpressionParser.parse(trigger.expression,{tz:timezone,currentDate:after}).next().toDate().toISOString();}catch{throw new SchedulerError('invalid-cron')}}
- throw new SchedulerError('invalid-trigger');
-}
 export function validateSchedule(value:unknown,now:number):ScheduleInput {
  if(!value||typeof value!=='object'||Array.isArray(value))throw new SchedulerError('invalid-input');const v=value as ScheduleInput;
  if(Object.keys(v).some(k=>!['name','testName','enabled','trigger','timezone','graph'].includes(k))||typeof v.name!=='string'||!v.name.trim()||v.name.length>120||typeof v.testName!=='string'||!v.testName||v.testName.length>120||typeof v.enabled!=='boolean'||typeof v.timezone!=='string'||v.timezone.length>80||!v.trigger||typeof v.trigger!=='object')throw new SchedulerError('invalid-input');

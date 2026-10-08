@@ -6,7 +6,7 @@ import type {GraphOverview} from '../src/features/orchestration/execution.ts';
 
 function fixture() {
  const graph=initialGraph('p');graph.nodes.push(newNode('approval','gate',1));
- const overview:GraphOverview={durable:true,definition:{graph,projectId:'p',revision:2,checksum:'hash',inputChecksum:'inputs',publishedAt:'now',agents:{}},executions:[{id:'e',projectId:'p',revision:2,checksum:'hash',inputChecksum:'inputs',actor:'actor',createdAt:'now',deadline:'later',status:'running',nodeLabels:{gate:'Gate'},activations:[{id:'a',nodeId:'gate',attempt:1,status:'approval'}]}]};
+ const overview:GraphOverview={durable:true,definition:{graph,projectId:'p',revision:2,checksum:'hash',inputChecksum:'inputs',publishedAt:'now',agents:{}},executions:[{id:'e',projectId:'p',revision:2,checksum:'hash',inputChecksum:'inputs',actor:'actor',createdAt:'now',deadline:'2099-01-01T00:00:00Z',status:'running',nodeLabels:{gate:'Gate'},activations:[{id:'a',nodeId:'gate',attempt:1,status:'approval'}]}]};
  const input={executionId:'e',nodeId:'gate',action:'approve' as const,connected:true,dirty:false,reviewed:true};
  return {graph,overview,input};
 }

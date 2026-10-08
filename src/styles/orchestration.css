@@ -87,3 +87,15 @@
 .orch-artifact-receipt dl { display:grid; grid-template-columns:minmax(80px,auto) minmax(0,1fr); gap:5px 8px; margin:8px 0; font-size:11px; }
 .orch-artifact-receipt dt { color:var(--studio-muted); }
 .orch-artifact-receipt dd { margin:0; overflow-wrap:anywhere; font-family:var(--font-mono,monospace); }
+
+.orch-operations,.orch-progress{border:1px solid var(--studio-line);border-radius:6px;margin:8px 0;padding:10px;min-width:0}
+.orch-operations>summary,.orch-progress>summary{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px}
+.orch-operations>summary>span,.orch-progress>summary>span{margin-left:auto;color:var(--studio-muted)}
+.orch-operations p,.orch-progress p{font-size:12px;color:var(--studio-muted);overflow-wrap:anywhere}
+.orch-operations-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:8px;margin-top:8px}
+.orch-operations-grid>section{padding:10px;background:var(--studio-surface);border-radius:4px;min-width:0}
+.orch-operations h3{font-size:12px;margin:0 0 8px}.orch-operations dl{font-size:12px;margin:0}.orch-operations dl>div{display:flex;gap:8px;margin-bottom:8px}.orch-operations dt{color:var(--studio-muted)}.orch-operations dd{margin:0;display:flex;flex-wrap:wrap;gap:8px}
+.orch-operations-agent{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}.orch-operations-agent small{flex-basis:100%;color:var(--studio-muted);overflow-wrap:anywhere}
+.orch-progress progress{width:100%;height:6px;margin:12px 0;accent-color:var(--studio-accent)}.orch-progress ul{list-style:none;margin:0;padding:0}.orch-progress li{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px 0;border-top:1px solid var(--studio-line);font-size:12px}.orch-progress li p{flex-basis:100%;margin:0}.orch-progress small{color:var(--studio-muted)}
+.orch-node[data-readiness="configuration"]:not(.selected){border-style:dashed;border-color:#b7791f}.orch-node[data-readiness="waiting"]:not(.selected){border-style:dashed}.orch-edge[data-readiness="configuration"]:not(.failure) path{stroke:#b7791f;stroke-dasharray:5 3}.orch-edge[data-readiness="waiting"]:not(.failure) path{stroke-dasharray:3 4}
+.orch-operations-tasks{list-style:none;margin:8px 0;padding:0;font-size:12px}.orch-operations-tasks li{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0}.orch-operations-tasks code{color:var(--studio-muted);overflow-wrap:anywhere}

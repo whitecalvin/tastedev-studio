@@ -38,3 +38,16 @@ test('queued work reports pinned Agent loss, preserves job identity and clears r
 test('queued waiting work cancellation clears diagnostics and creates no Run',async()=>{
  const f=fixture();await f.pub();f.pauseDispatch();await f.start();await f.service.tick();await f.service.request('p','cancel',{executionId:'execution'},'user');const e=f.service.overview('p').executions[0];assert.equal(e.status,'cancelled');assert.equal(e.activations[0].waitingReasons,undefined);assert.equal(f.core.snapshot('p').jobs[0].status,'cancelled');assert.equal(f.core.snapshot('p').runs.length,0);
 });
+test('resume rejects replaced Protocol input and preserves completed history and Job identities',async()=>{
+ const f=fixture();await f.pub();await f.start();f.finish();await f.service.tick();const paused=f.make(),before=paused.overview('p').executions[0],jobs=f.core.snapshot('p').jobs.length;
+ await paused.request('p','publish',{graph:f.graph,sources:{...sources,'tasks.yml':JSON.stringify({hello:{command:'node',args:['--version']}})},expectedRevision:1},'user');
+ await assert.rejects(paused.request('p','resume',{executionId:before.id},'user'),/saved graph version/);
+ assert.deepEqual(paused.overview('p').executions[0],before);assert.equal(f.core.snapshot('p').jobs.length,jobs);
+});
+test('expired paused execution cannot resume or create additional Jobs',async()=>{
+ const f=fixture();await f.pub();await f.start();const paused=f.make();f.expire();await assert.rejects(paused.request('p','resume',{executionId:'execution'},'user'),/already finished/);assert.equal(paused.overview('p').executions[0].status,'paused');assert.equal(f.core.snapshot('p').jobs.length,1);
+});
+test('reviewed recovery keeps passed results and waiting approval without replaying completed work',async()=>{
+ const f=fixture();await f.pub();await f.start();f.finish();await f.service.tick();const recovered=f.make(),before=recovered.overview('p').executions[0].activations,jobs=f.core.snapshot('p').jobs.length;
+ await recovered.request('p','resume',{executionId:'execution'},'user');assert.deepEqual(recovered.overview('p').executions[0].activations,before);assert.equal(f.core.snapshot('p').jobs.length,jobs);assert.equal(before.filter(a=>a.status==='passed').length,1);assert.equal(before.filter(a=>a.status==='approval').length,1);
+});

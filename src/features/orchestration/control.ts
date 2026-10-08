@@ -1,3 +1,4 @@
+import {recoveryPlan} from './recovery.ts';
 import type {ProjectGraph} from './domain.ts';
 import type {GraphOverview} from './execution.ts';
 import {graphMonitor} from './monitor.ts';
@@ -15,7 +16,7 @@ export function graphControlRequest(graph:ProjectGraph,overview:GraphOverview|nu
   if(input.dirty||!monitor.compatible)throw Error('Review the saved graph version before continuing.');
   if(!input.reviewed)throw Error('Review this execution before continuing.');
   if(input.action==='resume') {
-    if(execution.status!=='paused')throw Error('Only paused execution can resume.');
+    const recovery=recoveryPlan(execution,overview?.definition??null);if(recovery.blocked)throw Error(recovery.blocked);
     return {action:'resume' as const,input:{executionId:execution.id}};
   }
   const activation=monitor.nodes.get(input.nodeId);

@@ -791,3 +791,11 @@ A fresh current Core bundle failed the packaging credential/secret filename guar
 The six node kinds and explicit device/Agent/role/task/approval/schedule relationships, Core publication/execution/queue/approval/recovery, build artifact producer/consumer lineage, receipts, retry/failure safety and current Core packaging are DEV_VERIFIED. The final requirement mapping and actual verification limits are recorded in completion-audit-20261005/ACCEPTANCE.md and EVIDENCE-INDEX.md under resources/verification/dev-01/tasks/tastedev-studio. Current Node964 coverage combines unchanged completed963 with the new packaging host-reuse test1; script-only follow-up used scoped lint/PowerShell syntax, no Studio or Agent rebuild. Rust Release53 combines unchanged completed Snapshot5 with remaining48, without repeated tests or compilation. Actual TASTEFILES CLI and desktop qualification retain their precise recorded scopes; desktop PE/byte validation is not GUI execution.
 
 Current Windows Core operator ZIP contains463 verified manifest files and reuses a source/tool/compiler/executable hash-verified shared service host. Legacy host compiler provenance was absent, so one controlled shared host compilation established the new record; actual package creation reused it. The ZIP is unsigned, requires external Node24 and performs no service installation. OPERATOR-PACKAGE.json records archive SHA. Installed GUI/updater/SCM/Linux/physical remote-device QA remains unperformed and user-owned. Current uncommitted source is not READY_FOR_QA or a published release. No102 transfer, remote deployment, signature, release, commit or push.
+
+## 운영 고도화 6단계 — 2026-10-07
+
+DEV 구현 완료: 연결 마법사, 명시적 장비·Agent·역할 운영판, 점검의 노드/관계 표시, 최신 시도 진행 관제, 검토 기반 복구 및 Core 입력/기한 차단, 스케줄 운영판/동일 계산기 미리보기. 기존 실행/승인/Source/History와 skip 정책을 재사용한다. 종료된 failed 실행의 임의 재개는 지원하지 않으며 변경 입력은 새 검토/실행이 필요하다.
+
+자동 검증: 전체 Node 981건 중 979 PASS, 발견된 2건 수정 후 관련 테스트 PASS, 추가 복구 테스트 1 PASS. 최종 목록 982건의 유효 결과를 합산하여 재사용하며 전체 982건을 다시 실행했다고 주장하지 않는다. ESLint 전체의 유일한 실패 파일을 수정 후 관련 정적 검사 PASS. 운영용 Desktop Web export 및 포함 TypeScript 검사 PASS. Rust/설치/실장비/GUI/패키징/배포 검증은 별도이며 실행하지 않았다.
+
+사용법: resources/guides/dev-01/tastestudio-operations-advancement-20261007/OPERATIONS.md. 검증과 입력 체크포인트: resources/verification/dev-01/tasks/tastedev-studio/operations-advancement-20261007. 출시/버전/commit/push 변경 없음.
