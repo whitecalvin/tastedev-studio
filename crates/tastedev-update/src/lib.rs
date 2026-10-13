@@ -555,7 +555,28 @@ pub fn asset_name_matches(name: &str, package: &str, kind: &InstallKind, arch: &
         && arches
             .iter()
             .any(|t| name.contains(&format!("{t}.")) || name.contains(&format!("{t}-")));
-    old_form || (platform == "_linux_" && new_linux_form(&name, &new, suffix, arches))
+    old_form
+        || (platform == "_windows_" && new_windows_form(&name, &new, suffix, arches))
+        || (platform == "_linux_" && new_linux_form(&name, &new, suffix, arches))
+}
+
+/// 새 Windows 배포 파일은 설치 ID를 접두어로 쓰되, 다른 제품의 비슷한 접두어는 받지 않는다.
+fn new_windows_form(name: &str, package: &str, suffix: &str, arches: &[&str]) -> bool {
+    let Some(stem) = name
+        .strip_suffix(suffix)
+        .and_then(|s| s.strip_prefix(package))
+        .and_then(|s| s.strip_prefix('_'))
+    else {
+        return false;
+    };
+    let Some((version, arch)) = stem.split_once("_windows_") else {
+        return false;
+    };
+    let version_ok = !version.is_empty()
+        && version
+            .split('.')
+            .all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()));
+    version_ok && arches.iter().any(|t| t.strip_prefix('_') == Some(arch))
 }
 
 /// Linux 새 이름 꼴 `tastedev-<제품>-<판>-linux-<CPU><확장자>`(예: `tastedev-files-0.1.3-linux-x86_64.deb`,

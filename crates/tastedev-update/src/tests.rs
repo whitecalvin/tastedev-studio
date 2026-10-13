@@ -16,6 +16,42 @@ const PRODUCT: Product = Product {
     version: "0.1.1",
 };
 
+#[test]
+fn renamed_windows_packages_match_without_accepting_neighbor_products() {
+    let kinds = [
+        (
+            InstallKind::Nsis {
+                dir: PathBuf::new(),
+            },
+            "-setup.exe",
+        ),
+        (InstallKind::Msi, ".msi"),
+        (
+            InstallKind::Portable {
+                dir: PathBuf::new(),
+            },
+            ".zip",
+        ),
+    ];
+    for (kind, suffix) in kinds {
+        let name = format!("tastedev-files_0.2.1_windows_x64{suffix}");
+        assert!(asset_name_matches(&name, "tastefiles", &kind, "x86_64"));
+        assert!(asset_name_matches(&name, "tastedev-files", &kind, "x86_64"));
+        assert!(!asset_name_matches(
+            &format!("tastedev-files-cli_0.2.1_windows_x64{suffix}"),
+            "tastefiles",
+            &kind,
+            "x86_64"
+        ));
+        assert!(!asset_name_matches(
+            &format!("tastedev-ftp_0.2.1_windows_x64{suffix}"),
+            "tastefiles",
+            &kind,
+            "x86_64"
+        ));
+    }
+}
+
 // ───────────────────────────── 도우미 ─────────────────────────────
 
 use crate::testing::{Fixture, Harness, NoNetwork, Recorder, Temp};
