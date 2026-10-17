@@ -8,7 +8,7 @@ import {FixService,type FixAttempt} from '../src/features/ai/fix-service.ts';
 import {CoreStore} from '../transport/storage.ts';
 import {HistoryStore} from '../transport/history.ts';
 import {Documents} from '../src/features/editor/documents.ts';
-const evidence=path.resolve('../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-4');
+const evidence=path.resolve('resources/verification/dev-01/tasks/tastedev-studio/advancement-4');
 function fixture(mode:'apply'|'revert',writes=1){
  const root=path.join(evidence,'crash-'+crypto.randomUUID());fs.mkdirSync(root,{recursive:true});
  fs.writeFileSync(path.join(root,'a.ts'),'user baseline A');fs.writeFileSync(path.join(root,'b.ts'),'user baseline B');

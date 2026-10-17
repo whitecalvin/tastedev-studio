@@ -7,7 +7,7 @@ import path from 'node:path';
 import {artifactGraphFixture} from './helpers/build-artifact-fixture.ts';
 import {buildArtifactGateway} from '../transport/build-artifact-gateway.ts';
 
-const evidence=path.resolve('../../../resources/verification/dev-01/tasks/tastedev-studio/build-artifact-http-20261005/fixtures');
+const evidence=path.resolve('resources/verification/dev-01/tasks/tastedev-studio/build-artifact-http-20261005/fixtures');
 const bytes=Buffer.from('controlled executable artifact'),checksum=createHash('sha256').update(bytes).digest('hex');
 async function setup(executable?:boolean){
  const f=await artifactGraphFixture(true,executable);await f.publish();await f.start();

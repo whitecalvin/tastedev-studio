@@ -856,7 +856,7 @@ impl Drop for Debuggers {
 mod tests {
     use super::*;
     fn fixture() -> tempfile::TempDir {
-        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/third-advancement/phase-4/native");
+        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../resources/verification/dev-01/tasks/tastedev-studio/third-advancement/phase-4/native");
         fs::create_dir_all(&base).unwrap();
         tempfile::tempdir_in(&base).unwrap()
     }
@@ -1142,7 +1142,9 @@ mod tests {
             debugger.cancel_update();
             scenarios.push(json!({"extension":extension,"result":"PASS","events":events,"sourceUnchanged":true,"ownedProcessCleaned":true}));
         }
-        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/third-advancement/phase-4");
+        let base = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+            "../resources/verification/dev-01/tasks/tastedev-studio/third-advancement/phase-4",
+        );
         let name = if cfg!(debug_assertions) {
             "ACTUAL-NODE-DEBUG-DEV.json"
         } else {
@@ -1192,7 +1194,7 @@ mod tests {
     #[test]
     #[ignore = "Actual trusted local Python/debugpy, disposable source only"]
     fn actual_python_conditional_logpoint_variables_and_cleanup() {
-        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/sixth-advancement/phase-2/native-python");
+        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../resources/verification/dev-01/tasks/tastedev-studio/sixth-advancement/phase-2/native-python");
         fs::create_dir_all(&base).unwrap();
         let dir = tempfile::tempdir_in(&base).unwrap();
         let source="def calculate(a,b):\n    value=a+b\n    return value\nresult=calculate(2,3)\nprint(result)\n";
@@ -1271,12 +1273,12 @@ mod tests {
             source
         );
         assert!(debugger.sessions.lock().unwrap().is_empty());
-        let evidence=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/sixth-advancement/phase-2/ACTUAL-PYTHON-DEBUG.json");
+        let evidence=Path::new(env!("CARGO_MANIFEST_DIR")).join("../resources/verification/dev-01/tasks/tastedev-studio/sixth-advancement/phase-2/ACTUAL-PYTHON-DEBUG.json");
         fs::write(evidence,serde_json::to_string_pretty(&json!({"result":"PASS","events":events,"sourceChanged":false,"ownedSessionsRemaining":0})).unwrap()).unwrap();
     }
     #[test]
     fn actual_source_map_conditional_breakpoint_and_logpoint() {
-        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/fourth-advancement/phase-2/native-node-map");
+        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../resources/verification/dev-01/tasks/tastedev-studio/fourth-advancement/phase-2/native-node-map");
         fs::create_dir_all(&base).unwrap();
         let dir = tempfile::tempdir_in(&base).unwrap();
         fs::create_dir(dir.path().join("dist")).unwrap();
@@ -1355,7 +1357,9 @@ mod tests {
     #[test]
     #[ignore = "Actual official CodeLLDB and trusted rustc, disposable source"]
     fn actual_rust_breakpoints_variables_steps_and_cleanup() {
-        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/sixth-advancement/phase-2");
+        let base = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+            "../resources/verification/dev-01/tasks/tastedev-studio/sixth-advancement/phase-2",
+        );
         let dir = tempfile::tempdir_in(&base).unwrap();
         let source = "fn main() {\n let value=5;\n println!(\"{}\",value);\n}\n";
         fs::write(dir.path().join("main.rs"), source).unwrap();

@@ -7,7 +7,7 @@ import {AIError} from '../src/features/ai/domain.ts';
 
 type Packet={id?:number|string;method?:string;params?:Record<string,unknown>;result?:unknown;error?:unknown};
 export type Launch=()=>ChildProcessWithoutNullStreams;
-export const codexHome=()=>path.resolve(process.env.TASTEDEV_CODEX_HOME??path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../../../resources/runtime/tastedev-studio/codex'));
+export const codexHome=()=>path.resolve(process.env.TASTEDEV_CODEX_HOME??path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../resources/runtime/tastedev-studio/codex'));
 export function codexLaunch():ChildProcessWithoutNullStreams {
  const configured=process.env.TASTEDEV_CODEX_EXECUTABLE;
  const installed=path.join(process.env.APPDATA??'',`npm/node_modules/@openai/codex/node_modules/@openai/codex-win32-${process.arch}/vendor/${process.arch==='arm64'?'aarch64':'x86_64'}-pc-windows-msvc/bin/codex.exe`);

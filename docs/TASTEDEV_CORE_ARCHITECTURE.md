@@ -21,7 +21,7 @@ Standalone foreground Core는 Studio가 연결을 닫아도 살아 있다. migra
 
 고유 Node440건 유효 PASS(첫430/431 + 실패1 재개 + 기존 Native8 보존·검증 + 신규 legacy1), 전체/변경 범위 lint·typecheck PASS. Web/Rust/Tauri 입력은 이번 작업에서 바뀌지 않아 재빌드하지 않았다. 실제 서비스 설치·제한 계정·Linux runtime은 미검증이며 단계 전체는 PARTIAL이다. 이전 NOT_STARTED 또는 memory-only 기록은 역사적 상태다.
 
-[운영 계약](../../../../resources/guides/dev-01/tastedev-studio/core-service-runtime-20261001/README.md) · [검증 결과](../../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-2/RESULT.md)
+[운영 계약](../resources/guides/dev-01/tastedev-studio/core-service-runtime-20261001/README.md) · [검증 결과](../resources/verification/dev-01/tasks/tastedev-studio/advancement-2/RESULT.md)
 
 고도화 2단계 PARTIAL — 실제 서비스 및 제한 계정 검증 대기
 
@@ -31,7 +31,7 @@ Standalone foreground Core는 Studio가 연결을 닫아도 살아 있다. migra
 
 재시작 시 Agent presence는 offline, 실행 reservation은 유지한다. 동일 claim의 결과는 조정하고, claim 없는 실행은 interrupted/failed 처리한다. Unknown claim은 ACK 없이 Agent error로 격리한다. 기존 Rust Agent claim/pending/ack 파일과 execute protocol v1을 재사용한다. 동일 execution을 재전송해 임의로 실행하지 않는다. schema1/SQLite FULL sync/exclusive single writer/AES-GCM/DPAPI 키 계약을 사용한다.
 
-[저장·복구 운영 계약](../../../../resources/guides/dev-01/tastedev-studio/core-persistence-20261001/README.md) · [최종 결과/Evidence](../../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/RESULT.md)
+[저장·복구 운영 계약](../resources/guides/dev-01/tastedev-studio/core-persistence-20261001/README.md) · [최종 결과/Evidence](../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/RESULT.md)
 
 고도화 1단계 PASS — 2단계 착수 가능
 
@@ -81,7 +81,7 @@ Project→Task→Test merges requirements, with later explicit constraints overr
 
 The current Studio Project ID remains authoritative; the declaration's display name does not create a second Project. Task selection creates one existing Job with one structured command, and test selection resolves its referenced task rather than invoking a test engine. Core's existing Matcher supplies incompatibility reasons and leaves an incompatible Job queued.
 
-Loading and resolving do not submit or execute. The UI requires saved Protocol files and a connected remote Core, freshly loads/validates before Queue and requires separate Assign to execute. Agent remains a generic command executor with no YAML or project-specific branches. Server-memory persistence, role-token trust and output retention are unchanged. Fresh run cwd does not receive Studio source files. Production STEP9 evidence confirms the existing Matcher keeps an incompatible Job queued without execution and invalid definitions create no Job/Run; successful resolution reaches the real Windows Agent and streamed terminal result. See [STEP9 evidence](../../../../resources/design/tastedev-studio-step9/EVIDENCE.md).
+Loading and resolving do not submit or execute. The UI requires saved Protocol files and a connected remote Core, freshly loads/validates before Queue and requires separate Assign to execute. Agent remains a generic command executor with no YAML or project-specific branches. Server-memory persistence, role-token trust and output retention are unchanged. Fresh run cwd does not receive Studio source files. Production STEP9 evidence confirms the existing Matcher keeps an incompatible Job queued without execution and invalid definitions create no Job/Run; successful resolution reaches the real Windows Agent and streamed terminal result. See [STEP9 evidence](../resources/design/tastedev-studio-step9/EVIDENCE.md).
 
 ## Composition and state ownership
 
@@ -122,9 +122,9 @@ Core events retain the latest 1,000 entries. Run/Artifact metadata is not upload
 
 ## GUI and evidence
 
-The existing [STEP2 PRODUCT](../../../../resources/design/tastedev-studio-step2/PRODUCT.md) and [DESIGN](../../../../resources/design/tastedev-studio-step2/DESIGN.md) remain authoritative. Approved B keeps separate Agents / Queue / Runs. STEP8 adds Core connection controls, timeout and bounded remote log details, preserving the editor and local panels.
+The existing [STEP2 PRODUCT](../resources/design/tastedev-studio-step2/PRODUCT.md) and [DESIGN](../resources/design/tastedev-studio-step2/DESIGN.md) remain authoritative. Approved B keeps separate Agents / Queue / Runs. STEP8 adds Core connection controls, timeout and bounded remote log details, preserving the editor and local panels.
 
-[STEP8 evidence](../../../../resources/design/tastedev-studio-step8/EVIDENCE.md) separates actual Windows Agent E2E, production Web/OPFS interactions, final source gates and independent visual review. Production starts without fake records; development fixtures are unavailable in production. Installed QA and native UI are not newly qualified. Historical STEP6 unresolved error1 and untested125% DPI remain non-blocking.
+[STEP8 evidence](../resources/design/tastedev-studio-step8/EVIDENCE.md) separates actual Windows Agent E2E, production Web/OPFS interactions, final source gates and independent visual review. Production starts without fake records; development fixtures are unavailable in production. Installed QA and native UI are not newly qualified. Historical STEP6 unresolved error1 and untested125% DPI remain non-blocking.
 
 ## 5차 고도화 1단계 — Core 저장/지연 조회 (2026-10-02)
 

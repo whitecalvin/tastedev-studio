@@ -22,6 +22,8 @@ import {GraphReadiness} from './readiness-view';
 import {readinessMarkers} from './readiness-markers';
 import {ExecutionProgress} from './execution-progress-view';
 import {DeviceOperationsBoard} from './operations-board-view';
+import {FactoryBoard} from './factory-view';
+import {factoryTemplate} from './factory-template';
 import {nodeLayer,layerActions} from './layers';
 import {NodeContextMenu} from './node-context-menu';
 import {useNodeLayers,LayerControls} from './layer-controls';
@@ -157,6 +159,7 @@ export function OrchestrationView() {
     {searchOpen&&<NodeSearchDialog key={core.project.id} nodes={graph.projectId===core.project.id?graph.nodes:[]} onClose={()=>setSearchOpen(false)} onChoose={revealNode}/>}{canvasView.error&&<p className="orch-notice" role="status">{t(canvasView.error)}</p>}<AIConfigurationPanel state={aiConfigurations} nodes={graph.nodes}/>
     {ready&&graph.projectId===core.project.id&&<GraphReadiness issues={setupIssues} nodes={graph.nodes} disabled={dragging!==null} onChoose={id=>{revealNode(id);requestAnimationFrame(()=>focusNodeSettings(core.project.id,id));}}/>}
     {ready&&graph.projectId===core.project.id&&<DeviceOperationsBoard graph={graph} agents={core.snapshot.agents} connected={core.connection.connected} disabled={dragging!==null} onChoose={revealNode}/>}
+    {ready&&graph.projectId===core.project.id&&<FactoryBoard key={core.project.id} templateDisabled={locked||dragging!==null||!aiConfigurations.ready} onTemplate={()=>{try{const draft=factoryTemplate(core.project.id,graph,aiConfigurations.store);change(draft.graph);aiConfigurations.change(draft.configurations);setMessage('Factory draft added. Save AI profiles and graph, then publish the saved Source.');}catch(error){setMessage(error instanceof Error?error.message:'Factory draft unavailable.');}}} onChoose={(id,node)=>{setExecutionId(id);revealNode(node);}}/>}
     <section className="orch-monitor" aria-label={t('Execution monitoring')}>
       <label>{t('Core graph execution')}<CustomSelect value={monitor.execution?.id??''} disabled={!liveOverview?.executions.length} onChange={e=>setExecutionId(e.target.value)}>
         {!liveOverview?.executions.length&&<option value="">{t('Not configured')}</option>}

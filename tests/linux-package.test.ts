@@ -5,7 +5,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
-const evidence = path.resolve('../../../resources/verification/dev-01/tasks/tastedev-studio/deployment-foundation-20261005/package-contract');
+const evidence = path.resolve('resources/verification/dev-01/tasks/tastedev-studio/deployment-foundation-20261005/package-contract');
 const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : '/bin/bash';
 const unix = (value: string) => value.replaceAll('\\', '/').replace(/^([A-Za-z]):/, (_, drive: string) => `/${drive.toLowerCase()}`);
 function fixture() {

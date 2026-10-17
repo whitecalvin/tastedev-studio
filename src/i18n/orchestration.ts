@@ -518,3 +518,40 @@ Object.assign(orchestrationMessages.ko,artifactInstallationMessages);Object.assi
 const artifactModeMessages:Record<string,string>={'Executable policy':'실행 권한 정책','Executable (owner only on Unix)':'실행 파일 (Unix 소유자만 접근)','Data file (owner only on Unix)':'데이터 파일 (Unix 소유자만 접근)','Build artifact transfer v2 unavailable':'산출물 전송 v2 미지원'};
 for(const locale of locales)Object.assign(orchestrationMessages[locale],Object.fromEntries(Object.keys(artifactModeMessages).map(key=>[key,key])));
 Object.assign(orchestrationMessages.ko,artifactModeMessages);Object.assign(orchestrationKorean,artifactModeMessages);
+
+const factoryMessages:Record<string,string>={
+  "Software factory": "소프트웨어 팩토리",
+  "Approve a work contract to queue implementation, real tests and independent review. Source patches retain their existing approval checks.": "작업 계약을 승인하면 구현·실제 테스트·독립 검토를 순서대로 배정합니다. 소스 적용에는 기존 패치 승인 절차가 유지됩니다.",
+  "Add factory workflow draft": "팩토리 흐름 초안 추가",
+  "Maximum parallel work": "최대 동시 작업",
+  "Work objective": "작업 목적",
+  "Acceptance criteria, one per line": "완료 기준 (한 줄에 하나)",
+  "Allowed relative paths, one per line": "수정 허용 상대 경로 (한 줄에 하나)",
+  "Exclusive resources, one per line": "독점 사용 자원 (한 줄에 하나)",
+  "Dependencies: task ID or project ID/task ID": "선행 작업: 작업 ID 또는 프로젝트 ID/작업 ID",
+  "Implementation": "구현",
+  "Independent review": "독립 검토",
+  "Maximum attempts": "최대 시도 횟수",
+  "Work budget, minutes": "작업 시간 한도 (분)",
+  "Save work contract draft": "작업 계약 초안 저장",
+  "I approve the displayed contract, graph revision and bounded AI analysis. Packaging and publication are separate.": "표시된 계약·그래프 판·한도 내 AI 분석을 승인합니다. 패키징과 게시는 별도입니다.",
+  "Review or retry notes": "검토 또는 재시도 사유",
+  "Work contract": "작업 계약",
+  "Approve and queue": "승인하고 배정",
+  "Resume reviewed work": "검토한 작업 재개",
+  "Retry failed gate": "실패 단계 재시도",
+  "Accept reviewed work": "검토 결과 승인",
+  "Request changes": "수정 요청",
+  "Factory draft added. Save AI profiles and graph, then publish the saved Source.": "팩토리 초안을 추가했습니다. AI 프로필과 그래프를 저장한 뒤 저장된 소스를 Core에 게시하세요.",
+  "Factory unavailable.": "팩토리에 연결할 수 없습니다.",
+  "Factory: publish a saved Source graph first.": "팩토리: 저장된 소스의 그래프를 먼저 게시하세요.",
+  "Factory: keep the existing workflow. Add implementation and review nodes manually.": "팩토리: 기존 흐름을 보존합니다. 구현·검토 노드를 직접 추가하세요.",
+  "Factory: Task changed. Refresh before continuing.": "팩토리: 작업이 변경되었습니다. 새로 고친 뒤 계속하세요.",
+  "Factory: published graph or Source changed. Review a new contract.": "팩토리: 게시한 그래프 또는 소스가 변경되었습니다. 새 계약을 검토하세요."
+};
+for(const locale of locales)Object.assign(orchestrationMessages[locale],Object.fromEntries(Object.keys(factoryMessages).map(key=>[key,key])));
+Object.assign(orchestrationMessages.ko,factoryMessages);Object.assign(orchestrationKorean,factoryMessages);
+
+const factoryPlanMessages:Record<string,string>={'Divide work with AI':'AI로 작업 나누기','Proposed work breakdown':'제안된 작업 분할','Save reviewed plan as drafts':'검토한 계획을 초안으로 저장','Discard plan':'계획 버리기'};
+for(const locale of locales)Object.assign(orchestrationMessages[locale],Object.fromEntries(Object.keys(factoryPlanMessages).map(key=>[key,key])));
+Object.assign(orchestrationMessages.ko,factoryPlanMessages);Object.assign(orchestrationKorean,factoryPlanMessages);

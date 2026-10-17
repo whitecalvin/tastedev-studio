@@ -5,7 +5,7 @@ import {promises as fs} from 'node:fs';
 import path from 'node:path';
 import {buildArtifactPath,consumeBuildArtifact,validateBuildArtifact,type BuildArtifact} from '../src/features/orchestration/build-artifact.ts';
 import {BuildArtifactStore} from '../transport/build-artifact-store.ts';
-const evidence=path.resolve('../../../resources/verification/dev-01/tasks/tastedev-studio/build-artifact-foundation-20261005/fixtures');
+const evidence=path.resolve('resources/verification/dev-01/tasks/tastedev-studio/build-artifact-foundation-20261005/fixtures');
 const bytes=Buffer.from('actual-build-bytes'),checksum=createHash('sha256').update(bytes).digest('hex');
 const artifact:BuildArtifact={version:1,id:'artifact-1',projectId:'project-1',executionId:'execution-1',graphRevision:3,producerActivationId:'activation-1',producerNodeId:'build',producerRunId:'run-1',producerStepId:'step-1',snapshotId:'snapshot-1',sourceChecksum:'a'.repeat(64),name:'desktop',path:'out/app.exe',size:bytes.length,checksum};
 async function* chunks(value=bytes){yield value.subarray(0,4);yield value.subarray(4);}

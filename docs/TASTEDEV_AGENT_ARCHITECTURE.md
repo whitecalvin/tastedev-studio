@@ -34,7 +34,7 @@ Protocol timeout is1–3600 seconds and becomes milliseconds; a test can overrid
 
 The declared project-relative cwd is applied under the fresh Agent Run directory. No project checkout/source copy or dependency installation was added. Agent filesystem checks are not an OS sandbox. Protocol detection/open/save never executes; Queue and Assign remain explicit user actions. STEP10 engines/orchestration are not started.
 
-[STEP9 evidence](../../../../resources/design/tastedev-studio-step9/EVIDENCE.md) records production Protocol→Core→actual Windows Agent→stdout/stderr→passed execution and mismatch/invalid blocking. Agent Debug12/Release12/fmt/Clippy/release were reused only after42 unchanged Agent/Native input hashes, the toolchain, actual release binary and five previous gate hashes were verified. Independent production visual review returned ship. STEP9 PASS; STEP10 ready but NOT_STARTED. This is new Protocol-flow evidence plus verified reuse, not a new Native UI, Unix or installed-package qualification.
+[STEP9 evidence](../resources/design/tastedev-studio-step9/EVIDENCE.md) records production Protocol→Core→actual Windows Agent→stdout/stderr→passed execution and mismatch/invalid blocking. Agent Debug12/Release12/fmt/Clippy/release were reused only after42 unchanged Agent/Native input hashes, the toolchain, actual release binary and five previous gate hashes were verified. Independent production visual review returned ship. STEP9 PASS; STEP10 ready but NOT_STARTED. This is new Protocol-flow evidence plus verified reuse, not a new Native UI, Unix or installed-package qualification.
 
 ## Start Core and Studio
 
@@ -95,6 +95,6 @@ After link loss the active tree is cancelled and its result retained. Reconnecti
 
 ## Verification boundaries
 
-[Actual Agent E2E](../../../../resources/verification/dev-01/tasks/tastedev-studio/step-8-20260930/actual-agent-e2e.json) records real Windows registration, capability, live two-stream output, token exclusion, passed/nonzero/invalid executable, timeout/cancel child cleanup, malformed input, duplicate protection and restart/reconnect behavior.
+[Actual Agent E2E](../resources/verification/dev-01/tasks/tastedev-studio/step-8-20260930/actual-agent-e2e.json) records real Windows registration, capability, live two-stream output, token exclusion, passed/nonzero/invalid executable, timeout/cancel child cleanup, malformed input, duplicate protection and restart/reconnect behavior.
 
-[STEP8 evidence](../../../../resources/design/tastedev-studio-step8/EVIDENCE.md) records source gates, Web UI and review separately. No Unix certification, installer deployment, QA-01 acceptance, new native UI regression, artifact store, source checkout, DAG, Scheduler, AI or STEP10 completion is claimed. This paragraph describes STEP8 evidence; STEP9 acceptance is separate above.
+[STEP8 evidence](../resources/design/tastedev-studio-step8/EVIDENCE.md) records source gates, Web UI and review separately. No Unix certification, installer deployment, QA-01 acceptance, new native UI regression, artifact store, source checkout, DAG, Scheduler, AI or STEP10 completion is claimed. This paragraph describes STEP8 evidence; STEP9 acceptance is separate above.

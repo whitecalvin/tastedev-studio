@@ -446,7 +446,7 @@ mod tests {
     use super::*;
     use std::fs;
     fn fixture() -> (tempfile::TempDir, Workspaces, String, PathBuf, PathBuf) {
-        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/third-advancement/phase-5/native");
+        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../resources/verification/dev-01/tasks/tastedev-studio/third-advancement/phase-5/native");
         fs::create_dir_all(base.clone()).unwrap();
         let dir = tempfile::tempdir_in(base).unwrap();
         let project = dir.path().join("project");
@@ -559,7 +559,9 @@ mod tests {
         );
         let overview = c.overview(&w, &id).unwrap();
         assert_eq!(overview["branch"], "main");
-        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/third-advancement/phase-5");
+        let base = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+            "../resources/verification/dev-01/tasks/tastedev-studio/third-advancement/phase-5",
+        );
         let name = if cfg!(debug_assertions) {
             "ACTUAL-GIT-DEV.json"
         } else {
@@ -728,7 +730,9 @@ mod tests {
         p.path = Some("main.txt".into());
         p.hunk = Some(999);
         assert!(c.prepare(&w, p).is_err());
-        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/fourth-advancement/phase-3");
+        let base = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+            "../resources/verification/dev-01/tasks/tastedev-studio/fourth-advancement/phase-3",
+        );
         fs::create_dir_all(&base).unwrap();
         fs::write(base.join(if cfg!(debug_assertions){"ACTUAL-HUNK-DEV.json"}else{"ACTUAL-HUNK-PROD.json"}),serde_json::to_vec_pretty(&json!({"result":"PASS","actualGit":true,"actualNativeHost":true,"checks":["approval before index mutation","one selected hunk only","existing staged change preserved","unselected working change preserved","source unchanged","stale approval blocked","cancel blocked","project escape blocked","invalid hunk blocked"]})).unwrap()).unwrap();
     }

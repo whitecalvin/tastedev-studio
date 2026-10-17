@@ -8,7 +8,7 @@ import {startCoreServer} from '../transport/server.ts';
 import {teamTokenHash,type TeamConfiguration} from '../transport/team-access.ts';
 const token=(id:string)=>`Dummy-Boundary-${id}-20261001`;
 async function fixture(){
- const directory=path.resolve('../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-6/boundary',randomUUID());fs.mkdirSync(directory,{recursive:true});
+ const directory=path.resolve('resources/verification/dev-01/tasks/tastedev-studio/advancement-6/boundary',randomUUID());fs.mkdirSync(directory,{recursive:true});
  const a=randomUUID(),b=randomUUID();const team:TeamConfiguration={users:[{id:'owner',role:'Owner',projects:[a,b]},{id:'developer',role:'Developer',projects:[a]},{id:'viewer',role:'Viewer',projects:[a]}],sessions:['owner','developer','viewer'].map(userId=>({id:'session-'+userId,userId,tokenHash:teamTokenHash(token(userId)),expiresAt:'2099-01-01T00:00:00Z'})),projects:[a,b].map((id,i)=>({id,agentGroups:['group-'+i],maxQueued:3,maxActive:1})),agents:[0,1].map(i=>({id:'agent-'+i,tokenHash:teamTokenHash(token('agent-'+i)),groups:['group-'+i],labels:{}})),maxQueuedPerUser:2,maxActivePerUser:1};
  const core=await startCoreServer({port:0,accessMode:'team',team,agentToken:token('internal-agent'),studioToken:token('internal-studio'),storagePath:path.join(directory,'core.sqlite'),storageKey:Buffer.alloc(32,9),artifactRoot:path.join(directory,'artifacts')});
  const sockets:WebSocket[]=[];

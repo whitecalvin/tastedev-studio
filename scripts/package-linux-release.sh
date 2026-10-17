@@ -112,8 +112,8 @@ cleanup() {
 trap cleanup EXIT
 
 # ── Agent 구성: 실행 파일 · systemd 서비스 · 설정 본보기 ─────────────────────────────────────────────
-# 서비스는 전용 계정 tastestudio 로 돈다(작업 폴더 /var/lib/tastestudio/workspace). 설정 /etc/tastestudio/agent.json 이 생기기
-# 전에는 켜지지 않고(ConditionPathExists), 토큰은 /etc/tastestudio/agent.env 의 TASTEDEV_AGENT_TOKEN(Core 의 CORE_AGENT_TOKEN 과 같은 값).
+# 서비스는 전용 계정 tastestudio 로 돈다(작업 폴더 /var/lib/tastestudio/workspace). 설정 /etc/tastedev-studio/agent.json 이 생기기
+# 전에는 켜지지 않고(ConditionPathExists), 토큰은 /etc/tastedev-studio/tastestudio-agent.env 의 TASTEDEV_AGENT_TOKEN(Core 의 CORE_AGENT_TOKEN 과 같은 값).
 agent_unit="$stage_dir/tastestudio-agent.service"
 cat >"$agent_unit" <<'EOF'
 [Unit]
@@ -121,15 +121,15 @@ Description=tastestudio-agent — runs build, test and deploy jobs for tastestud
 Documentation=https://tastedev.net/
 After=network-online.target
 Wants=network-online.target
-ConditionPathExists=/etc/tastestudio/agent.json
+ConditionPathExists=/etc/tastedev-studio/agent.json
 
 [Service]
 Type=simple
 User=tastestudio
 Group=tastestudio
 WorkingDirectory=/var/lib/tastestudio
-EnvironmentFile=-/etc/tastestudio/agent.env
-ExecStart=/usr/bin/tastestudio-agent --config /etc/tastestudio/agent.json
+EnvironmentFile=-/etc/tastedev-studio/tastestudio-agent.env
+ExecStart=/usr/bin/tastestudio-agent --config /etc/tastedev-studio/agent.json
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=30
@@ -165,9 +165,9 @@ TASTESTUDIO Agent (Linux)
 Core 의 지시에 따라 구현 · 빌드 · 배포 · 테스트를 하는 서비스입니다. 설치하면 systemd 서비스 tastestudio-agent 가
 등록되지만, 설정 파일이 생기기 전에는 켜지지 않습니다.
 
-1. 설정:   sudo cp /usr/share/doc/tastedev-studio-agent/agent.json.example /etc/tastestudio/agent.json
-           sudo editor /etc/tastestudio/agent.json      (endpoint 는 Core 의 ws(s)://<주소>:4340/agent, name 은 장비 이름)
-2. 토큰:   sudo editor /etc/tastestudio/agent.env       (TASTEDEV_AGENT_TOKEN = Core 의 CORE_AGENT_TOKEN)
+1. 설정:   sudo cp /usr/share/doc/tastedev-studio-agent/agent.json.example /etc/tastedev-studio/agent.json
+           sudo editor /etc/tastedev-studio/agent.json      (endpoint 는 Core 의 ws(s)://<주소>:4340/agent, name 은 장비 이름)
+2. 토큰:   sudo editor /etc/tastedev-studio/tastestudio-agent.env       (TASTEDEV_AGENT_TOKEN = Core 의 CORE_AGENT_TOKEN)
 3. 켜기:   sudo systemctl restart tastestudio-agent
 4. 상태:   systemctl status tastestudio-agent   ·   journalctl -u tastestudio-agent
 
@@ -186,16 +186,19 @@ fi
 if ! id -u tastestudio >/dev/null 2>&1; then
   useradd --system --gid tastestudio --home-dir /var/lib/tastestudio --shell /usr/sbin/nologin tastestudio
 fi
-install -d -m 0750 -o root -g tastestudio /etc/tastestudio
+install -d -m 0750 -o root -g tastestudio /etc/tastedev-studio
+sh /usr/libexec/tastestudio-agent/migrate-service-environment tastestudio --directory /etc/tastestudio /etc/tastedev-studio \
+  /etc/tastestudio/agent.env /etc/tastedev-studio/tastestudio-agent.env \
+  /etc/tastestudio/core.env /etc/tastedev-studio/tastestudio-core.env
 install -d -m 0750 -o tastestudio -g tastestudio /var/lib/tastestudio /var/lib/tastestudio/workspace
-if [ ! -e /etc/tastestudio/agent.env ]; then
-  install -m 0640 -o root -g tastestudio /usr/share/doc/tastedev-studio-agent/agent.env.example /etc/tastestudio/agent.env
+if [ ! -e /etc/tastedev-studio/tastestudio-agent.env ]; then
+  install -m 0640 -o root -g tastestudio /usr/share/doc/tastedev-studio-agent/agent.env.example /etc/tastedev-studio/tastestudio-agent.env
 fi
 if command -v systemctl >/dev/null 2>&1; then
   systemctl daemon-reload || true
   systemctl enable tastestudio-agent.service >/dev/null 2>&1 || true
   # 설정이 있으면 새 판으로 다시 켜고, 없으면 ConditionPathExists 로 건너뛴다.
-  if [ -e /etc/tastestudio/agent.json ]; then
+  if [ -e /etc/tastedev-studio/agent.json ]; then
     systemctl restart tastestudio-agent.service || true
   fi
 fi
@@ -217,6 +220,8 @@ EOF
 agent_root="$stage_dir/agent-root"
 install -d -m 0755 "$agent_root/usr/bin" "$agent_root/lib/systemd/system" "$agent_root/usr/share/doc/tastedev-studio-agent"
 install -m 0755 "$agent_binary" "$agent_root/usr/bin/tastestudio-agent"
+install -d -m 0755 "$agent_root/usr/libexec/tastestudio-agent"
+install -m 0755 "${source_dir}/packaging/linux/migrate-service-environment.sh" "$agent_root/usr/libexec/tastestudio-agent/migrate-service-environment"
 install -m 0644 "$agent_unit" "$agent_root/lib/systemd/system/tastestudio-agent.service"
 install -m 0644 "$agent_config_example" "$agent_root/usr/share/doc/tastedev-studio-agent/agent.json.example"
 install -m 0644 "$agent_env_example" "$agent_root/usr/share/doc/tastedev-studio-agent/agent.env.example"
@@ -242,13 +247,15 @@ EOF
 # Core: 설정·토큰은 예제만 제공하고 설치만으로 서비스를 실행하지 않는다.
 core_root="$stage_dir/core-root"
 install -d "$core_root/usr/lib/tastestudio-core" "$core_root/lib/systemd/system" "$core_root/usr/share/doc/tastedev-studio-core"
+install -d -m 0755 "$core_root/usr/libexec/tastestudio-core"
+install -m 0755 "${source_dir}/packaging/linux/migrate-service-environment.sh" "$core_root/usr/libexec/tastestudio-core/migrate-service-environment"
 cp -a -- "$payload_dir/core/." "$core_root/usr/lib/tastestudio-core/"
 cat >"$core_root/lib/systemd/system/tastestudio-core.service" <<'EOF'
 [Unit]
 Description=TASTESTUDIO Core
 After=network-online.target
 Wants=network-online.target
-ConditionPathExists=/etc/tastestudio/core.env
+ConditionPathExists=/etc/tastedev-studio/tastestudio-core.env
 StartLimitIntervalSec=60
 StartLimitBurst=3
 [Service]
@@ -256,7 +263,7 @@ Type=simple
 User=tastestudio
 Group=tastestudio
 WorkingDirectory=/usr/lib/tastestudio-core
-EnvironmentFile=/etc/tastestudio/core.env
+EnvironmentFile=/etc/tastedev-studio/tastestudio-core.env
 ExecStart=/usr/lib/tastestudio-core/node/bin/node --experimental-strip-types /usr/lib/tastestudio-core/transport/main.ts
 Restart=on-failure
 RestartSec=5
@@ -280,11 +287,11 @@ cat >"$core_root/usr/share/doc/tastedev-studio-core/README-CORE.txt" <<'EOF'
 TASTESTUDIO Core (Linux)
 
 Node 24가 패키지에 내장되어 시스템 Node 설치가 필요하지 않습니다. 설치 후 설정을 완료하기 전에는 서비스를 시작하지 않습니다.
-1. sudo cp /usr/share/doc/tastedev-studio-core/core.env.example /etc/tastestudio/core.env
-2. sudo editor /etc/tastestudio/core.env
+1. sudo cp /usr/share/doc/tastedev-studio-core/core.env.example /etc/tastedev-studio/tastestudio-core.env
+2. sudo editor /etc/tastedev-studio/tastestudio-core.env
    CORE_AGENT_TOKEN과 CORE_STUDIO_TOKEN에 서로 다른 16자 이상의 값을 설정하세요.
-3. sudo chown root:tastestudio /etc/tastestudio/core.env
-   sudo chmod 0640 /etc/tastestudio/core.env
+3. sudo chown root:tastestudio /etc/tastedev-studio/tastestudio-core.env
+   sudo chmod 0640 /etc/tastedev-studio/tastestudio-core.env
 4. sudo systemctl enable --now tastestudio-core
 5. systemctl status tastestudio-core
    journalctl -u tastestudio-core
@@ -295,6 +302,10 @@ Agent에는 CORE_AGENT_TOKEN을, Studio에는 CORE_STUDIO_TOKEN을 사용하세�
 
 tar.gz는 자동 설치하지 않습니다. systemd 예제는 DEB/RPM의 절대 설치 경로를 사용합니다.
 압축 해제 위치에서 즉시 systemd 서비스를 실행하지 말고 경로·계정·설정을 먼저 구성하세요.
+이전 설치 설정은 동봉된 migrate-service-environment.sh로 보존하여 옮길 수 있습니다:
+  sudo sh ./migrate-service-environment.sh tastestudio --directory /etc/tastestudio /etc/tastedev-studio \
+    /etc/tastestudio/agent.env /etc/tastedev-studio/tastestudio-agent.env \
+    /etc/tastestudio/core.env /etc/tastedev-studio/tastestudio-core.env
 EOF
 core_postinst="$stage_dir/core-postinst"
 cat >"$core_postinst" <<'EOF'
@@ -302,7 +313,10 @@ cat >"$core_postinst" <<'EOF'
 set -e
 getent group tastestudio >/dev/null || groupadd --system tastestudio
 id -u tastestudio >/dev/null 2>&1 || useradd --system --gid tastestudio --home-dir /var/lib/tastestudio --shell /usr/sbin/nologin tastestudio
-install -d -m 0750 -o root -g tastestudio /etc/tastestudio
+install -d -m 0750 -o root -g tastestudio /etc/tastedev-studio
+sh /usr/libexec/tastestudio-core/migrate-service-environment tastestudio --directory /etc/tastestudio /etc/tastedev-studio \
+  /etc/tastestudio/agent.env /etc/tastedev-studio/tastestudio-agent.env \
+  /etc/tastestudio/core.env /etc/tastedev-studio/tastestudio-core.env
 install -d -m 0750 -o tastestudio -g tastestudio /var/lib/tastestudio-core /var/log/tastestudio-core
 if command -v systemctl >/dev/null 2>&1; then systemctl daemon-reload || true; fi
 exit 0
@@ -313,6 +327,7 @@ core_preun_body='if command -v systemctl >/dev/null 2>&1; then systemctl disable
 package_root="$stage_dir/$package_name"
 install -d -m 0755 "$package_root/systemd"
 install -m 0755 "$agent_binary" "$package_root/tastestudio-agent"
+install -m 0755 "${source_dir}/packaging/linux/migrate-service-environment.sh" "$package_root/migrate-service-environment.sh"
 install -m 0644 "$agent_unit" "$package_root/systemd/tastestudio-agent.service"
 install -m 0644 "$agent_config_example" "$package_root/agent.json.example"
 install -m 0644 "$agent_env_example" "$package_root/agent.env.example"
@@ -328,6 +343,8 @@ tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
 mv -f -- "$output_dir/$package_name.tar.gz.tmp" "$output_dir/$package_name.tar.gz"
 
 # ── 패키지 만들기 ────────────────────────────────────────────────────────────────────────────
+bash "$(dirname -- "$packager_script")/Append-LinuxConfigurationAccess.sh" "$core_postinst" /etc/tastedev-studio
+bash "$(dirname -- "$packager_script")/Append-LinuxConfigurationAccess.sh" "$agent_postinst" /etc/tastedev-studio
 file_name() { printf '%s-%s-linux-x86_64' "$1" "$version"; }
 
 # build_deb NAME ROOT|"" SUMMARY DEPENDS EXTRA_CONTROL POSTINST PRERM_BODY POSTRM

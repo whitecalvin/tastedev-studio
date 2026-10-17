@@ -3,7 +3,7 @@ import {startCoreServer} from '../transport/server.ts';
 import {RunLogs} from '../transport/protocol.ts';
 const token='controlled-persistence-token-2026';
 const project={id:'persistence-project',name:'Persistence fixture',description:'',workspacePath:null,browserFolder:true,repositoryUrl:null,defaultBranch:null,framework:null,runtime:null,packageManager:null,projectType:null,gitEnabled:null,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),lastOpenedAt:null};
-const root=fileURLToPath(new URL('../../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/transport-unit/',import.meta.url));
+const root=fileURLToPath(new URL('../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/transport-unit/',import.meta.url));
 const caps={cpuCores:4,memoryMiB:8192,docker:false,gpu:false,pty:false,runtimes:{node:'24.11.1'},browsers:[]};
 async function peer(port:number,kind:string){const ws=new WebSocket(`ws://127.0.0.1:${port}/${kind}`);const messages:Record<string,unknown>[]=[];ws.on('message',r=>messages.push(JSON.parse(r.toString())));await once(ws,'open');return{ws,messages,send(v:object){ws.send(JSON.stringify({protocolVersion:1,...v}));}};}
 async function until(check:()=>unknown){const end=Date.now()+4000;while(!check()){if(Date.now()>end)throw Error('Timed out');await new Promise(r=>setTimeout(r,10));}}

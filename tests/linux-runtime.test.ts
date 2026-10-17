@@ -5,7 +5,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 const bash=process.platform==='win32'?'C:/Program Files/Git/bin/bash.exe':'/bin/bash';
 const unix=(value:string)=>value.replaceAll('\\','/').replace(/^([A-Za-z]):/,(_,drive:string)=>`/${drive.toLowerCase()}`);
-const base=path.resolve('../../../resources/verification/dev-01/tasks/tastedev-studio/linux-node-preflight-20261006/fixtures');
+const base=path.resolve('resources/verification/dev-01/tasks/tastedev-studio/linux-node-preflight-20261006/fixtures');
 function fixture(){
  fs.mkdirSync(base,{recursive:true});const root=fs.mkdtempSync(path.join(base,'runtime-'));
  const bin=path.join(root,'.nvm/versions/node/v24.11.1/bin');fs.mkdirSync(bin,{recursive:true});

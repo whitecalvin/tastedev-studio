@@ -23,7 +23,7 @@ test('bounded partial output counters survive validation without source text',()
  for(const invalid of [null,[],{...outputSummary,partial:false},{...outputSummary,droppedChunks:6},{...outputSummary,droppedBytes:-1},{...outputSummary,totalChunks:Number.MAX_SAFE_INTEGER+1},{...outputSummary,forwardedBytes:1048577}])assert.throws(()=>executionReport({classification:'PASSED',status:'passed',outputSummary:invalid}),/summary/);
 });
 test('classified partial output persists through actual Core result ACK, duplicate and restart',async()=>{
- const evidence=path.resolve('../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-3');
+ const evidence=path.resolve('resources/verification/dev-01/tasks/tastedev-studio/advancement-3');
  fs.mkdirSync(evidence,{recursive:true});const directory=fs.mkdtempSync(path.join(evidence,'report-store-'));
  const storagePath=path.join(directory,'core.sqlite'),storageKey=new Uint8Array(32).fill(7);
  const agentToken='dummy-agent-reliability-token',studioToken='dummy-studio-reliability-token';

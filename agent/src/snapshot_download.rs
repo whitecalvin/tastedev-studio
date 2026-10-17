@@ -446,7 +446,9 @@ mod tests {
         )
     }
     fn root() -> tempfile::TempDir {
-        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/fifth-advancement/phase-2/rust");
+        let base = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+            "../resources/verification/dev-01/tasks/tastedev-studio/fifth-advancement/phase-2/rust",
+        );
         fs::create_dir_all(&base).unwrap();
         tempfile::tempdir_in(base).unwrap()
     }

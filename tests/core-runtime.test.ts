@@ -8,7 +8,7 @@ import {WebSocket} from 'ws';
 import {runtimeConfig} from '../transport/runtime-config.ts';
 import {RuntimeLog} from '../transport/runtime-log.ts';
 import {startCoreServer} from '../transport/server.ts';
-const root=fileURLToPath(new URL('../../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-2/unit/',import.meta.url));
+const root=fileURLToPath(new URL('../resources/verification/dev-01/tasks/tastedev-studio/advancement-2/unit/',import.meta.url));
 fs.mkdirSync(root,{recursive:true});
 const tokens={CORE_AGENT_TOKEN:'dummy-agent-runtime-2026',CORE_STUDIO_TOKEN:'dummy-studio-runtime-2026'};
 const temp=()=>fs.mkdtempSync(path.join(root,'case-'));

@@ -7,7 +7,7 @@ import {spawn,type ChildProcess} from 'node:child_process';
 import {WebSocket} from 'ws';
 import {startCoreServer} from '../transport/server.ts';
 import {teamTokenHash,type TeamConfiguration} from '../transport/team-access.ts';
-const root=path.resolve('../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-6/actual-agents',randomUUID());fs.mkdirSync(root,{recursive:true});
+const root=path.resolve('resources/verification/dev-01/tasks/tastedev-studio/advancement-6/actual-agents',randomUUID());fs.mkdirSync(root,{recursive:true});
 const binary=path.resolve('target/release-gate/release/tastedev-agent.exe'),hash=createHash('sha256').update(fs.readFileSync(binary)).digest('hex');assert.equal(hash,'f3a5e73d399ef82fc40455e732dcb3e02f7062a8c2501f4cb0845e1c5fd753f7');
 const token=(id:string)=>'Dummy-team-actual-'+id+'-20261001';
 const projects=[randomUUID(),randomUUID()],agentIds=[randomUUID(),randomUUID()];

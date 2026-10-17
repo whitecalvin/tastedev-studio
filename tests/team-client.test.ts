@@ -16,7 +16,7 @@ test('all team roles, actions and refusal notices have all supported translation
  for(const locale of ['ko','de','es','fr','it','pt','ja','zh','zh-hant'] as const){const messages=teamMessages[locale]!;for(const role of teamRoles)assert.ok(messages[role]);assert.ok(messages[accessDeniedMessage]);assert.ok(messages[sessionExpiredMessage]);assert.equal(teamActions.length,11);assert.ok(Object.values(messages).every(value=>typeof value==='string'&&value.length>0));}
 });
 test('bootstrap malformed team configuration fails before opening Core storage',()=>{
- const root=path.resolve('../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-6/config',randomUUID());fs.mkdirSync(root,{recursive:true});const file=path.join(root,'invalid-team.json');fs.writeFileSync(file,JSON.stringify({users:[]}));
+ const root=path.resolve('resources/verification/dev-01/tasks/tastedev-studio/advancement-6/config',randomUUID());fs.mkdirSync(root,{recursive:true});const file=path.join(root,'invalid-team.json');fs.writeFileSync(file,JSON.stringify({users:[]}));
  assert.throws(()=>runtimeConfig({CORE_ACCESS_MODE:'team',CORE_TEAM_CONFIG:file,CORE_DATA_DIR:root,CORE_AGENT_TOKEN:'Dummy-agent-team-config',CORE_STUDIO_TOKEN:'Dummy-studio-team-config'}),/TEAM_CONFIG_INVALID/);
  assert.equal(fs.existsSync(path.join(root,'core.sqlite')),false);
 });

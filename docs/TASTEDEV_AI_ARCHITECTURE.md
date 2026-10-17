@@ -21,7 +21,7 @@ AI 분석과 FixAttempt/승인 이력은 인증된 Core /history/request를 통�
 
 Core와 Studio 재시작 후 Analysis/Approval/Attempt History와 read-only Monaco Diff 표시를 production GUI에서 검증했다. 여기서 Provider 또는 GitHub를 새로 호출하지 않았다. Local validation 중단은 자동 재실행하지 않으며 remote retest의 persisted Job/Run은 다시 연결한다. Native Patch 도중 전원 장애를 위한 write-ahead journal과 자동 resume는 후속 4단계다.
 
-[저장·복구 운영 계약](../../../../resources/guides/dev-01/tastedev-studio/core-persistence-20261001/README.md) · [최종 결과/Evidence](../../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/RESULT.md)
+[저장·복구 운영 계약](../resources/guides/dev-01/tastedev-studio/core-persistence-20261001/README.md) · [최종 결과/Evidence](../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/RESULT.md)
 
 고도화 1단계 PASS — 2단계 착수 가능
 
@@ -36,7 +36,7 @@ Node362/362 (Issue33 included), lint/typecheck/Web production build PASS. Produc
 
 Limits: memory-only candidates/links/approvals/search cache; no restart durability. Uncertain POST blocks retries and supports marker reconciliation in the current session; reconciliation examines the newest100 Issues. Duplicate suggestions use bounded keyword search and may miss semantic matches. Core uses existing gh managed keyring or a Core-only token; remoteCore requires its own login. Evidence links are internal references, not public downloads. No automatic close/comment, PR, scheduler or cloud sync.
 
-Current contract: [Issue Integration](TASTEDEV_ISSUE_INTEGRATION.md). Final result and index: parent workspace resources/verification/dev-01/tasks/tastedev-studio/step-14-20260930/RESULT.md and EVIDENCE-INDEX.md. Earlier NOT_STARTED statements are historical.
+Current contract: [Issue Integration](TASTEDEV_ISSUE_INTEGRATION.md). Final result and index: product resources/verification/dev-01/tasks/tastedev-studio/step-14-20260930/RESULT.md and EVIDENCE-INDEX.md. Earlier NOT_STARTED statements are historical.
 
 
 ## STEP13 final acceptance — 2026-09-30
@@ -47,7 +47,7 @@ Final Node329/329, Rust Debug21/Release21, lint/typecheck/fmt/Clippy/Agent relea
 
 Limits: session-only attempts/Core state, text Snapshot100 files/24KiB/60KB serialized RPC; no Secret Injection; redacted file proposals rejected rather than overwriting secret placeholders. No automatic commit/push, packaging/install/deploy or STEP14 work. Actual patch approval covers the reviewed disposable file only, not future proposals. Final report distinguishes implementation, automated tests, actual Provider/Agent and unverified Native paths.
 
-Final evidence: `resources/verification/dev-01/tasks/tastedev-studio/step-13-20260930/RESULT.md`, `EVIDENCE-INDEX.md`, `manifest.json`, `source-inputs.json` under the parent TASTEDEV workspace. [AI Fix Loop](TASTEDEV_AI_FIX_LOOP.md) specifies the current contract. Earlier STEP12/13 NOT_STARTED and no-write statements below are historical snapshots superseded by this section. The model-facing AIService remains read-only; approved write/validation actions are application-mediated.
+Final evidence: `resources/verification/dev-01/tasks/tastedev-studio/step-13-20260930/RESULT.md`, `EVIDENCE-INDEX.md`, `manifest.json`, `source-inputs.json` under the TASTESTUDIO product root. [AI Fix Loop](TASTEDEV_AI_FIX_LOOP.md) specifies the current contract. Earlier STEP12/13 NOT_STARTED and no-write statements below are historical snapshots superseded by this section. The model-facing AIService remains read-only; approved write/validation actions are application-mediated.
 
 
 ## STEP12 final acceptance — 2026-09-30
@@ -56,7 +56,7 @@ STEP 12 PASS — STEP 13 착수 가능. STEP13 NOT_STARTED.
 
 Read-only AI Development, Failure Analysis, grounded candidates/source links, proposals and Monaco Diff are implemented. Explicit user approval preceded STEP12B actual Codex Pro transmission. Actual gpt-6.1-sol failure analysis completed with 11 unique read-only calls; masking/injection/grounding checks, unchanged source readback and production GUI passed. Actual Development evidence reused. No application source changes in STEP12B; existing Node306, scoped50/44, lint/typecheck/production build evidence retained. Session history and screenshot metadata limitations remain; no patch/apply/test/dispatch authority. No native packaging, deployment, commit or push.
 
-Final evidence: parent workspace resources/verification/dev-01/tasks/tastedev-studio/step-12b-20260930/RESULT.md and EVIDENCE-INDEX.md. Earlier STEP11/STEP12 status paragraphs below are historical snapshots superseded by this entry.
+Final evidence: product resources/verification/dev-01/tasks/tastedev-studio/step-12b-20260930/RESULT.md and EVIDENCE-INDEX.md. Earlier STEP11/STEP12 status paragraphs below are historical snapshots superseded by this entry.
 
 Status: PASS after explicit approval and actual STEP12B verification. STEP13 NOT_STARTED.
 

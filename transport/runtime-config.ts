@@ -7,7 +7,7 @@ import {fileURLToPath} from 'node:url';
 
 export class ConfigError extends Error { code:string;constructor(code:string){super(code);this.code=code;} }
 export interface RuntimeConfig {accessMode:'local-single-user'|'team';team?:TeamConfiguration;host:string;port:number;agentToken:string;studioToken:string;allowLan:boolean;tlsProxy:boolean;origins:string[];dataDir:string;logDir:string;storagePath:string;schedulePath:string;artifactRoot:string;artifactBaseUrl?:string;heartbeatTimeoutMs:number;shutdownTimeoutMs:number;logMaxBytes:number;logFiles:number}
-export function runtimeConfig(env:Record<string,string|undefined>=process.env,platform=process.platform,requireCredentials=true,legacyPath=fileURLToPath(new URL('../../../../resources/runtime/tastedev-studio/core.sqlite',import.meta.url))):RuntimeConfig {
+export function runtimeConfig(env:Record<string,string|undefined>=process.env,platform=process.platform,requireCredentials=true,legacyPath=fileURLToPath(new URL('../resources/runtime/tastedev-studio/core.sqlite',import.meta.url))):RuntimeConfig {
  const paths=platform==='win32'?path.win32:path.posix;
  const filename=env.CORE_CONFIG;let file:Record<string,unknown>={};
  if(filename){if(!path.isAbsolute(filename))throw new ConfigError('CONFIG_PATH_ABSOLUTE_REQUIRED');try{file=JSON.parse(fs.readFileSync(filename,'utf8'));}catch{throw new ConfigError('CONFIG_READ_FAILED');}if(!file||typeof file!=='object'||Array.isArray(file))throw new ConfigError('CONFIG_OBJECT_REQUIRED');}

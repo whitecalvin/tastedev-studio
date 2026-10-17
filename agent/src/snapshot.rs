@@ -473,7 +473,9 @@ mod tests {
         let source = source();
         let snapshot = source.snapshot.as_ref().unwrap();
         let project = snapshot.project_id.clone();
-        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/third-advancement/phase-2/rust");
+        let base = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+            "../resources/verification/dev-01/tasks/tastedev-studio/third-advancement/phase-2/rust",
+        );
         fs::create_dir_all(&base).unwrap();
         let root = tempfile::tempdir_in(base).unwrap();
         let mut request=serde_json::from_value::<Request>(json!({"protocolVersion":1,"type":"execute","agentId":"agent","jobId":uuid::Uuid::new_v4().to_string(),"runId":uuid::Uuid::new_v4().to_string(),"projectId":project,"executable":"node","args":[],"cwd":".","timeoutMs":5000,"requirements":{},"env":{},"source":source})).unwrap();

@@ -1,0 +1,100 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {SoftwareFactory,type FactoryBridge} from '../transport/software-factory.ts';
+import {factoryTemplate} from '../src/features/orchestration/factory-template.ts';
+import {parseFactoryPlan,factoryPlanningQuestion} from '../src/features/orchestration/factory-plan.ts';
+import {factoryConflicts,factoryContext,validateFactoryContract,validateFactoryDefinition,type FactoryContract,type FactoryTask} from '../src/features/orchestration/factory.ts';
+import {initialGraph} from '../src/features/orchestration/domain.ts';
+import {emptyAIConfigurations} from '../src/features/orchestration/ai-config.ts';
+import type {GraphDefinition,GraphOverview} from '../src/features/orchestration/execution.ts';
+import type {AnalysisRecord} from '../src/features/ai/domain.ts';
+import type {FixAttempt} from '../src/features/ai/fix-service.ts';
+import type {TaskAIRequest} from '../src/features/orchestration/task-ai.ts';
+const hash='a'.repeat(64),time=Date.parse('2026-10-17T00:00:00Z');
+function definition(projectId:string):GraphDefinition{
+  const {graph}=factoryTemplate(projectId,initialGraph(projectId),emptyAIConfigurations(projectId));
+  const aiTasks=Object.fromEntries(['factory-implementation','factory-review'].map((id,i)=>[id,{projectId,nodeId:id,label:id,profileId:'profile-'+i,question:'Inspect source.',completion:i===0?'verified-fix':'analysis',route:{connectionId:'default',adapter:'openai-api',model:'test'},maximum:3,budget:{timeoutMs:1000,maxProviderRequests:2,maxInputTokens:1000,maxOutputTokens:1000}} as TaskAIRequest]));
+  return {projectId,graph,revision:1,checksum:hash,inputChecksum:hash,source:{checksum:hash} as GraphDefinition['source'],aiTasks,plans:{},agents:{},publishedAt:new Date(time).toISOString()};
+}
+function contract(projectId='p',taskId='work'):FactoryContract{return {taskId,projectId,objective:'Repair the failing function',acceptance:['Regression passes','Independent review reads the tested source'],paths:['src'],resources:['repo:'+projectId],dependencies:[],revision:1,checksum:hash,inputChecksum:hash,sourceChecksum:hash,entryNodeId:'factory-implementation',implementationNodeId:'factory-implementation',reviewNodeId:'factory-review',maxAttempts:3,timeoutMinutes:30};}
+function fixture(){
+  const overviews=new Map<string,GraphOverview>(),calls:{project:string;action:string;input:unknown;actor:string}[]=[];let now=time,revoked=false,writeFailure=false,state:unknown;
+  const analyses=new Map<string,AnalysisRecord>(),attempts=new Map<string,FixAttempt>();
+  const overview=(project:string)=>{if(!overviews.has(project))overviews.set(project,{definition:definition(project),executions:[],durable:true});return overviews.get(project)!;};
+  const bridge:FactoryBridge={overview,analysis:(_p,id)=>analyses.get(id),attempt:(_p,id)=>attempts.get(id),request:async(project,action,input,actor)=>{calls.push({project,action,input,actor});const i=input as {requestId:string;executionId:string;factory:ReturnType<typeof factoryContext>};const o=overview(project);if(action==='start'&&!o.executions.some(e=>e.id===i.requestId))o.executions.push({id:i.requestId,projectId:project,revision:1,checksum:hash,inputChecksum:hash,status:'running',activations:[],actor,createdAt:new Date(now).toISOString(),deadline:new Date(now+600000).toISOString(),nodeLabels:{},aiTasks:o.definition!.aiTasks,factory:i.factory});if(action==='cancel')o.executions.find(e=>e.id===i.executionId)!.status='cancelling';if(action==='resume')o.executions.find(e=>e.id===i.executionId)!.status='running';if(action==='retry-failed')o.executions.find(e=>e.id===i.executionId)!.status='running';return o;}};
+  const persistence={load:()=>state,save:(v:unknown)=>{if(writeFailure)throw Error('disk unavailable');state=structuredClone(v);}};
+  const authority=()=>{if(revoked)throw Error('revoked');};
+  const make=()=>new SoftwareFactory(bridge,persistence,authority,()=>now);let factory=make();
+  const get=(p='p',id='work')=>factory.overview(p).tasks.find(t=>t.contract.taskId===id)!;
+  const action=(name:string,extra:object={},p='p',id='work')=>factory.request(p,name,{taskId:id,version:get(p,id)?.version,...extra},'operator');
+  const create=async(c=contract())=>{await factory.request(c.projectId,'create',{contract:c},'operator');return get(c.projectId,c.taskId);};
+  const queue=async(c=contract())=>{await create(c);await action('queue',{},c.projectId,c.taskId);return get(c.projectId,c.taskId);};
+  function complete(project='p'){
+    const e=overview(project).executions[0],createdAt=new Date(now+1000).toISOString();e.status='passed';
+    e.activations=[{id:'implement',nodeId:'factory-implementation',attempt:1,status:'passed',fixAttemptId:'patch'},{id:'inspect',nodeId:'factory-review',attempt:1,status:'passed',analysisId:'inspection'}];
+    attempts.set('patch',{id:'patch',projectId:project,status:'passed',patches:[{path:'src/a.ts',result:'tested'}]} as FixAttempt);
+    analyses.set('inspection',{id:'inspection',conversationId:'conversation',model:'fixture',context:[],projectId:project,createdAt,task:{nodeId:'factory-review',profileId:'profile-1',label:'Review',graph:{executionId:e.id,activationId:'inspect',leaseId:'lease'}},result:{summary:'Reviewed',observedFailure:'',candidates:[],relatedFiles:[],proposal:[],uncertainty:'',evidence:['ctx-1']},originals:{'src/a.ts':'tested'}});
+  }
+  return {get,action,create,queue,calls,overview,analyses,attempts,complete,bridge,persistence,setFailure:(v:boolean)=>writeFailure=v,revoke:()=>revoked=true,advance:(ms:number)=>now+=ms,factory:()=>factory,restart:()=>{factory=make();return factory;}};
+}
+
+test('factory template preserves configured work and assigns distinct implementation/review profiles',()=>{
+  const p='p',base=initialGraph(p),result=factoryTemplate(p,base,emptyAIConfigurations(p));assert.equal(base.nodes.length,2);assert.equal(result.configurations.profiles.length,2);assert.equal(result.configurations.profiles[0].completion,'verified-fix');assert.equal(result.configurations.profiles[1].role,'review');assert.notEqual(result.configurations.bindings['factory-implementation'],result.configurations.bindings['factory-review']);
+  assert.throws(()=>factoryTemplate(p,result.graph,result.configurations),/existing workflow/);
+});
+test('contracts reject traversal, unbounded attempts and contradictory review paths',()=>{
+  for(const path of ['../other','/root','src/../out','src\\a','C:/work','src/*','src//x'])assert.throws(()=>validateFactoryContract({...contract(),paths:[path]},'p'));
+  assert.throws(()=>validateFactoryContract({...contract(),maxAttempts:4},'p'));
+  const d=definition('p');d.graph.edges.push({id:'bypass',from:'factory-implementation',to:'current-pc',relation:'success'});assert.throws(()=>validateFactoryDefinition(contract(),d),/mandatory/);
+  const same=definition('p');same.aiTasks!['factory-review'].profileId='profile-0';assert.throws(()=>validateFactoryDefinition(contract(),same),/separate/);
+});
+test('drafts do not execute; approval pins contract and repeated ticks create exactly one graph',async()=>{
+  const f=fixture();await f.create();assert.equal(f.calls.length,0);await f.action('queue');await Promise.all([f.factory().tick(),f.factory().tick()]);assert.equal(f.calls.filter(c=>c.action==='start').length,1);assert.equal(f.get().status,'running');assert.deepEqual((f.calls[0].input as {factory:unknown}).factory,factoryContext(contract()));
+  await assert.rejects(f.action('queue'),/draft/);await assert.rejects(f.factory().request('p','cancel',{taskId:'work',version:1},'operator'),/changed/);
+});
+test('two different products can run while global and exclusive-resource limits hold',async()=>{
+  const f=fixture();await f.queue(contract('p'));await f.queue(contract('q'));await f.queue(contract('r'));assert.equal(f.get('r').status,'queued');assert.equal(f.calls.length,2);
+  const a=contract('a'),b={...contract('b'),resources:a.resources};assert.equal(factoryConflicts(a,b),true);
+  const g=fixture();await g.queue(a);await g.queue(b);assert.equal(g.get('b').status,'queued');
+});
+test('dependency release requires accepted work; same-project queued work cannot overlap',async()=>{
+  const f=fixture();await f.queue();await f.queue({...contract('q'),dependencies:[{projectId:'p',taskId:'work'}]});assert.equal(f.get('q').status,'queued');f.complete();await f.factory().tick();assert.equal(f.get().status,'review');assert.equal(f.get('q').status,'queued');await f.action('review',{accepted:true,notes:'Reviewed source and actual Run.'});assert.equal(f.get().status,'completed');assert.equal(f.get('q').status,'running');
+});
+test('review cannot pass on model prose, stale source or out-of-contract patches',async()=>{
+  for(const kind of ['missing','stale','outside']){const f=fixture();await f.queue();f.complete();if(kind==='missing')f.analyses.clear();if(kind==='stale')f.analyses.get('inspection')!.originals['src/a.ts']='different';if(kind==='outside')f.attempts.get('patch')!.patches[0].path='other/a.ts';await f.factory().tick();assert.equal(f.get().status,'failed');assert.equal(f.calls.length,1);}
+});
+test('restart pauses intent, reconciles existing graph and retains all successful evidence',async()=>{
+  const f=fixture();await f.queue();const id=f.get().attempts[0].executionId;f.overview('p').executions[0].status='paused';f.restart();assert.equal(f.get().status,'paused');await f.factory().tick();assert.equal(f.calls.length,1);await f.action('resume');assert.equal(f.get().attempts[0].executionId,id);assert.equal(f.calls.filter(c=>c.action==='start').length,1);assert.equal(f.get().status,'running');
+});
+test('persistence failure prevents queue and launch; changed graph is rejected before execution',async()=>{
+  const f=fixture();await f.create();f.setFailure(true);await assert.rejects(f.action('queue'),/disk/);assert.equal(f.get().status,'draft');assert.equal(f.calls.length,0);
+  f.setFailure(false);f.overview('p').definition!.inputChecksum='b'.repeat(64);await assert.rejects(f.action('queue'),/changed/);assert.equal(f.calls.length,0);
+});
+test('revocation pauses new progression and budget cancellation retains locks until graph terminates',async()=>{
+  const f=fixture();await f.queue();f.revoke();await f.factory().tick();assert.equal(f.get().status,'paused');
+  const g=fixture();await g.queue();g.advance(31*60000);await g.factory().tick();assert.equal(g.get().status,'cancelling');assert.equal(g.calls.at(-1)?.action,'cancel');g.overview('p').executions[0].status='cancelled';await g.factory().tick();assert.equal(g.get().status,'cancelled');
+});
+test('failed gate retry reuses the exact existing graph instead of rerunning successful implementation',async()=>{
+  const f=fixture();await f.queue();const e=f.overview('p').executions[0];e.status='failed';e.activations=[{id:'impl',nodeId:'factory-implementation',attempt:1,status:'passed'},{id:'review-failure',nodeId:'factory-review',attempt:1,status:'failed'}];await f.factory().tick();await f.action('retry',{notes:'Transient reviewer connection failure.'});assert.equal(f.calls.filter(c=>c.action==='start').length,1);assert.equal(f.calls.at(-1)?.action,'retry-failed');assert.equal((f.calls.at(-1)?.input as {activationId:string}).activationId,'review-failure');assert.equal(f.get().attempts.length,2);assert.equal(e.activations[0].status,'passed');
+});
+test('project boundaries, immutable task identity and missing dependencies fail closed',async()=>{
+  const f=fixture();await f.create();await assert.rejects(f.factory().request('other','queue',{taskId:'work',version:1},'operator'),/not found/);await assert.rejects(f.factory().request('p','create',{contract:{...contract(),objective:'different'}},'operator'),/identity/);await assert.rejects(f.create({...contract('q'),dependencies:[{projectId:'p',taskId:'absent'}]}),/not found/);
+});
+test('stored state validation preserves corrupted contracts and does not replay launch',()=>{
+  const task={contract:contract(),status:'running',version:1,actor:'operator',createdAt:new Date(time).toISOString(),attempts:[]} satisfies FactoryTask;
+  assert.throws(()=>new SoftwareFactory(fixture().bridge,{load:()=>({version:1,tasks:[{...task,contract:{...task.contract,paths:['../out']}}]}),save:()=>{throw Error('must not write');}}),/path/);
+});
+
+test('AI coordinator output preserves user criteria, grounded scope and ordered dependencies',()=>{
+  const base=contract(),input={tasks:[{key:'implement',objective:'Fix parser',criteria:[0],paths:['src/parser.ts'],dependsOn:[]},{key:'inspect',objective:'Review parser regression',criteria:[1],paths:['src'],dependsOn:['implement']}]};let counter=0;
+  const plan=parseFactoryPlan(JSON.stringify(input),base,['src/parser.ts'],()=>`planned-${++counter}`);assert.equal(plan.length,2);assert.deepEqual(plan[0].acceptance,[base.acceptance[0]]);assert.deepEqual(plan[1].dependencies,[{projectId:'p',taskId:'planned-1'}]);assert.match(factoryPlanningQuestion(base),/Do not implement/);
+  for(const change of [()=>{input.tasks[0].paths=['other/a.ts'];},()=>{input.tasks[0].paths=['src/unread.ts'];},()=>{input.tasks[1].criteria=[];},()=>{input.tasks[0].dependsOn=['inspect'];}]){const original=structuredClone(input);change();assert.throws(()=>parseFactoryPlan(JSON.stringify(input),base,['src/parser.ts']));Object.assign(input,original);}
+  assert.throws(()=>parseFactoryPlan(JSON.stringify({tasks:[input.tasks[0]]}),base,['src/parser.ts']),/omitted/);
+});
+test('reviewed AI batch saves drafts atomically, remains idempotent and never launches',async()=>{
+  const f=fixture(),first=contract('p','first'),second={...contract('p','second'),dependencies:[{projectId:'p',taskId:'first'}]};
+  const submit=(contracts:FactoryContract[])=>f.factory().request('p','create-plan',{contracts},'operator');
+  await assert.rejects(submit([first,{...second,paths:['../out']}]),/path/);assert.equal(f.factory().overview('p').tasks.length,0);
+  f.setFailure(true);await assert.rejects(submit([first,second]),/disk/);assert.equal(f.factory().overview('p').tasks.length,0);
+  f.setFailure(false);await submit([first,second]);await submit([first,second]);assert.equal(f.factory().overview('p').tasks.length,2);assert.equal(f.calls.length,0);assert(f.factory().overview('p').tasks.every(t=>t.status==='draft'));
+});

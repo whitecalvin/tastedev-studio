@@ -64,7 +64,7 @@ Owner 사용자 생성/역할/프로젝트 권한/비활성화, bounded 세션 �
 
 고유 Node440건 유효 PASS(첫430/431 + 실패1 재개 + 기존 Native8 보존·검증 + 신규 legacy1), 전체/변경 범위 lint·typecheck PASS. Web/Rust/Tauri 입력은 이번 작업에서 바뀌지 않아 재빌드하지 않았다. 실제 서비스 설치·제한 계정·Linux runtime은 미검증이며 단계 전체는 PARTIAL이다. 이전 NOT_STARTED 또는 memory-only 기록은 역사적 상태다.
 
-[운영 계약](../../../../resources/guides/dev-01/tastedev-studio/core-service-runtime-20261001/README.md) · [검증 결과](../../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-2/RESULT.md)
+[운영 계약](../resources/guides/dev-01/tastedev-studio/core-service-runtime-20261001/README.md) · [검증 결과](../resources/verification/dev-01/tasks/tastedev-studio/advancement-2/RESULT.md)
 
 고도화 2단계 PARTIAL — 실제 서비스 및 제한 계정 검증 대기
 
@@ -74,7 +74,7 @@ Remote Core memory-only state loss, Schedule Protocol resync-only, Issue/Approva
 
 비차단 제한: JSON unit 기반 단일 Core writer, 무기한 이력 보관과 기존 bounded log/Event retention, 대규모 paging/부하 미검증, Unix 실제 미검증, DPAPI 다른 사용자/장비 이전 미지원. durable Patch crash journal/자동 재개는 4단계, 서비스 운영·readiness는 2단계, RBAC/quotas는 6단계다. 아래의 이전 persistence GAP는 역사적 상태로 보존한다.
 
-[저장·복구 운영 계약](../../../../resources/guides/dev-01/tastedev-studio/core-persistence-20261001/README.md) · [최종 결과/Evidence](../../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/RESULT.md)
+[저장·복구 운영 계약](../resources/guides/dev-01/tastedev-studio/core-persistence-20261001/README.md) · [최종 결과/Evidence](../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/RESULT.md)
 
 고도화 1단계 PASS — 2단계 착수 가능
 
@@ -89,7 +89,7 @@ Verification: Node393/393 PASS once; after subsequent catalog/UI changes, affect
 
 Remaining limits: Monaco built-in third-party menus remain English; unknown external diagnostics fall back to their original English; native-speaker editorial review is pending. These do not change prior phase acceptance.
 
-[Result and evidence](../../../../resources/verification/dev-01/tasks/tastedev-studio/i18n-20260930/RESULT.md) · [I18N guide](../../../../resources/guides/dev-01/tastedev-studio/i18n-20260930/I18N.md)
+[Result and evidence](../resources/verification/dev-01/tasks/tastedev-studio/i18n-20260930/RESULT.md) · [I18N guide](../resources/guides/dev-01/tastedev-studio/i18n-20260930/I18N.md)
 
 
 ## STEP15 final acceptance — 2026-09-30
@@ -113,7 +113,7 @@ Node362/362 (Issue33 included), lint/typecheck/Web production build PASS. Produc
 
 Limits: memory-only candidates/links/approvals/search cache; no restart durability. Uncertain POST blocks retries and supports marker reconciliation in the current session; reconciliation examines the newest100 Issues. Duplicate suggestions use bounded keyword search and may miss semantic matches. Core uses existing gh managed keyring or a Core-only token; remoteCore requires its own login. Evidence links are internal references, not public downloads. No automatic close/comment, PR, scheduler or cloud sync.
 
-Current contract: [Issue Integration](TASTEDEV_ISSUE_INTEGRATION.md). Final result and index: parent workspace resources/verification/dev-01/tasks/tastedev-studio/step-14-20260930/RESULT.md and EVIDENCE-INDEX.md. Earlier NOT_STARTED statements are historical.
+Current contract: [Issue Integration](TASTEDEV_ISSUE_INTEGRATION.md). Final result and index: product resources/verification/dev-01/tasks/tastedev-studio/step-14-20260930/RESULT.md and EVIDENCE-INDEX.md. Earlier NOT_STARTED statements are historical.
 
 
 ## STEP13 final acceptance — 2026-09-30
@@ -124,7 +124,7 @@ Final Node329/329, Rust Debug21/Release21, lint/typecheck/fmt/Clippy/Agent relea
 
 Limits: session-only attempts/Core state, text Snapshot100 files/24KiB/60KB serialized RPC; no Secret Injection; redacted file proposals rejected rather than overwriting secret placeholders. No automatic commit/push, packaging/install/deploy or STEP14 work. Actual patch approval covers the reviewed disposable file only, not future proposals. Final report distinguishes implementation, automated tests, actual Provider/Agent and unverified Native paths.
 
-Final evidence: `resources/verification/dev-01/tasks/tastedev-studio/step-13-20260930/RESULT.md`, `EVIDENCE-INDEX.md`, `manifest.json`, `source-inputs.json` under the parent TASTEDEV workspace. [AI Fix Loop](TASTEDEV_AI_FIX_LOOP.md) specifies the current contract. Earlier STEP12/13 NOT_STARTED and no-write statements below are historical snapshots superseded by this section. The model-facing AIService remains read-only; approved write/validation actions are application-mediated.
+Final evidence: `resources/verification/dev-01/tasks/tastedev-studio/step-13-20260930/RESULT.md`, `EVIDENCE-INDEX.md`, `manifest.json`, `source-inputs.json` under the TASTESTUDIO product root. [AI Fix Loop](TASTEDEV_AI_FIX_LOOP.md) specifies the current contract. Earlier STEP12/13 NOT_STARTED and no-write statements below are historical snapshots superseded by this section. The model-facing AIService remains read-only; approved write/validation actions are application-mediated.
 
 
 ## STEP12 final acceptance — 2026-09-30
@@ -133,7 +133,7 @@ STEP 12 PASS — STEP 13 착수 가능. STEP13 NOT_STARTED.
 
 Read-only AI Development, Failure Analysis, grounded candidates/source links, proposals and Monaco Diff are implemented. Explicit user approval preceded STEP12B actual Codex Pro transmission. Actual gpt-6.1-sol failure analysis completed with 11 unique read-only calls; masking/injection/grounding checks, unchanged source readback and production GUI passed. Actual Development evidence reused. No application source changes in STEP12B; existing Node306, scoped50/44, lint/typecheck/production build evidence retained. Session history and screenshot metadata limitations remain; no patch/apply/test/dispatch authority. No native packaging, deployment, commit or push.
 
-Final evidence: parent workspace resources/verification/dev-01/tasks/tastedev-studio/step-12b-20260930/RESULT.md and EVIDENCE-INDEX.md. Earlier STEP11/STEP12 status paragraphs below are historical snapshots superseded by this entry.
+Final evidence: product resources/verification/dev-01/tasks/tastedev-studio/step-12b-20260930/RESULT.md and EVIDENCE-INDEX.md. Earlier STEP11/STEP12 status paragraphs below are historical snapshots superseded by this entry.
 
 ## STEP11 acceptance — 2026-09-30
 
@@ -161,7 +161,7 @@ The historical sections below describe earlier STEP8/9 contracts and do not over
 
 ## 판단 기준
 
-2026-09-30 STEP9 Protocol 구현 기준이다. Protocol80+기존139=219 적용 테스트 근거가 있으며 최종 lint/typecheck/Web/Desktop no-bundle build 및 production real-Agent GUI E2E는 PASS다. Rust Agent 필수 게이트는 검증 가능한 불변 입력/산출물 근거로 재사용했다. 독립 UI review는 production8개 화면에서 ship이다. **STEP9 PASS — STEP10 착수 가능, NOT_STARTED**. 기능 구현과 최종 수락은 분리한다. [Protocol](TASTEDEV_PROTOCOL.md)과 [STEP9 evidence](../../../../resources/design/tastedev-studio-step9/EVIDENCE.md)를 따른다. STEP10은 NOT_STARTED다.
+2026-09-30 STEP9 Protocol 구현 기준이다. Protocol80+기존139=219 적용 테스트 근거가 있으며 최종 lint/typecheck/Web/Desktop no-bundle build 및 production real-Agent GUI E2E는 PASS다. Rust Agent 필수 게이트는 검증 가능한 불변 입력/산출물 근거로 재사용했다. 독립 UI review는 production8개 화면에서 ship이다. **STEP9 PASS — STEP10 착수 가능, NOT_STARTED**. 기능 구현과 최종 수락은 분리한다. [Protocol](TASTEDEV_PROTOCOL.md)과 [STEP9 evidence](../resources/design/tastedev-studio-step9/EVIDENCE.md)를 따른다. STEP10은 NOT_STARTED다.
 
 - IMPLEMENTED: 요구 동작을 수행하는 구현과 검증 근거가 있음.
 - PARTIAL: 일부 목표 기능 또는 필수 수락 검증이 남아 있음.
@@ -215,13 +215,13 @@ The historical sections below describe earlier STEP8/9 contracts and do not over
 
 - STEP6E repairs the diagnostic information gap, not a speculative cause of the historical event. Next instrumentation-client installs before hydration; window.error, unhandledrejection, console Error objects, route/root React error boundaries and Tauri frontend invoke/event failures share a bounded local recorder.
 - Records include timestamp, level, source, sanitized message, available stack frames, safe route category, Web/Tauri runtime, application version and platform. Console arguments, arbitrary IPC objects, file contents, environment and credential objects are never serialized; recognized secrets/quoted values/paths/URLs are redacted. Project identity and user action payloads are omitted.
-- Real controlled browser throw and Promise rejection, actual Next/React boundary → diagnostic capture → recovery UI → Retry **PASS**. Controlled records use a separate key and `TEST/CONTROLLED` category; they are excluded from product audits. See [controlled evidence](../../../../resources/verification/dev-01/tasks/tastedev-studio/step-6e-20260930/controlled-browser.json).
-- Current STEP6E production Web manager smoke: unexpected frontend **0**. Last actual Native STEP6D observation: unexpected frontend/native/panic/cleanup **0/0/0/0**. These are separate observations, not a newly repeated Native gate. Historical unresolved frontend events remain **1**, current product blockers **0**. [Audit](../../../../resources/verification/dev-01/tasks/tastedev-studio/step-6e-20260930/error-audit.json).
+- Real controlled browser throw and Promise rejection, actual Next/React boundary → diagnostic capture → recovery UI → Retry **PASS**. Controlled records use a separate key and `TEST/CONTROLLED` category; they are excluded from product audits. See [controlled evidence](../resources/verification/dev-01/tasks/tastedev-studio/step-6e-20260930/controlled-browser.json).
+- Current STEP6E production Web manager smoke: unexpected frontend **0**. Last actual Native STEP6D observation: unexpected frontend/native/panic/cleanup **0/0/0/0**. These are separate observations, not a newly repeated Native gate. Historical unresolved frontend events remain **1**, current product blockers **0**. [Audit](../resources/verification/dev-01/tasks/tastedev-studio/step-6e-20260930/error-audit.json).
 - This change ran **Node102/102, lint, typecheck, Web production build**, controlled browser tests and the new-build Web smoke. JS has no separate Debug/Release test configuration. Rust source/dependencies/config did not change; prior Debug9/Release9/Clippy and actual Native functionality evidence remain scoped to those unchanged components.
 - Native filesystem/Monaco/PTY/process/Git/restart, actual 1920/1440/1366 clients, Light/Dark, Windows100%/150%, Missing Project recovery and corrected Native copy retain PASS evidence. **125% DPI remains untested and non-blocking**.
 - No Rust/Tauri rebuild or reinstall was requested for this frontend-only diagnostic closeout. Existing STEP6C EXE/installer **do not contain STEP6E diagnostic changes**. A future desktop package must regenerate its frontend export and embedded application; old desktop-export hashes are not current-source build proof. Prior STEP6B installation evidence remains tied to that older artifact.
 
-[Final result](../../../../resources/verification/dev-01/tasks/tastedev-studio/step-6e-20260930/RESULT.md) · [STEP6–6E evidence index](../../../../resources/verification/dev-01/tasks/tastedev-studio/step-6e-20260930/EVIDENCE-INDEX.md) · [diagnostic gap and storage](../../../../resources/verification/dev-01/tasks/tastedev-studio/step-6e-20260930/DIAGNOSTICS.md). No STEP7, CI, QA-01, deployment, source commit or push.
+[Final result](../resources/verification/dev-01/tasks/tastedev-studio/step-6e-20260930/RESULT.md) · [STEP6–6E evidence index](../resources/verification/dev-01/tasks/tastedev-studio/step-6e-20260930/EVIDENCE-INDEX.md) · [diagnostic gap and storage](../resources/verification/dev-01/tasks/tastedev-studio/step-6e-20260930/DIAGNOSTICS.md). No STEP7, CI, QA-01, deployment, source commit or push.
 
 ## Historical STEP 1–5 records
 

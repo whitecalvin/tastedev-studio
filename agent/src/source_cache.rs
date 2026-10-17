@@ -198,7 +198,9 @@ pub fn save(root: &Path, project: &str, checksum: &str, bytes: &[u8]) -> Result<
 mod tests {
     use super::*;
     fn root() -> tempfile::TempDir {
-        let base=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/third-advancement/phase-2/rust");
+        let base = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+            "../resources/verification/dev-01/tasks/tastedev-studio/third-advancement/phase-2/rust",
+        );
         fs::create_dir_all(&base).unwrap();
         tempfile::tempdir_in(base).unwrap()
     }

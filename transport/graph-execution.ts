@@ -1,4 +1,5 @@
 import {recoveryPlan} from '../src/features/orchestration/recovery.ts';
+import {factoryContext,factoryPrompt,pathContains,validateFactoryContract,validateFactoryDefinition,type FactoryContext} from '../src/features/orchestration/factory.ts';
 import {validateArtifactInstallations,type ArtifactInstallationReceipt} from '../src/features/orchestration/artifact-installation.ts';
 import {validateArtifactReceipts} from '../src/features/orchestration/artifact-receipts.ts';
 import {graphArtifactPlans} from '../src/features/orchestration/artifact-plans.ts';
@@ -51,6 +52,14 @@ export class GraphExecutionService {
   if(source){if(!this.verifySource)fail('Source verification unavailable.');await this.verifySource!(source,project);}
   if(action==='publish')this.publish(project,input);
   else if(action==='start')this.start(project,input,actor);
+  else if(action==='retry-failed'){
+   const i=input as {executionId:string;activationId:string},e=this.execution(project,i?.executionId);
+   const failed=e.activations.find(a=>a.id===i.activationId&&a.status==='failed');
+   if(!e.factory||!failed||e.status!=='failed'||!e.activations.every(terminal)||this.now()>Date.parse(e.deadline))fail('Review an unexpired failed factory activation before retrying.');
+   if(this.state.executions.some(other=>other.projectId===project&&other.id!==e.id&&['running','paused','cancelling'].includes(other.status)))fail('Another project execution is active.');
+   if(e.activations.filter(a=>a.nodeId===failed!.nodeId).length>=e.definition.graph.retryLimit)fail('Retry limit reached.');
+   this.commit(s=>{const target=s.executions.find(v=>v.id===e.id)!;target.status='running';target.actor=actor;delete target.finishedAt;delete target.reason;this.activate(target,failed!.nodeId);});
+  }
   else if(action==='approve'){const i=input as {executionId:string;activationId:string;revision:number;checksum:string};const e=this.execution(project,i?.executionId);if(e.status!=='running'||e.revision!==i.revision||e.checksum!==i.checksum)fail('Approval version conflict.');const a=e.activations.find(a=>a.id===i.activationId&&a.status==='approval')??fail('Approval activation not waiting.');this.commit(s=>{const target=s.executions.find(v=>v.id===e.id)!.activations.find(v=>v.id===a.id)!;target.status='passed';target.approvedBy=actor;target.approvedAt=new Date(this.now()).toISOString();this.follow(s.executions.find(v=>v.id===e.id)!,target,'success');});}
   else if(['ai-start','ai-complete','ai-fail','ai-fix-complete','ai-fix-reject','ai-reanalyze'].includes(action))this.aiAction(project,action,input,actor);
   else if(action==='resume'){const i=input as {executionId:string};const e=this.execution(project,i?.executionId);const recovery=recoveryPlan(e,this.state.definitions.find(d=>d.projectId===project)??null,this.now());if(recovery.blocked)fail(recovery.blocked);this.commit(s=>{const e2=s.executions.find(v=>v.id===e.id)!;e2.status='running';e2.actor=actor;e2.reason=undefined;for(const a of e2.activations)if(a.status==='failed'&&a.reason==='AI request interrupted by Core restart; no automatic replay.'){a.reason='AI request interrupted; recovery branch reviewed.';this.follow(e2,a,'failure');}});}
@@ -76,8 +85,10 @@ export class GraphExecutionService {
   if(['ai-fix-complete','ai-fix-reject'].includes(action)){
    if(a.status!=='ai-fix-review'||plan.completion!=='verified-fix')fail('Graph fix is not waiting for review.');
    if(action==='ai-fix-complete'&&(this.ai?.attempt?.(project,i.attemptId??'')?.attempt??Infinity)>plan.maximum)fail('Graph fix attempt limit reached.');
-   const verified=action==='ai-fix-complete'?verifiedGraphFix(project,e.id,a,typeof i.attemptId==='string'?this.ai?.attempt?.(project,i.attemptId):undefined,this.core.snapshot(project)):undefined;
-   this.commit(s=>{const x=s.executions.find(v=>v.id===e.id)!,v=x.activations.find(v=>v.id===a.id)!;v.status=verified?'passed':'failed';v.fixAttemptId=verified?.attemptId;v.reason=verified?undefined:'Graph fix rejected. Applied changes require explicit Revert.';this.follow(x,v,verified?'success':'failure');});return;
+   const candidate=typeof i.attemptId==='string'?this.ai?.attempt?.(project,i.attemptId):undefined;
+   if(e.factory&&action==='ai-fix-complete'&&candidate?.patches.some(p=>!e.factory!.paths.some(scope=>pathContains(scope,p.path))))fail('Patch exceeds the factory work contract.');
+   const verified=action==='ai-fix-complete'?verifiedGraphFix(project,e.id,a,candidate,this.core.snapshot(project)):undefined;
+   this.commit(s=>{const x=s.executions.find(v=>v.id===e.id)!,v=x.activations.find(v=>v.id===a.id)!;v.status=verified?'passed':'failed';v.fixAttemptId=verified?.attemptId;if(verified&&x.factory){const review=x.definition.aiTasks![x.factory.reviewNodeId];review.question+='\nVerified implementation evidence (inspect the actual Run): '+JSON.stringify(verified);if(review.question.length>4000)fail('Factory review prompt exceeds AI context limit.');}v.reason=verified?undefined:'Graph fix rejected. Applied changes require explicit Revert.';this.follow(x,v,verified?'success':'failure');});return;
   }
   if(action==='ai-start'){
    if(a.status!=='ai-review')fail('AI activation already claimed; no replay.');
@@ -126,13 +137,17 @@ export class GraphExecutionService {
   if(Object.values(plans).some(p=>p.payload.steps.some(s=>s.buildArtifacts))){if(!i.snapshot)fail('Build artifacts require a published workspace Snapshot.');if(!this.core.supportsBuildArtifacts())fail('Build artifact runtime is not enabled; publish did not execute or change the graph.');}
   this.commit(s=>{if(!previous&&s.definitions.length>=100)fail('Definition capacity reached.');s.definitions=s.definitions.filter(d=>d.projectId!==project).concat(definition);});
  }
- private start(project:string,input:unknown,actor:string){const i=input as {revision:number;checksum:string;entryNodeId:string;requestId:string};const d=this.state.definitions.find(d=>d.projectId===project)??fail('Publish definition first.');
+ private start(project:string,input:unknown,actor:string){const i=input as {revision:number;checksum:string;entryNodeId:string;requestId:string;factory?:FactoryContext};const d=this.state.definitions.find(d=>d.projectId===project)??fail('Publish definition first.');
   if(d.revision!==i?.revision||d.checksum!==i.checksum)fail('Definition changed; review again.');if(typeof i.requestId!=='string'||!/^[-a-zA-Z0-9]{1,64}$/.test(i.requestId))fail('Invalid request identity.');
-  const existing=this.state.executions.find(e=>e.id===i.requestId);if(existing){if(existing.projectId!==project||existing.revision!==d.revision||existing.inputChecksum!==d.inputChecksum||existing.definition.source?.checksum!==d.source?.checksum||existing.checksum!==d.checksum||existing.activations[0]?.nodeId!==i.entryNodeId)fail('Request identity conflict.');return;}
+  const existing=this.state.executions.find(e=>e.id===i.requestId);if(existing){if(JSON.stringify(existing.factory)!==JSON.stringify(i.factory)||existing.projectId!==project||existing.revision!==d.revision||existing.inputChecksum!==d.inputChecksum||existing.definition.source?.checksum!==d.source?.checksum||existing.checksum!==d.checksum||existing.activations[0]?.nodeId!==i.entryNodeId)fail('Request identity conflict.');return;}
   const node=d.graph.nodes.find(n=>n.id===i.entryNodeId&&['task','approval'].includes(n.kind))??fail('Choose a task or approval entry.');
   if(d.graph.edges.some(e=>e.to===node.id&&e.relation==='success'))fail('Entry must be a root; approval cannot be bypassed.');
   if(this.state.executions.some(e=>e.projectId===project&&['running','paused','cancelling'].includes(e.status)))fail('Finish or cancel the active project execution first.');
-  const e:GraphExecution={id:i.requestId,projectId:project,revision:d.revision,checksum:d.checksum,inputChecksum:d.inputChecksum,definition:structuredClone(d),status:'running',activations:[],actor,createdAt:new Date(this.now()).toISOString(),deadline:new Date(this.now()+600000).toISOString()};this.activate(e,node.id);
+  let context:FactoryContext|undefined;
+  if(i.factory){const contract=validateFactoryContract({...i.factory,projectId:project,entryNodeId:i.entryNodeId,revision:d.revision,checksum:d.checksum,inputChecksum:d.inputChecksum,sourceChecksum:d.source?.checksum,dependencies:[],resources:['graph'],maxAttempts:i.factory.maxAttempts,timeoutMinutes:i.factory.timeoutMinutes},project);validateFactoryDefinition(contract,d);context=factoryContext(contract);}
+  const e:GraphExecution={...(context?{factory:context}:{}),id:i.requestId,projectId:project,revision:d.revision,checksum:d.checksum,inputChecksum:d.inputChecksum,definition:structuredClone(d),status:'running',activations:[],actor,createdAt:new Date(this.now()).toISOString(),deadline:new Date(this.now()+(context?.timeoutMinutes??10)*60000).toISOString()};
+  if(context)for(const [id,role] of [[context.implementationNodeId,'implementation'],[context.reviewNodeId,'review']] as const){const plan=e.definition.aiTasks![id];plan.maximum=Math.min(plan.maximum,context.maxAttempts);plan.question+=factoryPrompt(context,role);if(plan.question.length>4000)fail('Factory prompt exceeds AI context limit.');}
+  this.activate(e,node.id);
   this.commit(s=>{if(s.executions.length>=500)fail('Execution history capacity reached.');s.executions.push(e);});
  }
  private activate(e:GraphExecution,nodeId:string,approvalId?:string){const node=e.definition.graph.nodes.find(n=>n.id===nodeId)!,attempt=e.activations.filter(a=>a.nodeId===nodeId).length+1;if(attempt>Math.min(e.definition.graph.retryLimit,e.definition.aiTasks?.[nodeId]?.maximum??3)){e.status='failed';e.reason='Retry limit reached.';e.finishedAt=new Date(this.now()).toISOString();return;}if(e.definition.deploymentNodes?.includes(nodeId)&&(!approvalId||!e.activations.some(a=>a.id===approvalId&&a.approvedAt)||e.activations.some(a=>a.approvalId===approvalId))){e.status='failed';e.reason='Fresh deployment approval required.';return;}e.activations.push({id:randomUUID(),nodeId,attempt,...(approvalId?{approvalId}:{}),status:node.kind==='approval'?'approval':e.definition.aiTasks?.[nodeId]?'ai-review':'ready'});}
@@ -172,6 +187,11 @@ export class GraphExecutionService {
   return {...context.origin,producerActivationId:producer.id,producerNodeId:producer.nodeId,producerRunId:run.id,producerStepId:steps[0].id};
  }
  allows(jobId:string){const owner=this.owner(jobId);if(!owner)return true;if(owner.status!=='running')return false;try{this.authority(owner.actor,owner.projectId,'run');return true;}catch{return false;}}
+ validateFactoryAttempt(project:string,attempt:FixAttempt){
+  if(!attempt.graph)return;
+  const e=this.execution(project,attempt.graph.executionId);
+  if(e.factory&&(attempt.graph.nodeId!==e.factory.implementationNodeId||attempt.patches.some(p=>!e.factory!.paths.some(scope=>pathContains(scope,p.path)))))fail('Patch exceeds the factory implementation scope.');
+ }
  tick(){return this.locked(()=>this.advance());}
  private async advance(){for(const original of [...this.state.executions]){
   let e=this.execution(original.projectId,original.id);if(['passed','cancelled'].includes(e.status)||e.status==='failed'&&e.activations.every(terminal))continue;

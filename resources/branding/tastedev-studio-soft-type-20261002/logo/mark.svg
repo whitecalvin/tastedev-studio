@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="t">
+  <title id="t">TASTESTUDIO</title>
+  <polygon points="512,160 744,296 744,560 512,696 280,560 280,296" fill="none" stroke="#0E2B51" stroke-width="64" stroke-linejoin="round"/>
+  <polyline points="280,296 512,432 744,296" fill="none" stroke="#0E2B51" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="512,432 512,696" fill="none" stroke="#0E2B51" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="280,560 160,632 160,776 288,856 512,728 736,856 864,776 864,632 744,560" fill="none" stroke="#0E2B51" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  <polygon points="512,160 744,296 512,432 280,296" fill="#4099F0" stroke="#4099F0" stroke-width="64" stroke-linejoin="round"/>
+</svg>

@@ -72,7 +72,7 @@ test('audit access is project scoped and does not expose tokens',()=>{
  assert.ok(!JSON.stringify(access.audit(owner,null)).includes(token('Owner')));
 });
 test('durable grants, revocation and audit survive restart without restoring bootstrap grants',()=>{
- const directory=path.resolve('../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-6/unit',randomUUID());fs.mkdirSync(directory,{recursive:true});const filename=path.join(directory,'access.sqlite');
+ const directory=path.resolve('resources/verification/dev-01/tasks/tastedev-studio/advancement-6/unit',randomUUID());fs.mkdirSync(directory,{recursive:true});const filename=path.join(directory,'access.sqlite');
  const store=new CoreStore(filename,Buffer.alloc(32,7));const access=new TeamAccess(configuration(),store),owner=access.authenticate(token('Owner'));const next=access.configuration(owner);next.sessions.find(s=>s.userId==='Developer')!.revokedAt='2026-10-01T00:00:00Z';access.update(owner,next);store.close();
  const reopened=new CoreStore(filename,Buffer.alloc(32,7));try{const restored=new TeamAccess(configuration(),reopened);assert.throws(()=>restored.authenticate(token('Developer')),/TEAM_SESSION/);assert.ok(restored.audit(restored.authenticate(token('Owner')),null).length>0);}finally{reopened.close();}
  assert.ok(!fs.readFileSync(filename).includes(Buffer.from(token('Owner'))));

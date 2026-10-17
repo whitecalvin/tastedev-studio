@@ -5,7 +5,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 
-const base = path.resolve('../../../resources/verification/dev-01/tasks/tastedev-studio/deployment-foundation-20261005/windows-contract');
+const base = path.resolve('resources/verification/dev-01/tasks/tastedev-studio/deployment-foundation-20261005/windows-contract');
 function fixture() {
   fs.mkdirSync(base, { recursive: true });
   const root = fs.mkdtempSync(path.join(base, 'fixture-'));

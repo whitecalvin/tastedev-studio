@@ -235,7 +235,7 @@ mod tests {
     use serde_json::json;
     #[test]
     fn source_maps_preserve_original_positions_and_block_remote_escape_and_malformed_vlq() {
-        let root=Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../resources/verification/dev-01/tasks/tastedev-studio/fourth-advancement/phase-2/native-map");
+        let root=Path::new(env!("CARGO_MANIFEST_DIR")).join("../resources/verification/dev-01/tasks/tastedev-studio/fourth-advancement/phase-2/native-map");
         fs::create_dir_all(&root).unwrap();
         let dir = tempfile::tempdir_in(root).unwrap();
         fs::create_dir(dir.path().join("dist")).unwrap();

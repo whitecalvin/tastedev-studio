@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CoreStore, SqliteCoreRepository, storageKey, STORAGE_VERSION } from '../transport/storage.ts';
-const fixtureRoot=fileURLToPath(new URL('../../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/sqlite-unit/',import.meta.url));
+const fixtureRoot=fileURLToPath(new URL('../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/sqlite-unit/',import.meta.url));
 function fixture(){fs.mkdirSync(fixtureRoot,{recursive:true});const dir=fs.mkdtempSync(path.join(fixtureRoot,'case-'));return{dir,file:path.join(dir,'core.sqlite'),key:Buffer.alloc(32,7),cleanup(){assert.ok(path.resolve(dir).startsWith(path.resolve(fixtureRoot)+path.sep));fs.rmSync(dir,{recursive:true,force:true});}};}
 
 test('SQLite migration, committed revision and state survive reopen',()=>{const f=fixture();try{let s=new CoreStore(f.file,f.key);const r=new SqliteCoreRepository(s);r.transaction(tx=>tx.events.save({id:'e',entityId:'j',projectId:'p',type:'job.created',timestamp:'2026-10-01T00:00:00Z'}));assert.equal(r.revision(),1);s.close();s=new CoreStore(f.file,f.key);const loaded=new SqliteCoreRepository(s);assert.equal(loaded.revision(),1);assert.equal(loaded.read().events[0].id,'e');assert.equal(s.db.prepare('SELECT count(*) AS n FROM migrations').get()?.n,STORAGE_VERSION);s.close();}finally{f.cleanup();}});

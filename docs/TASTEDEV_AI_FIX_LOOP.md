@@ -6,7 +6,7 @@ FixAttempt와 proposal-scoped approval은 Core의 Project-scoped encrypted SQLit
 
 Local validation은 중단 시 failed로 기록하고 자동 실행하지 않는다. Remote retest는 Job identity·Run status로 다시 연결한다. 이력 조회 자체는 Patch/Validate/Commit/Push 승인이 아니다. Patch 도중 프로세스 종료에 대한 durable write-ahead journal, 복구 화면, 자동 resume는 고도화 4단계 범위로 남긴다.
 
-[저장·복구 운영 계약](../../../../resources/guides/dev-01/tastedev-studio/core-persistence-20261001/README.md) · [최종 결과/Evidence](../../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/RESULT.md)
+[저장·복구 운영 계약](../resources/guides/dev-01/tastedev-studio/core-persistence-20261001/README.md) · [최종 결과/Evidence](../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/RESULT.md)
 
 고도화 1단계 PASS — 2단계 착수 가능
 
@@ -49,7 +49,7 @@ Real Rust arithmetic FAIL → actual managed Pro gpt-6.1-sol reads Run/step/log/
 
 ## Security and evidence
 
-Scope/hash tamper, foreign project/path escape, stale/dirty source, repeated attempts, snapshot secret/traversal/checksum/size and unavailable shell are covered by automated regressions. Actual disk multi-file failure and concurrent user edits preserve recoverability. Dummy .env absent in Agent source; unauthorized modifications0; owned orphan processes0. Node329/329; Rust Debug21/Release21; static checks and production/release builds PASS. See parent workspace resources/verification/dev-01/tasks/tastedev-studio/step-13-20260930/RESULT.md and EVIDENCE-INDEX.md for all40 reporting items and exact evidence.
+Scope/hash tamper, foreign project/path escape, stale/dirty source, repeated attempts, snapshot secret/traversal/checksum/size and unavailable shell are covered by automated regressions. Actual disk multi-file failure and concurrent user edits preserve recoverability. Dummy .env absent in Agent source; unauthorized modifications0; owned orphan processes0. Node329/329; Rust Debug21/Release21; static checks and production/release builds PASS. See product resources/verification/dev-01/tasks/tastedev-studio/step-13-20260930/RESULT.md and EVIDENCE-INDEX.md for all40 reporting items and exact evidence.
 
 ## Known limitations
 

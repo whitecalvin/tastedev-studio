@@ -6,6 +6,7 @@
     "identifier": "com.gxsoft.tastedev.studio"
   },
   "packagePrefix": "tastestudio",
+  "artifactDirectory": "resources/packages/release-tool",
   "cargo": {
     "allFeatures": true
   },

@@ -6,7 +6,7 @@
 
 trigger intent를 Job 전에 커밋하고 해당 history ID를 Core Job idempotencyKey로 사용한다. Job 생성 직후 crash가 나도 동일 Job을 다시 찾는다. trigger 완료와 nextRunAt 사이 crash는 duplicate identity를 소비하고 다음 시각으로 진행한다. 기존 missed-skip/no-backlog/overlap/global-capacity 정책을 유지한다. 메모리 test/local repository 모드는 기존 resync-only 계약을 유지한다.
 
-[저장·복구 운영 계약](../../../../resources/guides/dev-01/tastedev-studio/core-persistence-20261001/README.md) · [최종 결과/Evidence](../../../../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/RESULT.md)
+[저장·복구 운영 계약](../resources/guides/dev-01/tastedev-studio/core-persistence-20261001/README.md) · [최종 결과/Evidence](../resources/verification/dev-01/tasks/tastedev-studio/advancement-1/RESULT.md)
 
 고도화 1단계 PASS — 2단계 착수 가능
 
