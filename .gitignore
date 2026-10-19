@@ -370,3 +370,26 @@ agent/target/
 !/resources/runtime/tastedev-studio/codex/tmp/arg0/codex-arg0ux90Qd/apply_patch.bat
 !/resources/runtime/tastedev-studio/codex/tmp/arg0/codex-arg0ux90Qd/applypatch.bat
 # END TASTEDEV REQUIRED RESOURCES
+
+# BEGIN TASTEDEV GENERATED LOGS
+# Generated execution/build logs stay local, outside Git and release sources.
+*.log
+*.log.*
+*.err
+# Preserve intentional test/sample inputs; do not blanket-ignore *.out.
+!**/fixtures/**/*.log
+!**/fixtures/**/*.log.*
+!**/fixtures/**/*.err
+!**/test-data/**/*.log
+!**/test-data/**/*.log.*
+!**/test-data/**/*.err
+!**/sample/**/*.log
+!**/sample/**/*.log.*
+!**/sample/**/*.err
+!**/samples/**/*.log
+!**/samples/**/*.log.*
+!**/samples/**/*.err
+# END TASTEDEV GENERATED LOGS
+
+# Unified product build and publication outputs
+/artifacts/
