@@ -57,7 +57,7 @@
     "host": "192.168.0.102",
     "user": "whitecalvin",
     "cargoPath": "/home/whitecalvin/.cargo/bin/cargo",
-    "sourceRoot": "/home/whitecalvin/tastedev-release-sources",
+    "sourceRoot": "/mnt/data/build/tastedev-release-sources",
     "icon": "resources/branding/tastedev-studio-desktop/icons/icon.png",
     "desktopCategories": "Development;IDE;",
     "startupWmClass": "com.gxsoft.tastedev.studio",
