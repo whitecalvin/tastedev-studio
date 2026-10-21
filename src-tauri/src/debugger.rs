@@ -590,6 +590,7 @@ fn run(
         let mut objects = HashSet::<String>::new();
         let mut breakpoints = HashSet::<String>::new();
         let mut paused = false;
+        let mut outside_steps = 0;
         for method in ["Runtime.enable", "Debugger.enable"] {
             ws.send(Message::Text(
                 json!({"id":next,"method":method}).to_string().into(),
@@ -800,6 +801,24 @@ fn run(
                         paused = true;
                         objects.clear();
                         let frames=message["params"]["callFrames"].as_array().map(|items|items.iter().take(100).filter_map(|frame|{let path=source_path(root,frame["url"].as_str().unwrap_or("" )).or_else(||scripts.get(frame["location"]["scriptId"].as_str().unwrap_or("")).cloned())?;let scopes=frame["scopeChain"].as_array().map(|items|items.iter().take(10).filter(|scope|matches!(scope["type"].as_str(),Some("local"|"closure"|"catch"|"block"|"module"))).map(|scope|{if let Some(id)=scope["object"]["objectId"].as_str(){objects.insert(id.to_owned());}json!({"type":scope["type"],"objectId":scope["object"]["objectId"]})}).collect::<Vec<_>>()).unwrap_or_default();let line=frame["location"]["lineNumber"].as_u64().unwrap_or(0) as u32;let column=frame["location"]["columnNumber"].as_u64().unwrap_or(0) as u32;let(path,line,column)=maps.original(&path,line,column).unwrap_or((path,line,column));Some(json!({"functionName":frame["functionName"],"path":path,"line":line+1,"column":column+1,"scopes":scopes}))}).collect::<Vec<_>>()).unwrap_or_default();
+                        // Node 24의 TS/ESM 로더에 들어간 step은 프로젝트 밖이다.
+                        // 빈 프레임으로 UI를 멈추지 않고 제한된 횟수만 호출자 쪽으로 복귀한다.
+                        if frames.is_empty()
+                            && message["params"]["reason"] == "step"
+                            && outside_steps < 32
+                        {
+                            outside_steps += 1;
+                            ws.send(Message::Text(
+                                json!({"id":next,"method":"Debugger.stepOut"})
+                                    .to_string()
+                                    .into(),
+                            ))
+                            .map_err(|_| error("debug-connect"))?;
+                            next += 1;
+                            paused = false;
+                            continue;
+                        }
+                        outside_steps = 0;
                         emit(
                             "paused",
                             json!({"reason":message["params"]["reason"],"frames":frames}),
@@ -1088,15 +1107,26 @@ mod tests {
             assert!(debugger.action(action(&id, "other", "continue")).is_err());
             let mut breakpoint = action(&id, &workspace, "set-breakpoint");
             breakpoint.path = Some(file.clone());
-            breakpoint.line = Some(3);
+            breakpoint.line = Some(5);
             debugger.action(breakpoint).unwrap();
             let applied = event(&rx, &mut events, "breakpoint");
-            assert_eq!(applied["data"]["line"], 3);
+            assert_eq!(applied["data"]["line"], 5);
             debugger
                 .action(action(&id, &workspace, "continue"))
                 .unwrap();
-            let first = event(&rx, &mut events, "paused");
+            let mut first = event(&rx, &mut events, "paused");
             assert!(!first["data"]["frames"].as_array().unwrap().is_empty());
+            // Node의 CJS/TS 시작 위치 차이를 명시적으로 검증하고 동일한 호출 지점에서 step한다.
+            if first["data"]["frames"][0]["line"] != 5 {
+                assert_eq!(first["data"]["reason"], "Break on start");
+                assert_eq!(first["data"]["frames"][0]["line"], 1);
+                debugger
+                    .action(action(&id, &workspace, "step-into"))
+                    .unwrap();
+                first = event(&rx, &mut events, "paused");
+            }
+            assert_eq!(first["data"]["frames"][0]["path"], file, "{events:?}");
+            assert_eq!(first["data"]["frames"][0]["line"], 5, "{events:?}");
             debugger
                 .action(action(&id, &workspace, "step-into"))
                 .unwrap();
@@ -1105,7 +1135,7 @@ mod tests {
                 .action(action(&id, &workspace, "step-over"))
                 .unwrap();
             let paused = event(&rx, &mut events, "paused");
-            assert_eq!(paused["data"]["frames"][0]["path"], file);
+            assert_eq!(paused["data"]["frames"][0]["path"], file, "{events:?}");
             let object = paused["data"]["frames"][0]["scopes"][0]["objectId"]
                 .as_str()
                 .unwrap()
@@ -1317,8 +1347,21 @@ mod tests {
         debugger
             .action(action(&id, &workspace, "continue"))
             .unwrap();
-        let first = event(&rx, &mut events, "paused");
-        assert_eq!(first["data"]["frames"][0]["path"], "src/main.ts");
+        let mut first = event(&rx, &mut events, "paused");
+        // Node의 ESM 시작은 원본 매핑이 없는 'use strict' 줄에 멈출 수 있다.
+        // 그 줄을 원본으로 위장하지 않고 다음 실제 Source Map 위치까지 검증한다.
+        if first["data"]["frames"][0]["path"] == "dist/main.js" {
+            assert_eq!(first["data"]["reason"], "Break on start");
+            assert_eq!(first["data"]["frames"][0]["line"], 1);
+            debugger
+                .action(action(&id, &workspace, "step-over"))
+                .unwrap();
+            first = event(&rx, &mut events, "paused");
+        }
+        assert_eq!(
+            first["data"]["frames"][0]["path"], "src/main.ts",
+            "{events:?}"
+        );
         let mut point = action(&id, &workspace, "set-breakpoint");
         point.path = Some("src/main.ts".into());
         point.line = Some(3);

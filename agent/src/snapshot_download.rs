@@ -140,6 +140,8 @@ pub fn validate_manifest(s: &Snapshot) -> Result<()> {
     {
         return Err("Source manifest limit".into());
     }
+    // 최대 10,000개 변경 경로를 파일 목록과 반복 대조하지 않고 정확한 대소문자로 조회한다.
+    let mut file_paths = HashSet::with_capacity(s.files.len());
     for f in &s.files {
         crate::snapshot::safe(&f.path)?;
         for part in f.path.split('/') {
@@ -169,11 +171,12 @@ pub fn validate_manifest(s: &Snapshot) -> Result<()> {
         bytes = bytes
             .checked_add(f.size.unwrap_or(0))
             .ok_or("Source size overflow")?;
+        file_paths.insert(f.path.as_str());
     }
     if bytes > TOTAL_LIMIT
         || s.changed_files
             .iter()
-            .any(|p| !s.files.iter().any(|f| &f.path == p))
+            .any(|p| !file_paths.contains(p.as_str()))
         || manifest_hash(s)? != s.checksum
     {
         return Err("Source manifest integrity".into());
@@ -451,6 +454,49 @@ mod tests {
         );
         fs::create_dir_all(&base).unwrap();
         tempfile::tempdir_in(base).unwrap()
+    }
+    fn manifest_fixture(count: usize) -> Snapshot {
+        let (request, template) = request(4300, b"binary");
+        let mut snapshot = request.source.unwrap().snapshot.unwrap();
+        snapshot.transfer = None;
+        snapshot.files = (0..count)
+            .map(|index| File {
+                path: format!("src/file-{index:05}.rs"),
+                ..template.clone()
+            })
+            .collect();
+        snapshot.changed_files = snapshot.files.iter().map(|f| f.path.clone()).collect();
+        snapshot.checksum = manifest_hash(&snapshot).unwrap();
+        snapshot
+    }
+    #[test]
+    fn maximum_manifest_indexes_all_changed_files_without_changing_scope() {
+        let mut snapshot = manifest_fixture(10000);
+        assert!(validate_manifest(&snapshot).is_ok());
+        snapshot.changed_files[9999] = "src/missing.rs".into();
+        snapshot.checksum = manifest_hash(&snapshot).unwrap();
+        assert!(validate_manifest(&snapshot)
+            .unwrap_err()
+            .contains("integrity"));
+    }
+    #[test]
+    fn indexed_manifest_preserves_case_duplicate_and_checksum_guards() {
+        let original = manifest_fixture(2);
+        let mut snapshot = original.clone();
+        snapshot.changed_files[0] = "src/FILE-00000.rs".into();
+        snapshot.checksum = manifest_hash(&snapshot).unwrap();
+        assert!(validate_manifest(&snapshot).is_err());
+        snapshot = original.clone();
+        snapshot.files[1].path = "src/FILE-00000.rs".into();
+        snapshot.checksum = manifest_hash(&snapshot).unwrap();
+        assert!(validate_manifest(&snapshot).is_err());
+        snapshot = original.clone();
+        snapshot.changed_files[1] = snapshot.changed_files[0].clone();
+        snapshot.checksum = manifest_hash(&snapshot).unwrap();
+        assert!(validate_manifest(&snapshot).is_err());
+        snapshot = original;
+        snapshot.files[0].size = Some(7);
+        assert!(validate_manifest(&snapshot).is_err());
     }
     #[test]
     fn configured_core_origin_and_checksum_paths_are_enforced() {

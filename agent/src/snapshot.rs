@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fs,
     path::Path,
     sync::{
@@ -184,7 +184,8 @@ fn bounded_read(path: &Path) -> Result<Vec<u8>> {
         return Err("Snapshot file limit".into());
     }
     use std::io::Read;
-    let mut bytes = Vec::new();
+    // 최대 크기를 통과한 길이만 예약하며, 읽는 도중 커진 파일은 기존 상한으로 거부한다.
+    let mut bytes = Vec::with_capacity(meta.len() as usize);
     fs::File::open(path)
         .map_err(|_| "Snapshot file read failed")?
         .take(crate::snapshot_download::FILE_LIMIT as u64 + 1)
@@ -196,6 +197,13 @@ fn bounded_read(path: &Path) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 fn verify_tree(root: &Path, files: &[File]) -> Result<()> {
+    // 복구 검증 중 각 디스크 파일마다 전체 manifest를 순회하지 않는다.
+    let expected_files: HashMap<_, _> = files.iter().map(|f| (f.path.as_str(), f)).collect();
+    let entry_limit = if files.iter().any(|f| f.encoding.is_some()) {
+        30000
+    } else {
+        1000
+    };
     let mut pending = vec![root.to_path_buf()];
     let mut count = 0;
     let mut seen = HashSet::new();
@@ -204,13 +212,7 @@ fn verify_tree(root: &Path, files: &[File]) -> Result<()> {
         for entry in fs::read_dir(&dir).map_err(|_| "Snapshot tree unavailable")? {
             let entry = entry.map_err(|_| "Snapshot tree unavailable")?;
             count += 1;
-            if count
-                > if files.iter().any(|f| f.encoding.is_some()) {
-                    30000
-                } else {
-                    1000
-                }
-            {
+            if count > entry_limit {
                 return Err("Snapshot tree limit".into());
             }
             let path = entry.path();
@@ -224,9 +226,8 @@ fn verify_tree(root: &Path, files: &[File]) -> Result<()> {
                 .map_err(|_| "Snapshot tree escape")?
                 .to_string_lossy()
                 .replace('\\', "/");
-            let expected = files
-                .iter()
-                .find(|f| f.path == name)
+            let expected = expected_files
+                .get(name.as_str())
                 .ok_or("Unexpected source file")?;
             if hash(&bounded_read(&path)?) != expected.checksum {
                 return Err("Snapshot tree integrity".into());
@@ -420,6 +421,67 @@ mod tests {
         assert!(validate(&s).is_ok());
         s.snapshot.as_mut().unwrap().files[0].content.push('x');
         assert!(validate(&s).is_err());
+    }
+    #[test]
+    fn indexed_tree_recovery_rejects_changed_extra_and_missing_files() {
+        let base = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../resources/verification/dev-01/rust-1.99.1-20261021/tree");
+        fs::create_dir_all(&base).unwrap();
+        let root = tempfile::tempdir_in(base).unwrap();
+        fs::create_dir(root.path().join("src")).unwrap();
+        let files: Vec<_> = (0..128)
+            .map(|index| {
+                let content = format!("source {index}");
+                let path = format!("src/file-{index}.rs");
+                fs::write(root.path().join(&path), &content).unwrap();
+                File {
+                    path,
+                    checksum: hash(content.as_bytes()),
+                    content,
+                    cached: false,
+                    encoding: Some("utf8".into()),
+                    size: None,
+                }
+            })
+            .collect();
+        assert!(verify_tree(root.path(), &files).is_ok());
+        let target = root.path().join(&files[127].path);
+        fs::write(&target, "user change").unwrap();
+        assert!(verify_tree(root.path(), &files)
+            .unwrap_err()
+            .contains("integrity"));
+        assert_eq!(fs::read_to_string(&target).unwrap(), "user change");
+        fs::write(&target, &files[127].content).unwrap();
+        let extra = root.path().join("extra.rs");
+        fs::write(&extra, "extra").unwrap();
+        assert!(verify_tree(root.path(), &files)
+            .unwrap_err()
+            .contains("Unexpected"));
+        fs::remove_file(extra).unwrap();
+        fs::remove_file(target).unwrap();
+        assert!(verify_tree(root.path(), &files)
+            .unwrap_err()
+            .contains("incomplete"));
+    }
+    #[test]
+    fn reserved_snapshot_read_keeps_empty_maximum_and_oversize_bounds() {
+        let base = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../resources/verification/dev-01/rust-1.99.1-20261021/read");
+        fs::create_dir_all(&base).unwrap();
+        let root = tempfile::tempdir_in(base).unwrap();
+        let path = root.path().join("source.bin");
+        fs::write(&path, []).unwrap();
+        assert!(bounded_read(&path).unwrap().is_empty());
+        let bytes = vec![0x93; crate::snapshot_download::FILE_LIMIT];
+        fs::write(&path, &bytes).unwrap();
+        assert_eq!(bounded_read(&path).unwrap(), bytes);
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_len(crate::snapshot_download::FILE_LIMIT as u64 + 1)
+            .unwrap();
+        assert!(bounded_read(&path).unwrap_err().contains("limit"));
     }
     #[test]
     fn traversal_and_secret_paths_blocked() {
