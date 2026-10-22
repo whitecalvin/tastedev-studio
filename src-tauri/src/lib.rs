@@ -288,7 +288,10 @@ fn update_action(
         if protected.unwrap_or(true) {
             return Err("workspace-busy".into());
         }
-        app.state::<language::Languages>().begin_update();
+        // Windows waits for the user to close all windows. Keep editing/LSP usable while waiting.
+        if !cfg!(windows) {
+            app.state::<language::Languages>().begin_update();
+        }
         let debuggers = app.state::<debugger::Debuggers>();
         if debuggers.prepare_update().is_err() {
             app.state::<language::Languages>().end_update();
@@ -304,6 +307,11 @@ fn update_action(
         .action(&action, enabled, protected.unwrap_or(true))
     {
         Ok((status, quit)) => {
+            if cfg!(windows) || matches!(status.stage.as_str(), "error" | "cancelled") {
+                app.state::<debugger::Debuggers>().cancel_update();
+                processes.cancel_update();
+                app.state::<language::Languages>().end_update();
+            }
             if quit {
                 app.exit(0);
             }

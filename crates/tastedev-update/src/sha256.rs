@@ -143,12 +143,7 @@ pub fn read_hex(mut reader: impl Read) -> std::io::Result<(u64, String)> {
     let mut buf = vec![0u8; 64 * 1024];
     let mut total = 0u64;
     loop {
-        let n = match reader.read(&mut buf) {
-            Ok(n) => n,
-            // 일시적인 시스템 인터럽트는 EOF나 무결성 실패가 아니다.
-            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
-            Err(error) => return Err(error),
-        };
+        let n = reader.read(&mut buf)?;
         if n == 0 {
             break;
         }

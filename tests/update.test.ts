@@ -4,15 +4,15 @@ import assert from 'node:assert/strict';
 import { UpdateService, type UpdateStatus } from '../src/features/update/service.ts';
 import { languages } from '../src/i18n/core.ts';
 import { updateMessages } from '../src/i18n/update.ts';
-const initial: UpdateStatus = { stage: 'idle', currentVersion: '0.1.4', version: null, notes: '', page: null, canInstall: false, autoCheck: true, downloaded: 0, total: 0, error: null, previousResult: null };
+const initial: UpdateStatus = { stage: 'idle', currentVersion: '0.1.4', version: null, notes: '', page: null, canInstall: false, autoCheck: true, downloaded: 0, total: 0, error: null, previousResult: null, showPrompt: false };
 test('startup checks once; disabled and Web make no network request', async () => {
   const calls: string[] = []; const enabled = new UpdateService(true, async action => { calls.push(action); return initial; });
-  await enabled.start(); await enabled.start(); assert.deepEqual(calls, ['status', 'check']);
+  await enabled.start(); await enabled.start(); assert.deepEqual(calls, ['status']);
   calls.length = 0; await new UpdateService(true, async action => { calls.push(action); return { ...initial, autoCheck: false }; }).start(); assert.deepEqual(calls, ['status']);
   calls.length = 0; const web = new UpdateService(false, async () => { throw Error('Web must not invoke native'); }); await web.start(); await web.action('install'); assert.deepEqual(calls, []);
 });
 test('availability never installs automatically and Later stays dismissed', async () => {
-  const calls: string[] = []; const service = new UpdateService(true, async action => { calls.push(action); return { ...initial, stage: 'available', version: '0.1.5' }; });
+  const calls: string[] = []; const service = new UpdateService(true, async action => { calls.push(action); return { ...initial, stage: 'available', version: '0.1.5', showPrompt: true }; });
   await service.action('status'); assert.equal(service.snapshot().visible, true); service.dismiss(); await service.action('status'); assert.equal(service.snapshot().visible, false); assert.deepEqual(calls, ['status', 'status']);
 });
 test('dirty or active workspace blocks install before invoking native', async () => {
@@ -86,4 +86,21 @@ test('a native asynchronous installation failure replaces the progress toast', a
   assert.equal(service.snapshot().visible, false);
   assert.equal(service.snapshot().toast?.error, true);
   assert.match(service.snapshot().toast!.message, /connection/);
+});
+
+test('manual checks follow shared Flow prompt policy instead of opening another dialog', async () => {
+  const service = new UpdateService(true, async () => ({ ...initial, stage: 'available', version: '0.2.5', showPrompt: false }));
+  await service.action('check'); await service.action('status');
+  assert.equal(service.snapshot().visible, false);
+});
+
+test('shared Flow owns Studio transitions and installer execution', () => {
+  const bridge = readFileSync(new URL('../src-tauri/src/update.rs', import.meta.url), 'utf8');
+  const view = readFileSync(new URL('../src/features/update/views.tsx', import.meta.url), 'utf8');
+  assert.match(bridge, /flow: Flow/);
+  assert.match(bridge, /Flow::start/);
+  assert.match(bridge, /inner\.flow\.install\(&wake\)/);
+  assert.match(bridge, /Arc::new\(SystemRunner\)/);
+  assert.doesNotMatch(bridge, /struct InstallerRunner|Event::|\.session\.install_now\(/);
+  assert.doesNotMatch(view, /service\.action\('download'\)/);
 });

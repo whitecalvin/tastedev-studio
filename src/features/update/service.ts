@@ -2,8 +2,9 @@ export interface UpdateStatus {
   stage: string; currentVersion: string; version: string | null; notes: string; page: string | null;
   canInstall: boolean; autoCheck: boolean; downloaded: number; total: number;
   error: string | null; previousResult: string | null;
+  showPrompt: boolean;
 }
-export type UpdateAction = 'status' | 'check' | 'download' | 'install' | 'cancel' | 'preference' | 'release';
+export type UpdateAction = 'status' | 'check' | 'install' | 'cancel' | 'preference' | 'release';
 export type UpdateInvoke = (action: UpdateAction, enabled?: boolean, protectedWorkspace?: boolean) => Promise<UpdateStatus>;
 export const protections = new Map<symbol, () => boolean>();
 export function updateFailure(error:unknown){
@@ -33,7 +34,7 @@ export class UpdateService {
     if (this.started || !this.desktop) return;
     this.started = true;
     await this.action('status');
-    if (this.state.status?.autoCheck) await this.action('check');
+    // The shared native Flow owns startup and daily scheduling; do not start a second check.
   }
   async action(action: UpdateAction, enabled?: boolean) {
     if (!this.desktop || this.lock) return;
@@ -47,7 +48,7 @@ export class UpdateService {
       // 재시작 후 설치 결과는 모달을 다시 열지 않고 토스트로 알린다.
       const toast = previousResult ? { message: status.previousResult === 'installed' ? 'The previous update was installed.' : 'The previous update could not be installed.', error: status.previousResult !== 'installed' }
         : status.error && (action === 'install' || this.state.toast?.message === 'Installing update…') ? { message: updateFailure(status.error), error: true } : this.state.toast;
-      this.change({ status, toast, ...(!this.state.status?{error:''}:{}), visible: this.state.visible || (newlyAvailable && action !== 'install' && !previousResult) });
+      this.change({ status, toast, ...(!this.state.status?{error:''}:{}), visible: this.state.visible || (newlyAvailable && status.showPrompt && action !== 'install' && !previousResult) });
     } catch (error) {
       const message = updateFailure(error);
       this.change({ error: message, ...(action === 'install' ? { visible: false, toast: { message, error: true } } : {}) });

@@ -3,7 +3,8 @@
 # 기준 원본: sources/v1.0/tastedev-common/update/
 # 각 제품 저장소의 crates/tastedev-update/ 에 한 글자도 다르지 않게 복사해 path 의존으로 쓴다.
 # 고칠 때는 기준을 먼저 고치고 다섯 사본을 맞춘 뒤 check-shared.ps1 을 돌린다.
-# 네트워크는 제품이 준다(Transport — 제품마다 HTTP 스택이 다르다). SHA-256 은 표준 라이브러리로 직접 계산한다.
+# 네트워크는 제품이 준다(Transport — 제품마다 HTTP 스택이 다르다). SHA-256 은 표준 라이브러리로 직접 계산하고,
+# 출시 서명(SSH, ed25519)은 다섯 제품이 이미 쓰는 ed25519-dalek · sha2 로 본다.
 [package]
 name = "tastedev-update"
 description = "TASTEDEV desktop shared startup update: release pick, verified download, per-OS installer plans"
@@ -13,8 +14,11 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [dependencies]
-# 릴리스 목록(GitHub releases JSON) 읽기. 다섯 제품이 이미 쓰는 판(1.0.149 · 1.0.151)과 맞는다.
+# 업데이트 답(사이트 API 의 JSON — GitHub releases 와 같은 모양) 읽기. 다섯 제품이 이미 쓰는 판(1.0.149 · 1.0.151)과 맞는다.
 serde_json = "1.0.149"
+# 리눅스 설치 파일의 SSH 서명(ed25519 · SHA-512) 확인. 다섯 제품이 이미 같은 판을 쓴다(잠금 파일에 새 패키지가 늘지 않는다).
+ed25519-dalek = { version = "=3.0.0", default-features = false }
+sha2 = { version = "=0.11.0", default-features = false }
 
 [lints.rust]
 unsafe_code = "forbid"

@@ -1,4 +1,4 @@
-//! Studio adapter for the unchanged shared TASTEDEV update engine.
+//! Tauri serialization/network bridge; all update transitions belong to the shared Flow.
 use serde::Serialize;
 use std::{
     fs,
@@ -10,9 +10,7 @@ use std::{
     },
     time::Duration,
 };
-use tastedev_update::{
-    Event, InstallKind, Product, Release, Runner, Session, Started, SystemRunner, Transport,
-};
+use tastedev_update::{Flow, InstallKind, Product, Session, Stage, SystemRunner, Transport};
 
 const PRODUCT: Product = Product {
     name: "TASTESTUDIO",
@@ -21,7 +19,6 @@ const PRODUCT: Product = Product {
     version: env!("CARGO_PKG_VERSION"),
 };
 const MAX_DOWNLOAD: u64 = tastedev_update::MAX_ASSET_BYTES;
-
 fn redirect_allowed(url: &reqwest::Url) -> bool {
     url.scheme() == "https"
         && url.username().is_empty()
@@ -29,7 +26,8 @@ fn redirect_allowed(url: &reqwest::Url) -> bool {
         && matches!(
             url.host_str(),
             Some(
-                "api.github.com"
+                "tastedev.net"
+                    | "api.github.com"
                     | "github.com"
                     | "release-assets.githubusercontent.com"
                     | "objects.githubusercontent.com"
@@ -37,7 +35,6 @@ fn redirect_allowed(url: &reqwest::Url) -> bool {
         )
         && url.port_or_known_default() == Some(443)
 }
-
 struct Network {
     cancelled: Arc<AtomicBool>,
 }
@@ -113,52 +110,6 @@ impl Transport for Network {
     }
 }
 
-/// Only the verified update helper may leave Studio's kill-on-exit job.
-/// Ordinary terminal processes retain their existing cleanup boundary.
-struct InstallerRunner;
-impl Runner for InstallerRunner {
-    fn spawn(&self, program: &str, args: &[String]) -> std::io::Result<()> {
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            let mut command = std::process::Command::new(program);
-            command
-                .args(args)
-                .stdin(std::process::Stdio::null())
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null());
-            command.creation_flags(0x0100_0000 | 0x0800_0000 | 0x0000_0200); // BREAKAWAY, NO_WINDOW, NEW_PROCESS_GROUP
-            command.spawn().map(|_| ())
-        }
-        #[cfg(not(windows))]
-        {
-            SystemRunner.spawn(program, args)
-        }
-    }
-    fn run(&self, program: &str, args: &[String]) -> std::io::Result<i32> {
-        SystemRunner.run(program, args)
-    }
-    fn replace(&self, from: &Path, to: &Path) -> std::io::Result<()> {
-        SystemRunner.replace(from, to)
-    }
-    fn open(&self, target: &str) -> std::io::Result<()> {
-        #[cfg(windows)]
-        {
-            self.spawn(
-                "rundll32.exe",
-                &["url.dll,FileProtocolHandler".into(), target.into()],
-            )
-        }
-        #[cfg(not(windows))]
-        {
-            SystemRunner.open(target)
-        }
-    }
-    fn relaunch(&self, exe: &Path) -> std::io::Result<()> {
-        self.spawn(&exe.to_string_lossy(), &[])
-    }
-}
-
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Status {
@@ -173,16 +124,55 @@ pub struct Status {
     pub total: u64,
     pub error: Option<String>,
     pub previous_result: Option<String>,
+    pub show_prompt: bool,
 }
 struct Inner {
-    session: Session,
-    release: Option<Release>,
-    file: Option<PathBuf>,
-    status: Status,
+    flow: Flow,
     preference: PathBuf,
     cancelled: Arc<AtomicBool>,
+    cancelled_ui: bool,
+    previous_result: Option<String>,
 }
 pub struct Updates(Mutex<Inner>);
+impl Inner {
+    fn status(&self) -> Status {
+        use tastedev_update::Status as SharedStatus;
+        let card = self.flow.status();
+        let stage = match self.flow.stage() {
+            Stage::Downloading(_) => "downloading",
+            Stage::Installing(_) => "installing",
+            Stage::Failed { .. } => "error",
+            _ if self.cancelled_ui => "cancelled",
+            _ => match card {
+                SharedStatus::Checking => "checking",
+                SharedStatus::Latest => "current",
+                SharedStatus::Available(_) => "available",
+                SharedStatus::Failed(_) => "error",
+                SharedStatus::Unchecked => "idle",
+            },
+        };
+        let release = self.flow.release().or_else(|| self.flow.available());
+        let (downloaded, total) = self
+            .flow
+            .session()
+            .map(Session::progress)
+            .unwrap_or_default();
+        Status {
+            stage: stage.into(),
+            current_version: PRODUCT.version.into(),
+            version: release.map(|r| r.version.to_string()),
+            notes: release.map(Flow::notes).unwrap_or_default(),
+            page: release.map(|r| r.page.clone()),
+            can_install: release.is_some_and(|r| self.flow.can_install(r)),
+            auto_check: self.flow.auto(),
+            downloaded,
+            total,
+            error: (stage == "error").then(|| "update-failed".into()),
+            previous_result: self.previous_result.clone(),
+            show_prompt: self.flow.showing(),
+        }
+    }
+}
 impl Updates {
     pub fn new(data: &Path, cache: &Path) -> Self {
         let preference = data.join("auto-update.json");
@@ -193,47 +183,37 @@ impl Updates {
         let cancelled = Arc::new(AtomicBool::new(false));
         let exe = std::env::current_exe().unwrap_or_default();
         let mut kind = tastedev_update::detect_current(PRODUCT.package, &exe);
-        // release-gate is a build output, never an installed portable application.
         if exe.components().any(|part| part.as_os_str() == "target") {
             kind = InstallKind::Unsupported(tastedev_update::Unsupported::Development);
         }
-        let session = Session::with_parts(
+        let mut session = Session::with_parts(
             PRODUCT,
             Arc::new(Network {
                 cancelled: cancelled.clone(),
             }),
-            Arc::new(InstallerRunner),
+            Arc::new(SystemRunner),
             kind,
             exe,
             cache.join("updates"),
-            tastedev_update::RELEASES_URL.into(),
+            tastedev_update::list_url(PRODUCT.tag_prefix),
             false,
             std::env::consts::ARCH.into(),
             Arc::new(|p| p.exists()),
         );
+        session.set_signature_check(tastedev_update::gxsoft_release_signature());
         let previous_result = session.take_last_result().map(|r| match r {
             tastedev_update::InstallResult::Ok(_) => "installed".into(),
             _ => "failed".into(),
         });
+        // Creation is lazy with auto checking off, just like the native desktop adapters.
+        let mut flow = Flow::start(false, move || session, Arc::new(|| {}));
+        flow.set_auto(auto_check);
         Self(Mutex::new(Inner {
-            session,
-            release: None,
-            file: None,
+            flow,
             preference,
             cancelled,
-            status: Status {
-                stage: "idle".into(),
-                current_version: PRODUCT.version.into(),
-                version: None,
-                notes: String::new(),
-                page: None,
-                can_install: false,
-                auto_check,
-                downloaded: 0,
-                total: 0,
-                error: None,
-                previous_result,
-            },
+            cancelled_ui: false,
+            previous_result,
         }))
     }
     pub fn action(
@@ -243,59 +223,42 @@ impl Updates {
         protected: bool,
     ) -> Result<(Status, bool), String> {
         let mut inner = self.0.lock().map_err(|_| "internal")?;
-        if let Some(event) = inner.session.poll() {
-            let cancelled = inner.cancelled.load(Ordering::Relaxed);
-            match event {
-                _ if cancelled => {
-                    inner.status.stage = "cancelled".into();
-                    inner.file = None;
-                }
-                Event::Checked(Ok(release)) => {
-                    inner.status.stage = if release.is_some() {
-                        "available"
-                    } else {
-                        "current"
-                    }
-                    .into();
-                    inner.status.version = release.as_ref().map(|r| r.version.to_string());
-                    inner.status.notes = release
-                        .as_ref()
-                        .map(|r| tastedev_update::notes_excerpt(&r.notes))
-                        .unwrap_or_default();
-                    inner.status.page = release.as_ref().map(|r| r.page.clone());
-                    inner.status.can_install = release
-                        .as_ref()
-                        .is_some_and(|r| inner.session.can_install(r));
-                    inner.release = release;
-                }
-                Event::Downloaded(Ok((release, file))) => {
-                    inner.release = Some(release);
-                    inner.file = Some(file);
-                    inner.status.stage = "ready".into();
-                }
-                Event::Installed(Ok(_)) => {
-                    inner.session.relaunch().map_err(|_| "install")?;
-                    return Ok((inner.status.clone(), true));
-                }
-                Event::Checked(Err(_)) | Event::Downloaded(Err(_)) | Event::Installed(Err(_)) => {
-                    inner.status.stage = "error".into();
-                    inner.status.error = Some("update-failed".into());
-                }
-            }
+        let wake: tastedev_update::Waker = Arc::new(|| {});
+        if action == "install" && protected {
+            return Err("workspace-busy".into());
         }
-        let mut quit = false;
+        if matches!(inner.flow.stage(), Stage::Installing(_))
+            && matches!(action, "install" | "check" | "cancel")
+        {
+            return Err("busy".into());
+        }
+        if matches!(inner.flow.stage(), Stage::Downloading(_))
+            && matches!(action, "install" | "check")
+        {
+            return Err("busy".into());
+        }
+        // Cancel before polling: an already completed download must not hand off after cancellation.
+        if action == "cancel" {
+            inner.cancelled.store(true, Ordering::Relaxed);
+            inner.flow.later();
+            inner.cancelled_ui = true;
+        }
+        if action != "cancel"
+            && matches!(inner.flow.stage(), Stage::Idle)
+            && inner.flow.session().is_none_or(|session| !session.busy())
+        {
+            inner.cancelled.store(false, Ordering::Relaxed);
+        }
+        if inner.flow.poll(&wake).is_some() && !inner.cancelled.load(Ordering::Relaxed) {
+            inner.cancelled_ui = false;
+        }
         match action {
-            "status" => {}
+            "status" | "cancel" => {}
             "release" => {
-                let release = inner.release.as_ref().ok_or("invalid")?;
-                let expected = format!("{}{}", tastedev_update::PAGE_BASE, release.tag);
-                if release.page != expected {
+                if inner.flow.available().is_none() && inner.flow.release().is_none() {
                     return Err("invalid".into());
                 }
-                inner
-                    .session
-                    .open_page(&release.page)
-                    .map_err(|_| "network")?;
+                inner.flow.open_page();
             }
             "preference" => {
                 let enabled = enabled.ok_or("invalid")?;
@@ -308,65 +271,172 @@ impl Updates {
                 file.sync_all().map_err(|_| "storage")?;
                 drop(file);
                 fs::rename(&temporary, &inner.preference).map_err(|_| "storage")?;
-                inner.status.auto_check = enabled;
+                inner.flow.set_auto(enabled);
             }
-            "check" | "download" if inner.session.busy() => return Err("busy".into()),
             "check" => {
+                if matches!(inner.flow.stage(), Stage::Downloading(_)) {
+                    return Err("busy".into());
+                }
                 inner.cancelled.store(false, Ordering::Relaxed);
-                inner.status.error = None;
-                inner.release = None;
-                inner.file = None;
-                inner.status.version = None;
-                inner.status.can_install = false;
-                inner.session.check(Arc::new(|| {}));
-                inner.status.stage = "checking".into();
+                inner.cancelled_ui = false;
+                inner.flow.later();
+                if !inner.flow.check_now(&wake) {
+                    return Err("busy".into());
+                }
             }
-            "download" => {
-                let release = inner.release.clone().ok_or("invalid")?;
-                if !inner.session.can_install(&release) {
+            "install" => {
+                if matches!(inner.flow.stage(), Stage::Downloading(_)) {
+                    return Err("busy".into());
+                }
+                let release = inner.flow.available().ok_or("invalid")?;
+                if !inner.flow.can_install(release) {
                     return Err("unsupported".into());
                 }
                 inner.cancelled.store(false, Ordering::Relaxed);
-                inner.status.error = None;
-                inner.session.download(release, Arc::new(|| {}));
-                inner.status.stage = "downloading".into();
+                inner.cancelled_ui = false;
+                inner.flow.later();
+                inner.flow.offer(&wake);
+                inner.flow.install(&wake);
             }
-            "cancel" => {
-                inner.cancelled.store(true, Ordering::Relaxed);
-                inner.file = None;
-                inner.status.stage = "cancelled".into();
-            }
-            "install" => {
-                if protected {
-                    return Err("workspace-busy".into());
-                }
-                if inner.status.stage != "ready" || inner.session.busy() {
-                    return Err("invalid".into());
-                }
-                let release = inner.release.clone().ok_or("invalid")?;
-                let file = inner.file.clone().ok_or("invalid")?;
-                let asset = inner.session.asset(&release).ok_or("invalid")?;
-                // Revalidate immediately before handoff: a cached file may have changed.
-                tastedev_update::verify_file(&file, asset).map_err(|_| "verification")?;
-                quit = inner
-                    .session
-                    .install_now(&release, &file, Arc::new(|| {}))
-                    .map_err(|_| "install")?
-                    == Started::QuitToInstall;
-                inner.status.stage = "installing".into();
-            }
+            // Old two-step installation is intentionally not a second engine.
             _ => return Err("invalid".into()),
         }
-        let (done, total) = inner.session.progress();
-        inner.status.downloaded = done;
-        inner.status.total = total;
-        Ok((inner.status.clone(), quit))
+        let status = inner.status();
+        Ok((status, inner.flow.take_quit()))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tastedev_update::Runner;
+
+    #[test]
+    fn shared_flow_is_send_and_studio_uses_the_site_endpoint() {
+        fn send<T: Send>() {}
+        send::<Flow>();
+        send::<Updates>();
+        assert_eq!(
+            tastedev_update::site_updates_url(PRODUCT.tag_prefix).as_deref(),
+            Some("https://tastedev.net/api/updates/studio")
+        );
+        assert!(redirect_allowed(
+            &reqwest::Url::parse("https://tastedev.net/api/updates/studio").unwrap()
+        ));
+    }
+    fn fixture_updates() -> (
+        Updates,
+        tastedev_update::testing::Fixture,
+        tastedev_update::testing::Harness,
+    ) {
+        use tastedev_update::testing::{fixture, harness};
+        let product = Product {
+            version: "0.0.1",
+            ..PRODUCT
+        };
+        let fx = fixture(
+            &product,
+            "0.2.0",
+            &["tastestudio_0.2.0_windows_x64.zip"],
+            None,
+        );
+        let h = harness(
+            product,
+            &fx,
+            InstallKind::Portable {
+                dir: "C:/Studio".into(),
+            },
+            "C:/Studio/tastestudio.exe",
+            &[],
+        );
+        let session = Session::with_parts(
+            product,
+            h.net.clone(),
+            h.runner.clone(),
+            InstallKind::Portable {
+                dir: "C:/Studio".into(),
+            },
+            "C:/Studio/tastestudio.exe".into(),
+            h.work.0.clone(),
+            fx.url(),
+            true,
+            "x86_64".into(),
+            Arc::new(|_| true),
+        );
+        let updates = Updates(Mutex::new(Inner {
+            flow: Flow::start(false, move || session, Arc::new(|| {})),
+            preference: h.work.0.join("preference.json"),
+            cancelled: Arc::new(AtomicBool::new(false)),
+            cancelled_ui: false,
+            previous_result: None,
+        }));
+        updates.action("check", None, false).unwrap();
+        pump(&updates, "available");
+        (updates, fx, h)
+    }
+    fn pump(updates: &Updates, stage: &str) -> Status {
+        let start = std::time::Instant::now();
+        loop {
+            let (status, quit) = updates.action("status", None, false).unwrap();
+            assert!(!quit, "Windows update must not auto-close the workspace");
+            if status.stage == stage {
+                return status;
+            }
+            assert!(
+                start.elapsed() < Duration::from_secs(20),
+                "expected {stage}, got {}",
+                status.stage
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+    #[test]
+    fn shared_install_waits_preserves_payload_and_reports_postponement() {
+        let (updates, _fx, h) = fixture_updates();
+        assert_eq!(
+            updates.action("install", None, true).err().as_deref(),
+            Some("workspace-busy")
+        );
+        assert!(h.runner.lines().is_empty());
+        assert!(
+            updates.action("download", None, false).is_err(),
+            "no separate download/install pipeline"
+        );
+        let (status, quit) = updates.action("install", None, false).unwrap();
+        assert_eq!(status.stage, "downloading");
+        assert!(!quit);
+        assert!(updates.action("install", None, false).is_err());
+        assert!(updates.action("check", None, false).is_err());
+        pump(&updates, "installing");
+        assert_eq!(h.runner.lines().len(), 1);
+        assert!(updates.action("install", None, false).is_err());
+        assert!(updates.action("check", None, false).is_err());
+        assert!(updates.action("cancel", None, false).is_err());
+        fs::write(
+            h.work.0.join(tastedev_update::RESULT_FILE),
+            "fail 0.2.0 the app is still running (postponed)\n",
+        )
+        .unwrap();
+        let status = pump(&updates, "error");
+        assert_eq!(status.error.as_deref(), Some("update-failed"));
+        assert!(h.work.0.join("tastestudio_0.2.0_windows_x64.zip").exists());
+    }
+    #[test]
+    fn shared_cancel_prevents_queued_download_from_handing_off() {
+        let (updates, _fx, h) = fixture_updates();
+        updates.action("install", None, false).unwrap();
+        updates.action("cancel", None, false).unwrap();
+        for _ in 0..50 {
+            updates.action("status", None, false).unwrap();
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        assert!(h.runner.lines().is_empty());
+        assert_eq!(
+            updates.action("status", None, false).unwrap().0.stage,
+            "cancelled"
+        );
+    }
+
     #[test]
     fn redirect_boundary() {
         for url in [
@@ -453,43 +523,35 @@ mod tests {
         .is_some());
     }
     #[test]
-    fn cached_payload_tampering_and_dirty_guard_block_handoff() {
-        let dir = tempfile::tempdir().unwrap();
-        let updates = Updates::new(dir.path(), dir.path());
-        let file = dir.path().join("tastestudio_0.2.0_windows_x64.zip");
-        fs::write(&file, b"bad!").unwrap();
-        let release = Release { version: tastedev_update::Version::new(0,2,0), tag:"studio-v0.2.0".into(), page:String::new(), notes:String::new(), published:String::new(), assets:vec![tastedev_update::Asset { name:file.file_name().unwrap().to_string_lossy().into(), url:"https://github.com/whitecalvin/tastedev-releases/releases/download/studio-v0.2.0/test.zip".into(), size:4, sha256:"a".repeat(64) }] };
-        {
-            let mut inner = updates.0.lock().unwrap();
-            inner.session = Session::with_parts(
-                PRODUCT,
-                Arc::new(Network {
-                    cancelled: inner.cancelled.clone(),
-                }),
-                Arc::new(tastedev_update::DryRunner),
+    fn current_package_names_match_the_shared_asset_contract() {
+        for (name, kind) in [
+            (
+                "tastedev-studio_0.2.4_windows_x64.zip",
                 InstallKind::Portable {
-                    dir: dir.path().into(),
+                    dir: "C:/Studio".into(),
                 },
-                dir.path().join("tastestudio.exe"),
-                dir.path().join("updates"),
-                tastedev_update::RELEASES_URL.into(),
-                false,
-                "x86_64".into(),
-                Arc::new(|_| true),
-            );
-            inner.release = Some(release);
-            inner.file = Some(file);
-            inner.status.stage = "ready".into();
+            ),
+            ("tastedev-studio_0.2.4_windows_x64.msi", InstallKind::Msi),
+            (
+                "tastedev-studio_0.2.4_windows_x64-setup.exe",
+                InstallKind::Nsis {
+                    dir: "C:/Studio".into(),
+                },
+            ),
+        ] {
+            assert!(tastedev_update::asset_name_matches(
+                name,
+                PRODUCT.package,
+                &kind,
+                "x86_64"
+            ));
+            assert!(!tastedev_update::asset_name_matches(
+                &name.replace("studio_", "studio-agent_"),
+                PRODUCT.package,
+                &kind,
+                "x86_64"
+            ));
         }
-        assert_eq!(
-            updates.action("install", None, true).err().as_deref(),
-            Some("workspace-busy")
-        );
-        assert_eq!(
-            updates.action("install", None, false).err().as_deref(),
-            Some("verification")
-        );
-        assert!(!dir.path().join("updates/install-0.2.0.ps1").exists());
     }
     #[cfg(windows)]
     #[test]
@@ -505,7 +567,7 @@ mod tests {
                 "Start-Sleep -Seconds 2; Set-Content -LiteralPath {} -Value survived",
                 tastedev_update::powershell_quote(&PathBuf::from(marker).to_string_lossy())
             );
-            InstallerRunner
+            SystemRunner
                 .spawn(
                     "powershell.exe",
                     &[
@@ -548,7 +610,9 @@ mod tests {
         let network = Network {
             cancelled: Arc::new(AtomicBool::new(false)),
         };
-        let bytes = network.get(tastedev_update::RELEASES_URL).unwrap();
+        let bytes = network
+            .get(&tastedev_update::site_updates_url(PRODUCT.tag_prefix).unwrap())
+            .unwrap();
         let release = tastedev_update::latest(&bytes, PRODUCT.tag_prefix)
             .unwrap()
             .unwrap();

@@ -3,15 +3,20 @@
 //! 사용자 요청(2026-09-30): 앱 시작 때 새 버전이 있으면 설치한다 — **자동 업데이트가 켜져 있을 때만, 묻고 나서**.
 //!
 //! 1. **확인** — 설정 "자동 업데이트"(제품의 기존 자동 확인 스위치)가 켜져 있으면 앱이 켜진 뒤(본 창이 뜬 뒤)
-//!    한 번, 공개 배포 저장소(GitHub Releases `whitecalvin/tastedev-releases`)의 `<제품>-v<판>` 태그 중
-//!    가장 새 정식 판을 고른다([`latest`] — 초안 · 시험판 · 다른 제품은 건너뜀). 꺼져 있으면 아무 요청도 하지 않는다.
+//!    한 번 + 그 뒤 [`AUTO_CHECK_INTERVAL`](24시간)마다, 수동 `지금 확인` 은 언제나([`Flow`]).
+//!    TASTEDEV 사이트 API([`SITE_UPDATES_BASE`]`<slug>`, 관리자가 정한 최신 판 하나) 하나만 읽고
+//!    ([`check_latest`]) `<제품>-v<판>` 태그 중 가장 새 정식 판을 고른다([`latest`] — 초안 · 시험판 · 다른 제품은
+//!    건너뜀). GitHub API 는 부르지 않는다. 사이트가 답하지 못하면 확인 실패로 보여 준다.
+//!    꺼져 있으면 스스로는 아무 요청도 하지 않는다.
 //! 2. **묻기** — 지금 판보다 새 판이면 제품이 묻는 창(`tastedev-ui-kit::update_dialog`)을 띄운다.
 //!    "나중에" 는 이번 실행에서 다시 묻지 않는다(다음 실행 때 다시). 조용히 설치하지 않는다.
 //! 3. **받기 · 검증**([`fetch_asset`]) — "지금 설치" 를 누르면 이 PC 에 깔린 방식([`InstallKind`], [`detect`])에 맞는
-//!    설치 파일([`pick_asset`])을 받는다. 릴리스가 알려 준 **크기와 SHA-256**(GitHub `digest`)이 모두 맞아야 쓴다.
+//!    설치 파일([`pick_asset`])을 받는다. 사이트가 알려 준 **크기와 SHA-256**(`digest`)이 모두 맞아야 쓴다.
+//!    설치 파일 자체는 배포 저장소([`DOWNLOAD_BASE`] — GitHub 의 파일 보관 주소)에서 받는다.
 //! 4. **설치**([`plan`]) — OS 별 명령을 만든다(Windows: 앱이 끝난 뒤 PowerShell 이 NSIS `/S` · msiexec `/qb!` ·
 //!    zip 교체 후 다시 시작, Linux: `pkexec apt-get install` · `pkexec rpm -U` · AppImage 바꿔치기 후 다시 시작).
 //!    실패하면 옛 판을 그대로 둔다. 실행은 [`Runner`] 가 하므로 시험은 명령만 본다.
+//!    Windows 는 실행 · 교체 전에 Authenticode 서명자([`WINDOWS_SIGNER`])를 확인한다(Linux 는 아직 HTTPS · SHA-256 만).
 //!
 //! 네트워크는 제품이 준다([`Transport`]). `TASTEDEV_UPDATE_URL` 이 로컬 파일이면 목록을 그 파일에서 읽고
 //! (그때만 로컬 설치 파일 주소를 믿는다), 캡처 모드(`TASTEDEV_CAPTURE=1`)는 로컬 주소만 읽는다.
@@ -24,6 +29,7 @@ use std::path::{Path, PathBuf};
 
 mod flow;
 mod plan;
+pub mod release_sig;
 mod session;
 pub mod sha256;
 #[doc(hidden)]
@@ -32,19 +38,30 @@ pub mod testing;
 #[cfg(test)]
 mod tests;
 
-pub use flow::{Flow, Stage};
+pub use flow::{Checked, Flow, Recheck, Schedule, Stage, Status};
 pub use plan::{Ctx, Step, plan, powershell_quote};
-pub use session::{DryRunner, Event, Runner, Session, Started, SystemRunner, Transport, Waker};
+pub use session::{
+    DryRunner, Event, Language, Runner, Session, Started, SystemRunner, Transport, Waker,
+};
 
-/// 공개 릴리스 목록(익명으로 읽는다).
-pub const RELEASES_URL: &str =
-    "https://api.github.com/repos/whitecalvin/tastedev-releases/releases?per_page=100";
-/// 설치 파일을 믿는 주소 앞머리(뒤에 `<태그>/`).
+/// TASTEDEV 사이트 주소(끝에 `/`). 열어 주는 페이지는 이 아래여야 한다([`site_page`]).
+pub const SITE_BASE: &str = "https://tastedev.net/";
+/// 사이트 업데이트 API 앞머리(뒤에 제품 slug — [`product_slug`]). 답은 GitHub "List releases" 와 같은 모양의
+/// 배열에 그 제품 최신 판 하나(`html_url` 은 사이트의 제품 페이지), 관리자가 숨기거나 다운로드를 막은 제품 ·
+/// 아직 판이 없는 제품은 빈 배열(업데이트 없음)이다. 사이트가 답하지 못하면(연결 실패 · 404 · 5xx · 배열 아님 ·
+/// 크기 초과) 확인 실패다([`check_latest`]) — 다른 곳으로 돌아가지 않는다.
+/// 사이트가 준 설치 파일 주소도 [`DOWNLOAD_BASE`] 아래여야 받는다([`trusted_url`]).
+pub const SITE_UPDATES_BASE: &str = "https://tastedev.net/api/updates/";
+/// 사이트 제품 페이지 앞머리(뒤에 제품 slug, 한국어 — 언어 접두사 없음). 답에 쓸 수 있는 `html_url` 이 없을 때
+/// 여는 페이지다([`product_page_url`]).
+pub const SITE_PRODUCTS_BASE: &str = "https://tastedev.net/products/";
+/// 사이트 API 가 받는 `?lang=` 값(한국어는 붙이지 않는다 — 사이트 기본 언어).
+pub const SITE_LANGS: [&str; 9] = ["en", "de", "es", "fr", "it", "pt", "ja", "zh", "zh-hant"];
+/// 설치 파일을 믿는 주소 앞머리(뒤에 `<태그>/`). 설치 파일만 GitHub 배포 저장소에 둔다(API 는 부르지 않는다).
 pub const DOWNLOAD_BASE: &str =
     "https://github.com/whitecalvin/tastedev-releases/releases/download/";
-/// 릴리스 페이지 앞머리(뒤에 태그).
-pub const PAGE_BASE: &str = "https://github.com/whitecalvin/tastedev-releases/releases/tag/";
-/// 릴리스 목록 주소를 바꾸는 환경 변수(시험 · 캡처용 — 로컬 파일이면 로컬 설치 파일 주소도 믿는다).
+/// 업데이트 확인 주소를 바꾸는 환경 변수(시험 · 캡처용 — 로컬 파일이면 로컬 설치 파일 주소도 믿는다).
+/// 바꾼 주소도 사이트 API 와 같은 모양의 배열을 돌려줘야 한다.
 pub const URL_ENV: &str = "TASTEDEV_UPDATE_URL";
 /// 캡처 모드에서만 읽는 설치 방식 바꾸기(`nsis` · `msi` · `zip` · `deb` · `rpm` · `appimage`) — 개발 빌드로
 /// 묻는 창을 찍을 때 쓴다. 캡처 모드는 [`DryRunner`] 라 실제로 설치하지 않는다.
@@ -57,10 +74,28 @@ pub const MAX_LIST_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_ASSET_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 /// 앱이 끝난 뒤 설치한 결과를 남기는 파일(작업 폴더 안). 다음 실행이 읽고 지운다.
 pub const RESULT_FILE: &str = "update-result.txt";
+/// 작업 폴더의 업데이트 기록(앱 · 설치 스크립트가 한 줄씩 덧붙인다 — 실패 까닭을 나중에 볼 수 있게). 켤 때 치우지 않고,
+/// [`MAX_LOG_BYTES`] 를 넘으면 지운다.
+pub const LOG_FILE: &str = "update-log.txt";
+/// 업데이트 기록의 최대 크기.
+pub const MAX_LOG_BYTES: u64 = 256 * 1024;
+/// 설치 스크립트가 앱이 끝나기를 기다리다 포기할 때 남기는 까닭([`InstallResult::app_was_running`]).
+pub const APP_STILL_RUNNING: &str = "the app is still running";
+/// Windows 설치 파일 · 실행 파일의 Authenticode 서명자 주체에 들어 있어야 하는 것(출시 도구
+/// `release.desktop.json` 의 `signing.windows.expectedSubjectContains` 와 같은 값). 설치 전에 이 서명이
+/// 유효(타임스탬프 포함)하지 않으면 설치하지 않는다 — 크기 · SHA-256 은 같은 릴리스 응답에서 오므로
+/// 깨짐만 막고, 바꿔치기는 서명이 막는다.
+pub const WINDOWS_SIGNER: &str = "O=GXSOFT";
 /// 릴리스 노트 앞부분 줄 수(묻는 창).
 pub const NOTES_LINES: usize = 8;
 /// 릴리스 노트 앞부분 글자 수.
 pub const NOTES_CHARS: usize = 600;
+/// 자동 확인 주기(초): 설정 "하루 한 번 자동으로 확인" 이 켜져 있으면 켤 때 한 번, 그 뒤 마지막 확인에서 24시간마다
+/// ([`Schedule`]). 다섯 제품이 이 값 하나를 쓴다(규격 2-2 업데이트 — 제품마다 따로 두지 않는다).
+pub const AUTO_CHECK_INTERVAL_SECS: u64 = 24 * 60 * 60;
+/// [`AUTO_CHECK_INTERVAL_SECS`] 의 `Duration`.
+pub const AUTO_CHECK_INTERVAL: std::time::Duration =
+    std::time::Duration::from_secs(AUTO_CHECK_INTERVAL_SECS);
 
 // ───────────────────────────── 제품 · 판 ─────────────────────────────
 
@@ -144,7 +179,7 @@ pub struct Asset {
     pub name: String,
     pub url: String,
     pub size: u64,
-    /// GitHub `digest`("sha256:…")에서 앞머리를 뗀 소문자 64자리. 없으면 빈 글.
+    /// 답의 `digest`("sha256:…")에서 앞머리를 뗀 소문자 64자리. 없으면 빈 글(서명 파일 칸은 없을 수 있다).
     pub sha256: String,
 }
 
@@ -172,7 +207,7 @@ impl Asset {
 pub struct Release {
     pub version: Version,
     pub tag: String,
-    /// 릴리스 페이지(자세히 보기 · 내려받기 페이지).
+    /// 사이트의 제품 페이지(자세히 보기 · 내려받기 페이지) — 언제나 [`SITE_BASE`] 아래([`site_page`]).
     pub page: String,
     /// 릴리스 노트 원문(마크다운).
     pub notes: String,
@@ -231,8 +266,8 @@ fn release_from(item: &serde_json::Value, tag_prefix: &str) -> Option<Release> {
         })
         .unwrap_or_default();
     let page = text(item, "html_url")
-        .filter(|u| u.starts_with("https://"))
-        .unwrap_or_else(|| format!("{PAGE_BASE}{tag}"));
+        .filter(|u| site_page(u))
+        .unwrap_or_else(|| product_page_url(tag_prefix));
     Some(Release {
         version,
         page,
@@ -337,13 +372,54 @@ pub fn capture_mode() -> bool {
     std::env::var(CAPTURE_ENV).is_ok_and(|v| v.trim() == "1")
 }
 
-/// 읽을 목록 주소: `TASTEDEV_UPDATE_URL` 이 있으면 그것, 없으면 [`RELEASES_URL`].
-pub fn list_url() -> String {
+/// 읽을 업데이트 주소: `TASTEDEV_UPDATE_URL` 이 있으면 그것, 없으면 이 제품의 사이트 API
+/// ([`site_updates_url`] — 태그 앞머리가 맞지 않으면 빈 글, 확인은 실패한다).
+pub fn list_url(tag_prefix: &str) -> String {
     std::env::var(URL_ENV)
         .ok()
         .map(|v| v.trim().to_owned())
         .filter(|v| !v.is_empty())
-        .unwrap_or_else(|| RELEASES_URL.to_owned())
+        .unwrap_or_else(|| site_updates_url(tag_prefix).unwrap_or_default())
+}
+
+/// 열어 줄 페이지로 믿는 주소인지: [`SITE_BASE`] 아래(`https://tastedev.net/…`)만.
+pub fn site_page(url: &str) -> bool {
+    url.strip_prefix(SITE_BASE)
+        .is_some_and(|rest| !rest.contains(['\\', ' ', '\n', '\r', '\t']))
+}
+
+/// 이 제품의 사이트 제품 페이지(한국어 기본 주소, [`SITE_PRODUCTS_BASE`]`<slug>`). slug 를 얻지 못하면 제품 목록.
+pub fn product_page_url(tag_prefix: &str) -> String {
+    match product_slug(tag_prefix) {
+        Some(slug) => format!("{SITE_PRODUCTS_BASE}{slug}"),
+        None => SITE_PRODUCTS_BASE.trim_end_matches('/').to_owned(),
+    }
+}
+
+/// 앱 화면 언어 코드(`ko` · `en` · `zh_hant` · `pt-BR` …)를 사이트 `?lang=` 값으로. [`SITE_LANGS`] 에 없으면
+/// (한국어 포함) `None` — 붙이지 않는다.
+pub fn site_lang(app_lang: &str) -> Option<&'static str> {
+    let code = app_lang.trim().to_ascii_lowercase().replace('_', "-");
+    match code.as_str() {
+        "zh-hant" | "zh-tw" | "zh-hk" | "zh-mo" | "zh-hant-tw" | "zh-hant-hk" => {
+            return Some("zh-hant");
+        }
+        "zh-hans" | "zh-cn" | "zh-sg" | "zh-hans-cn" => return Some("zh"),
+        _ => {}
+    }
+    let primary = code.split('-').next().unwrap_or("");
+    SITE_LANGS.iter().copied().find(|l| *l == primary)
+}
+
+/// 사이트 API 주소에 화면 언어를 붙인다(`?lang=en`). 사이트 API 주소가 아니거나(로컬 · 바꾼 주소) 붙일 언어가
+/// 없으면 그대로.
+pub fn with_site_lang(url: &str, app_lang: &str) -> String {
+    match site_lang(app_lang) {
+        Some(lang) if url.starts_with(SITE_UPDATES_BASE) && !url.contains('?') => {
+            format!("{url}?lang={lang}")
+        }
+        _ => url.to_owned(),
+    }
 }
 
 /// 설치 파일 주소를 믿는지: 배포 저장소의 그 태그 아래이거나, 목록이 로컬일 때의 로컬 주소.
@@ -667,6 +743,8 @@ pub enum UpdateError {
     Size { got: u64, want: u64 },
     /// SHA-256 이 다름.
     Hash,
+    /// 발행자 서명이 없거나 맞지 않음(Linux: 릴리스의 `<파일>.sig`, 제품이 준 검증기로 본다).
+    Signature(String),
     /// 파일을 쓰거나 읽지 못함.
     Io(String),
     /// 권한을 받지 못함(pkexec 없음 · 거절 · UAC 취소).
@@ -696,7 +774,7 @@ impl UpdateError {
     pub fn kind(&self) -> ErrorKind {
         match self {
             Self::Network(_) | Self::BadList | Self::Io(_) => ErrorKind::Download,
-            Self::Size { .. } | Self::Hash => ErrorKind::Mismatch,
+            Self::Size { .. } | Self::Hash | Self::Signature(_) => ErrorKind::Mismatch,
             Self::Denied(_) => ErrorKind::Denied,
             Self::Install(_) => ErrorKind::Install,
             Self::NoAsset | Self::Unsupported => ErrorKind::Unsupported,
@@ -706,7 +784,11 @@ impl UpdateError {
     /// 번역 문구 뒤에 붙일 원문 까닭(없으면 빈 글).
     pub fn detail(&self) -> String {
         match self {
-            Self::Network(s) | Self::Io(s) | Self::Denied(s) | Self::Install(s) => s.clone(),
+            Self::Network(s)
+            | Self::Io(s)
+            | Self::Denied(s)
+            | Self::Install(s)
+            | Self::Signature(s) => s.clone(),
             Self::Size { got, want } => format!("{got} / {want}"),
             Self::BadList => "invalid release list".into(),
             Self::Hash | Self::NoAsset | Self::Unsupported => String::new(),
@@ -748,6 +830,59 @@ pub fn verify_file(path: &Path, asset: &Asset) -> Result<(), UpdateError> {
         return Err(UpdateError::Hash);
     }
     Ok(())
+}
+
+/// 발행자 서명 확인. 받은 설치 파일과 릴리스의 `<파일>.sig` 내용을 받아 맞으면 `Ok`.
+///
+/// 암호 라이브러리는 제품이 준다(이 크레이트는 다섯 제품이 함께 써서 의존성을 늘리지 않는다).
+/// 크기 · SHA-256 은 같은 릴리스 응답에서 오므로 깨짐만 막는다 — 바꿔치기는 이 서명이 막는다.
+pub type SignatureCheck = std::sync::Arc<dyn Fn(&Path, &[u8]) -> Result<(), String> + Send + Sync>;
+
+/// GXSOFT 출시 키(release@tastedev.net)의 SSH 서명 검증기 — 다섯 제품이 세션에 그대로 넘긴다.
+///
+/// ```ignore
+/// session.set_signature_check(tastedev_update::gxsoft_release_signature());
+/// ```
+pub fn gxsoft_release_signature() -> SignatureCheck {
+    std::sync::Arc::new(release_sig::verify_release_file)
+}
+
+/// 서명 파일 최대 크기(SSH 서명은 수백 바이트다).
+pub const MAX_SIG_BYTES: u64 = 64 * 1024;
+
+/// `file`(받은 설치 파일)의 서명을 릴리스에서 찾아 받아 `check` 로 본다. 서명 파일이 없으면 실패다.
+pub fn verify_signature(
+    release: &Release,
+    asset: &Asset,
+    file: &Path,
+    allow_local: bool,
+    transport: &dyn Transport,
+    check: &SignatureCheck,
+) -> Result<(), UpdateError> {
+    let want = format!("{}.sig", asset.name);
+    let sig = release
+        .assets
+        .iter()
+        .find(|a| a.name == want)
+        .ok_or_else(|| UpdateError::Signature(format!("{want} missing")))?;
+    if !sig.plain_name()
+        || sig.size > MAX_SIG_BYTES
+        || !trusted_url(&sig.url, &release.tag, allow_local)
+    {
+        return Err(UpdateError::Signature(format!("{want} not trusted")));
+    }
+    let bytes = if is_local(&sig.url) {
+        let path = local_path(&sig.url).ok_or(UpdateError::NoAsset)?;
+        fs::read(path).map_err(|e| UpdateError::Network(e.to_string()))?
+    } else if capture_mode() {
+        return Err(UpdateError::Network("capture mode: local only".into()));
+    } else {
+        transport.get(&sig.url).map_err(UpdateError::Network)?
+    };
+    if bytes.len() as u64 > MAX_SIG_BYTES {
+        return Err(UpdateError::Signature(format!("{want} too large")));
+    }
+    check(file, &bytes).map_err(UpdateError::Signature)
 }
 
 /// 설치 파일을 `dir` 에 받는다: `<이름>.partial` 로 받고 → 크기 · SHA-256 검증 → 이름을 바꾼다.
@@ -824,7 +959,9 @@ fn copy_local(url: &str, to: &Path, progress: &dyn Fn(u64)) -> Result<(), Update
     dst.sync_all().map_err(|e| UpdateError::Io(e.to_string()))
 }
 
-/// 목록을 읽는다: 로컬이면 파일, 아니면 제품 네트워크(캡처 모드에서는 읽지 않는다).
+/// 업데이트 답(사이트 API 와 같은 모양의 JSON 배열)을 읽는다: 로컬이면 파일 하나, 아니면 제품 네트워크로
+/// 요청 한 번(캡처 모드 · `local_only` 에서는 읽지 않는다). 받지 못하면(연결 실패 · 404 · 5xx — 제품 전송은 2xx 가
+/// 아니면 `Err`) [`UpdateError::Network`], [`MAX_LIST_BYTES`] 를 넘으면 [`UpdateError::BadList`].
 pub fn fetch_list(
     url: &str,
     transport: &dyn Transport,
@@ -837,11 +974,45 @@ pub fn fetch_list(
     if local_only || capture_mode() {
         return Err(UpdateError::Network("local only".into()));
     }
+    if !url.starts_with("https://") {
+        return Err(UpdateError::Network("no update address".into()));
+    }
     let body = transport.get(url).map_err(UpdateError::Network)?;
     if body.len() > MAX_LIST_BYTES {
         return Err(UpdateError::BadList);
     }
     Ok(body)
+}
+
+/// 태그 앞머리(`ftp-v`)에서 사이트 API 의 제품 slug(`ftp`)를 얻는다. `-v` 로 끝나지 않거나 slug 가 영문 소문자 ·
+/// 숫자가 아니면 `None`(사이트를 부르지 않는다).
+pub fn product_slug(tag_prefix: &str) -> Option<&str> {
+    let slug = tag_prefix.strip_suffix("-v")?;
+    (!slug.is_empty()
+        && slug
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit()))
+    .then_some(slug)
+}
+
+/// 이 제품의 사이트 업데이트 API 주소([`SITE_UPDATES_BASE`]`<slug>`).
+pub fn site_updates_url(tag_prefix: &str) -> Option<String> {
+    product_slug(tag_prefix).map(|slug| format!("{SITE_UPDATES_BASE}{slug}"))
+}
+
+/// 이 제품의 가장 새 정식 판을 찾는다: `url`(기본은 사이트 API — [`list_url`])을 한 번 읽어 [`latest`] 로 고른다.
+///
+/// - 빈 배열은 `Ok(None)`(업데이트 없음 — 관리자가 숨기거나 막은 제품 · 아직 판이 없는 제품).
+/// - 받지 못함 · 깨진 JSON · 배열 아님 · 크기 초과는 오류(확인 실패). 다른 주소(GitHub 등)로 돌아가지 않는다.
+/// - 고른 판의 설치 파일에 SHA-256 이 없으면 그 파일은 자동 설치에 쓰지 않는다([`pick_asset`] — 내려받기 페이지 안내).
+/// - [`URL_ENV`] 로 바꾼 주소(로컬 파일 포함)도 같은 모양으로 읽는다. `local_only` · 캡처 모드는 로컬 주소만 읽는다.
+pub fn check_latest(
+    url: &str,
+    transport: &dyn Transport,
+    local_only: bool,
+    tag_prefix: &str,
+) -> Result<Option<Release>, UpdateError> {
+    fetch_list(url, transport, local_only).and_then(|body| latest(&body, tag_prefix))
 }
 
 // ───────────────────────────── 지난 설치 결과 ─────────────────────────────
@@ -856,7 +1027,15 @@ pub enum InstallResult {
     },
 }
 
-/// 결과 줄(`ok 1.2.3` · `fail 1.2.3 까닭`)을 읽는다.
+impl InstallResult {
+    /// 앱이 끝나지 않아 설치를 시작하지 못한 실패인지(제품은 "앱을 닫고 다시 시도하세요" 를 알린다).
+    pub fn app_was_running(&self) -> bool {
+        matches!(self, Self::Failed { detail, .. } if detail.starts_with(APP_STILL_RUNNING))
+    }
+}
+
+/// 결과 줄(`ok 1.2.3` · `fail 1.2.3 까닭`)을 읽는다. 앱이 남긴 `pending 1.2.3`(스크립트가 돌지 못함) ·
+/// 스크립트가 시작하며 남긴 `started 1.2.3 때`(도중에 멈춤)도 실패로 읽는다.
 pub fn parse_result(text: &str) -> Option<InstallResult> {
     let line = text.trim_start_matches('\u{feff}').lines().next()?.trim();
     let mut parts = line.splitn(3, ' ');
@@ -867,6 +1046,17 @@ pub fn parse_result(text: &str) -> Option<InstallResult> {
         "fail" => Some(InstallResult::Failed {
             version,
             detail: parts.next().unwrap_or("").trim().to_owned(),
+        }),
+        "pending" => Some(InstallResult::Failed {
+            version,
+            detail: "the update script did not run".to_owned(),
+        }),
+        "started" => Some(InstallResult::Failed {
+            version,
+            detail: format!(
+                "the update script stopped before finishing (started {})",
+                parts.next().unwrap_or("").trim()
+            ),
         }),
         _ => None,
     }
@@ -880,13 +1070,20 @@ pub fn take_result(work_dir: &Path) -> Option<InstallResult> {
     parse_result(&text)
 }
 
-/// 작업 폴더를 치운다(받아 둔 설치 파일 · 스크립트 · 받다 만 파일). 결과 파일은 남긴다.
+/// 작업 폴더를 치운다(받아 둔 설치 파일 · 스크립트 · 받다 만 파일). 결과 파일과 업데이트 기록([`LOG_FILE`],
+/// [`MAX_LOG_BYTES`] 이하일 때)은 남긴다.
 pub fn clean_work_dir(work_dir: &Path) {
     let Ok(entries) = fs::read_dir(work_dir) else {
         return;
     };
     for e in entries.flatten() {
+        if e.file_name() == ".update-install.lock" {
+            continue;
+        }
         if e.file_name() == RESULT_FILE {
+            continue;
+        }
+        if e.file_name() == LOG_FILE && e.metadata().is_ok_and(|m| m.len() <= MAX_LOG_BYTES) {
             continue;
         }
         let p = e.path();

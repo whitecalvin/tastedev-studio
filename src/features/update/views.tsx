@@ -4,7 +4,7 @@ import { useI18n } from '@/i18n/react';
 import { Dialog } from '@/components/ui/dialog';
 import { UpdateService, protections, updateFailure } from './service';
 import {version as buildVersion} from '../../../package.json';
-import {Download,RefreshCw,ShieldCheck,AlertCircle,X} from 'lucide-react';
+import {RefreshCw,ShieldCheck,AlertCircle,X} from 'lucide-react';
 import './update.css';
 
 const Context = createContext<UpdateService | null>(null);
@@ -66,8 +66,7 @@ function UpdateDialog({ service }: { service: UpdateService }) {
       <p className="update-safety">{t('Installation restarts the app. Save your files and finish active tasks first.')}</p>
       <div className="dialog-actions update-actions">
         <button className="button" disabled={busy} onClick={() => void service.action('check')}><RefreshCw size={16} aria-hidden="true"/>{t('Check for updates')}</button>
-        {status?.canInstall && status.stage === 'available' && <button className="button button-primary" disabled={busy} onClick={() => void service.action('download')}><Download size={16} aria-hidden="true"/>{t('Download update')}</button>}
-        {status?.stage === 'ready' && <button className="button button-primary" disabled={busy} onClick={() => void service.action('install')}>{t('Install and restart')}</button>}
+        {status?.canInstall && ['available', 'error'].includes(status.stage) && <button className="button button-primary" disabled={busy} onClick={() => void service.action('install')}>{t('Install and restart')}</button>}
         {['checking', 'downloading', 'ready'].includes(status?.stage ?? '') && <button className="button" disabled={state.pending} onClick={() => void service.action('cancel')}>{t('Cancel')}</button>}
         <button className="button" onClick={() => service.dismiss()}>{t('Later')}</button>
       </div>

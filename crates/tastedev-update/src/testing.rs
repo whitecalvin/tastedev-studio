@@ -1,5 +1,5 @@
-//! 시험 도우미(이 크레이트와 제품 시험이 함께 쓴다): 가짜 릴리스 목록 · 가짜 설치 파일(로컬 파일),
-//! 네트워크를 쓰지 않는 [`NoNetwork`], 명령만 기록하는 [`Recorder`]. 실제로 받거나 설치하지 않는다.
+//! 시험 도우미(이 크레이트와 제품 시험이 함께 쓴다): 사이트 API 모양의 가짜 답 · 가짜 설치 파일(로컬 파일),
+//! 네트워크를 쓰지 않는 [`NoNetwork`], 사이트를 흉내 내는 [`FakeSite`], 명령만 기록하는 [`Recorder`]. 실제로 받거나 설치하지 않는다.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -62,11 +62,49 @@ impl Transport for NoNetwork {
     }
 }
 
+/// 사이트 API 를 흉내 내는 가짜 전송: 어느 주소든 `answer` 를 돌려주고(`Err` 는 받지 못함 — 연결 실패 · 404 ·
+/// 5xx), 받은 주소를 모두 기록한다(`get` · `download` 모두). 실제로 요청하지 않는다. 기록으로 GitHub API 를
+/// 부르지 않는지 본다.
+pub struct FakeSite {
+    pub answer: Result<Vec<u8>, String>,
+    pub urls: Mutex<Vec<String>>,
+}
+
+impl FakeSite {
+    pub fn new(answer: Result<Vec<u8>, String>) -> Self {
+        Self {
+            answer,
+            urls: Mutex::new(Vec::new()),
+        }
+    }
+    /// 지금까지 받은 주소.
+    pub fn requested(&self) -> Vec<String> {
+        self.urls.lock().map(|u| u.clone()).unwrap_or_default()
+    }
+    fn record(&self, url: &str) {
+        if let Ok(mut u) = self.urls.lock() {
+            u.push(url.to_owned());
+        }
+    }
+}
+
+impl Transport for FakeSite {
+    fn get(&self, url: &str) -> Result<Vec<u8>, String> {
+        self.record(url);
+        self.answer.clone()
+    }
+    fn download(&self, url: &str, _to: &Path, _progress: &dyn Fn(u64)) -> Result<(), String> {
+        self.record(url);
+        Err("network forbidden in tests".into())
+    }
+}
+
 /// 명령만 기록하는 가짜 실행기. `run` 은 [`Recorder::code`] 끝 코드를 돌려준다(없으면 "없는 프로그램").
 #[derive(Default)]
 pub struct Recorder {
     pub log: Mutex<Vec<String>>,
     pub code: Mutex<Option<i32>>,
+    pub relaunch_error: Mutex<Option<std::io::ErrorKind>>,
 }
 
 impl Recorder {
@@ -105,6 +143,9 @@ impl Runner for Recorder {
     }
     fn relaunch(&self, exe: &Path) -> std::io::Result<()> {
         self.push(format!("relaunch {}", exe.display()));
+        if let Some(kind) = *self.relaunch_error.lock().unwrap() {
+            return Err(std::io::Error::new(kind, "relaunch test failure"));
+        }
         Ok(())
     }
 }
@@ -149,7 +190,7 @@ pub fn fixture(product: &Product, version: &str, names: &[&str], tamper: Option<
     let list = serde_json::json!([
         {"tag_name": "other-v9.9.9", "draft": false, "prerelease": false, "assets": []},
         {"tag_name": format!("{p}{version}"), "draft": false, "prerelease": false,
-         "html_url": format!("https://github.com/whitecalvin/tastedev-releases/releases/tag/{p}{version}"),
+         "html_url": crate::product_page_url(p),
          "published_at": "2026-10-01T09:00:00Z", "body": "## 바뀐 점\n- 켤 때 새 버전 설치\n- 빠른 목록", "assets": assets},
         {"tag_name": format!("{p}0.0.9"), "draft": false, "prerelease": false, "assets": []},
         {"tag_name": format!("{p}99.0.0"), "draft": true, "prerelease": false, "assets": []},

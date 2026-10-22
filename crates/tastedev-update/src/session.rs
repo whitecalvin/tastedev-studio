@@ -13,17 +13,20 @@ use std::sync::mpsc::{Receiver, channel};
 
 use crate::plan::{self, Ctx, Step};
 use crate::{
-    Asset, InstallKind, InstallResult, KIND_ENV, Os, Product, Release, UpdateError, capture_mode,
-    clean_work_dir, detect_current, fetch_asset, fetch_list, is_local, kind_from_name, latest,
-    list_url, pick_asset, take_result,
+    Asset, InstallKind, InstallResult, KIND_ENV, LOG_FILE, Os, Product, RESULT_FILE, Release,
+    UpdateError, capture_mode, check_latest, clean_work_dir, detect_current, fetch_asset, is_local,
+    kind_from_name, list_url, pick_asset, site_page, take_result, with_site_lang,
 };
+
+/// 지금 화면 언어 코드를 주는 함수(제품의 `i18n::current().id()` 등 — 확인할 때마다 부른다).
+pub type Language = fn() -> &'static str;
 
 /// 일이 끝나면 부르는 것(제품: `ctx.request_repaint()`).
 pub type Waker = Arc<dyn Fn() + Send + Sync>;
 
 /// 제품 네트워크(제품마다 HTTP 스택이 다르다 — curl · reqwest).
 pub trait Transport: Send + Sync {
-    /// 공개 목록(JSON)을 받는다. 실패는 까닭 글.
+    /// 업데이트 답(사이트 API 의 JSON) · 서명 파일을 받는다. 2xx 가 아니면 `Err`(까닭 글).
     fn get(&self, url: &str) -> Result<Vec<u8>, String>;
     /// 파일을 `to` 에 받는다. `progress` 에 지금까지 받은 바이트 수를 알린다.
     fn download(&self, url: &str, to: &Path, progress: &dyn Fn(u64)) -> Result<(), String>;
@@ -45,6 +48,23 @@ pub trait Runner: Send + Sync {
 
 /// 실제 실행.
 pub struct SystemRunner;
+
+/// 리눅스에서는 이전 앱이 DB 소유권을 놓기 전에 새 앱을 시작하면 잠금 검사에 실패한다.
+/// 경로는 셸 소스에 삽입하지 않고 위치 인자로 전달한다(공백·따옴표 경로도 그대로 보존).
+#[cfg(any(target_os = "linux", test))]
+pub(crate) fn linux_relaunch_command(exe: &Path, parent: u32) -> std::process::Command {
+    let mut cmd = std::process::Command::new("/bin/sh");
+    cmd.arg("-c")
+        .arg("count=0; while kill -0 \"$1\" 2>/dev/null; do count=$((count + 1)); if [ \"$count\" -ge 120 ]; then echo 'update restart: parent did not exit' >&2; exit 1; fi; sleep 1; done; exec \"$2\"")
+        .arg("taste-update-restart")
+        .arg(parent.to_string())
+        .arg(exe)
+        .current_dir("/");
+    for name in ["APPIMAGE", "APPDIR", "ARGV0", "OWD"] {
+        cmd.env_remove(name);
+    }
+    cmd
+}
 
 fn quiet(cmd: &mut std::process::Command) {
     cmd.stdin(std::process::Stdio::null())
@@ -68,6 +88,19 @@ impl Runner for SystemRunner {
         let mut cmd = std::process::Command::new(program);
         cmd.args(args);
         quiet(&mut cmd);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            // 앱이 끝나도(앱이 KILL_ON_JOB_CLOSE 작업 개체 안에서 떴더라도) 설치 스크립트가 함께 끝나지 않게
+            // 작업 개체에서 떼어 띄운다. 떼어 내기를 허락하지 않는 작업 개체면 거절되므로 그때는 그냥 띄운다.
+            // CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB
+            cmd.creation_flags(0x0800_0000 | 0x0000_0200 | 0x0100_0000);
+            if let Ok(child) = cmd.spawn() {
+                drop(child);
+                return Ok(());
+            }
+            cmd.creation_flags(0x0800_0000 | 0x0000_0200);
+        }
         cmd.spawn().map(|_| ())
     }
 
@@ -106,8 +139,24 @@ impl Runner for SystemRunner {
     }
 
     fn relaunch(&self, exe: &Path) -> io::Result<()> {
+        #[cfg(target_os = "linux")]
+        let mut cmd = {
+            use std::os::unix::fs::PermissionsExt;
+            let metadata = fs::metadata(exe)?;
+            if !metadata.is_file() || metadata.permissions().mode() & 0o111 == 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "restart target is not executable",
+                ));
+            }
+            linux_relaunch_command(exe, std::process::id())
+        };
+        #[cfg(not(target_os = "linux"))]
         let mut cmd = std::process::Command::new(exe);
         quiet(&mut cmd);
+        // 도우미/새 앱의 지연된 실패도 데스크톱 로그에서 확인할 수 있도록 stderr를 남긴다.
+        #[cfg(target_os = "linux")]
+        cmd.stderr(std::process::Stdio::inherit());
         cmd.spawn().map(|_| ())
     }
 }
@@ -151,7 +200,7 @@ pub enum Event {
 /// "지금 설치" 를 시작한 뒤 제품이 할 일.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Started {
-    /// 앱이 끝나야 설치가 시작된다(Windows) — 제품은 곧바로 앱을 닫는다.
+    /// 모든 앱 창을 사용자가 저장 후 닫을 때까지 기다린다(Windows). 자동 종료하지 않는다.
     QuitToInstall,
     /// 뒤에서 설치 중(Linux) — [`Event::Installed`] 를 기다린다.
     Background,
@@ -172,6 +221,10 @@ pub struct Session {
     rx: Option<Receiver<Event>>,
     done: Arc<AtomicU64>,
     total: u64,
+    /// Linux 설치 파일의 발행자 서명 검증기(제품이 준다). 없으면 크기 · SHA-256 만 본다.
+    signature: Option<crate::SignatureCheck>,
+    /// 지금 화면 언어(사이트 API 에 `?lang=` 으로 붙인다 — [`Session::set_language`]). 없으면 붙이지 않는다.
+    language: Option<Language>,
 }
 
 impl Session {
@@ -206,7 +259,7 @@ impl Session {
             kind,
             exe,
             work_dir,
-            list_url(),
+            list_url(product.tag_prefix),
             local_only,
             std::env::consts::ARCH.to_owned(),
             Arc::new(|p: &Path| p.exists()),
@@ -241,6 +294,8 @@ impl Session {
             rx: None,
             done: Arc::new(AtomicU64::new(0)),
             total: 0,
+            signature: None,
+            language: None,
         }
     }
 
@@ -284,12 +339,14 @@ impl Session {
         }
         let (tx, rx) = channel();
         let transport = Arc::clone(&self.transport);
-        let url = self.list_url.clone();
+        let url = match self.language {
+            Some(language) => with_site_lang(&self.list_url, language()),
+            None => self.list_url.clone(),
+        };
         let local_only = self.local_only;
         let product = self.product;
         std::thread::spawn(move || {
-            let result = fetch_list(&url, transport.as_ref(), local_only)
-                .and_then(|body| latest(&body, product.tag_prefix))
+            let result = check_latest(&url, transport.as_ref(), local_only, product.tag_prefix)
                 .map(|r| r.filter(|r| r.version > product.current()));
             let _ = tx.send(Event::Checked(result));
             wake();
@@ -315,6 +372,12 @@ impl Session {
         let dir = self.work_dir.clone();
         let allow_local = self.allow_local();
         let done = Arc::clone(&self.done);
+        let signature = self.signature.clone().filter(|_| {
+            matches!(
+                self.kind,
+                InstallKind::Deb | InstallKind::Rpm | InstallKind::AppImage { .. }
+            )
+        });
         std::thread::spawn(move || {
             let progress = |n: u64| {
                 done.store(n, Ordering::Relaxed);
@@ -327,11 +390,65 @@ impl Session {
                 allow_local,
                 transport.as_ref(),
                 &progress,
-            );
+            )
+            .and_then(|path| {
+                let Some(check) = &signature else {
+                    return Ok(path);
+                };
+                match crate::verify_signature(
+                    &release,
+                    &asset,
+                    &path,
+                    allow_local,
+                    transport.as_ref(),
+                    check,
+                ) {
+                    Ok(()) => Ok(path),
+                    Err(e) => {
+                        // 서명이 맞지 않은 파일은 남겨 두지 않는다(다음에 "이미 받은 파일"로 쓰지 않게).
+                        let _ = std::fs::remove_file(&path);
+                        Err(e)
+                    }
+                }
+            });
             let _ = tx.send(Event::Downloaded(result.map(|p| (release, p))));
             wake();
         });
         self.rx = Some(rx);
+    }
+
+    /// Linux(deb · rpm · AppImage) 설치 파일을 받은 뒤 발행자 서명을 이 검증기로 보게 한다. 주면 서명이
+    /// 없거나 틀린 설치 파일은 쓰지 않는다. Windows 는 설치 스크립트가 Authenticode 로 따로 본다.
+    pub fn set_signature_check(&mut self, check: crate::SignatureCheck) {
+        self.signature = Some(check);
+    }
+
+    /// 확인할 때 지금 화면 언어를 사이트에 알린다(`?lang=en` — 사이트가 그 언어의 제품 페이지 주소를 준다).
+    /// 한국어 · 사이트가 모르는 언어면 붙이지 않는다([`crate::site_lang`]). 로컬 · 바꾼 주소에는 붙이지 않는다.
+    pub fn set_language(&mut self, language: Language) {
+        self.language = Some(language);
+    }
+
+    /// 받기 진행을 0 으로 되돌린다("지금 설치" 를 다시 누를 때 — 다시 확인하는 동안 지난 비율을 보이지 않게).
+    pub(crate) fn reset_progress(&mut self) {
+        self.done.store(0, Ordering::Relaxed);
+        self.total = 0;
+    }
+
+    /// 작업 폴더의 업데이트 기록([`LOG_FILE`])에 한 줄 남긴다(실패해도 조용히 넘어간다). 설치 스크립트도 같은 파일에 쓴다.
+    pub fn log(&self, line: &str) {
+        use std::io::Write;
+        let secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        let _ = fs::create_dir_all(&self.work_dir);
+        if let Ok(mut f) = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(self.work_dir.join(LOG_FILE))
+        {
+            let _ = writeln!(f, "unix:{secs} app: {line}");
+        }
     }
 
     /// 받은 바이트 · 전체 바이트.
@@ -400,10 +517,33 @@ impl Session {
                 program,
                 args,
             } => {
+                fs::create_dir_all(&self.work_dir).map_err(|e| UpdateError::Io(e.to_string()))?;
+                let lease = fs::OpenOptions::new()
+                    .create(true)
+                    .truncate(false)
+                    .read(true)
+                    .write(true)
+                    .open(self.work_dir.join(".update-install.lock"))
+                    .map_err(|e| UpdateError::Io(e.to_string()))?;
+                lease.try_lock().map_err(|_| {
+                    UpdateError::Install("another update is already waiting".into())
+                })?;
+                if self.update_is_pending() {
+                    return Err(UpdateError::Install(
+                        "another update is already waiting".into(),
+                    ));
+                }
                 self.write_script(&script, &body)?;
-                self.runner
-                    .spawn(&program, &args)
-                    .map_err(|e| UpdateError::Install(e.to_string()))?;
+                // 스크립트가 아예 돌지 못하면(보안 프로그램이 막음 등) 다음 실행이 알 수 있게 먼저 남긴다.
+                // 스크립트는 시작하자마자 `started` 로, 끝나면 `ok` · `fail` 로 덮어쓴다.
+                let result = self.work_dir.join(RESULT_FILE);
+                let _ = fs::write(&result, format!("pending {}\n", release.version));
+                if let Err(e) = self.runner.spawn(&program, &args) {
+                    let _ = fs::remove_file(&result);
+                    self.log(&format!("could not start the install script: {e}"));
+                    return Err(UpdateError::Install(e.to_string()));
+                }
+                self.log(&format!("install script started for {}", release.version));
                 Ok(Started::QuitToInstall)
             }
             step => {
@@ -423,7 +563,12 @@ impl Session {
 
     /// 새 앱을 켠다(앱 안 설치가 끝난 뒤).
     pub fn relaunch(&self) -> io::Result<()> {
-        self.runner.relaunch(&self.exe)
+        // current_exe는 AppImage의 임시 마운트 내부 ELF다. 교체한 원본 런처로 새 판을 시작한다.
+        let exe = match &self.kind {
+            InstallKind::AppImage { path } => path.as_path(),
+            _ => self.exe.as_path(),
+        };
+        self.runner.relaunch(exe)
     }
 
     /// 받은 파일을 폴더에서 보이거나(Windows) 연다(Linux: 소프트웨어 설치 프로그램).
@@ -431,19 +576,68 @@ impl Session {
         self.runner.open(&file.to_string_lossy())
     }
 
-    /// 릴리스 페이지를 연다.
+    /// 사이트의 제품 페이지(내려받기 안내)를 연다. [`crate::SITE_BASE`] 아래 주소만 연다.
     pub fn open_page(&self, url: &str) -> io::Result<()> {
-        if !url.starts_with("https://") {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "not https"));
+        if !site_page(url) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "not a TASTEDEV site page",
+            ));
         }
         self.runner.open(url)
     }
 
     /// 켤 때: 지난번 앱이 끝난 뒤 설치한 결과를 읽고(있으면 지움), 작업 폴더의 받아 둔 파일을 치운다.
     pub fn take_last_result(&self) -> Option<InstallResult> {
+        // Another instance may still be downloading/installing. Never remove
+        // its package/script on startup, even when a result is still pending.
+        let lease = fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(self.work_dir.join(".update-install.lock"))
+            .ok()?;
+        lease.try_lock().ok()?;
+        if self.update_is_pending() {
+            return None;
+        }
         let result = take_result(&self.work_dir);
-        clean_work_dir(&self.work_dir);
+        if result.is_some() {
+            clean_work_dir(&self.work_dir);
+        }
         result
+    }
+
+    fn update_is_pending(&self) -> bool {
+        let path = self.work_dir.join(RESULT_FILE);
+        fs::read_to_string(&path).ok().is_some_and(|text| {
+            let text = text.trim_start_matches('\u{feff}');
+            (text.starts_with("pending ") || text.starts_with("started "))
+                && fs::metadata(&path)
+                    .and_then(|m| m.modified())
+                    .ok()
+                    .and_then(|t| t.elapsed().ok())
+                    .is_none_or(|age| age.as_secs() < 1300)
+        })
+    }
+
+    /// A waiting Windows helper can be cancelled without closing this app.
+    pub fn waiting_install_failure(&self) -> Option<UpdateError> {
+        let lease = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(self.work_dir.join(".update-install.lock"))
+            .ok()?;
+        lease.try_lock().ok()?;
+        let text = fs::read_to_string(self.work_dir.join(RESULT_FILE)).ok()?;
+        if !text.trim_start_matches('\u{feff}').starts_with("fail ") {
+            return None;
+        }
+        match take_result(&self.work_dir)? {
+            InstallResult::Failed { detail, .. } => Some(UpdateError::Install(detail)),
+            InstallResult::Ok(_) => None,
+        }
     }
 }
 
