@@ -430,6 +430,15 @@ impl Flow {
     }
 
     /// 묻는 창을 보일 차례인지.
+    pub fn install_notice(&self) -> &'static str {
+        if cfg!(windows) {
+            self.session.as_ref().map_or("", Session::install_notice)
+        } else {
+            ""
+        }
+    }
+
+    /// 묻는 창을 보일 차례인지.
     pub fn showing(&self) -> bool {
         !self.waiting_for_exit && !matches!(self.stage, Stage::Idle)
     }

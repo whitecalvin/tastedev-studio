@@ -28,7 +28,7 @@ test('concurrent clicks serialize; command failures are recoverable and sanitize
   const failed = new UpdateService(true, async () => { throw 'private diagnostic'; }); await failed.action('check'); assert.equal(failed.snapshot().pending, false); assert.doesNotMatch(failed.snapshot().error, /private/);
 });
 test('all supported languages have update messages', () => {
-  for (const language of languages.filter(l => l !== 'en')) { assert.equal(Object.keys(updateMessages[language]!).length, 24); for (const value of Object.values(updateMessages[language]!)) assert.ok(value.trim()); }
+  for (const language of languages.filter(l => l !== 'en')) { assert.equal(Object.keys(updateMessages[language]!).length, 25); for (const value of Object.values(updateMessages[language]!)) assert.ok(value.trim()); }
 });
 
 

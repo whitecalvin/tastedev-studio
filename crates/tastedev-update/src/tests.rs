@@ -2416,9 +2416,11 @@ fn the_app_still_running_failure_reaches_the_next_start() {
 /// 실제 설치·GUI 없이 Windows 대기 함수를 실행한다.
 #[cfg(windows)]
 #[test]
-fn the_wait_loop_polls_until_all_instances_exit_and_preserves_cancel() {
+fn the_wait_loop_polls_until_all_instances_exit_without_native_dialogs() {
     let tmp = Temp::new("waitloop");
     let helper = include_str!("windows_instances.ps1");
+    assert!(!helper.contains("WScript.Shell"));
+    assert!(!helper.contains(".Popup("));
     let cases = r#"
 $ErrorActionPreference = 'Stop'
 $app = 'C:/Apps/tastefiles.exe'
@@ -2429,12 +2431,12 @@ function Get-Process { [pscustomobject]@{Path=$null} }
 try { Get-AppInstances; throw 'unknown path was accepted' } catch { if ($_.Exception.Message -eq 'unknown path was accepted') { throw } }
 $script:checks = 0
 function Get-AppInstances { $script:checks++; if ($script:checks -lt 4) { [pscustomobject]@{Id=123} } }
-function New-Object { param($ComObject); $s=[pscustomobject]@{}; $s | Add-Member ScriptMethod Popup { return 1 }; return $s }
+function New-Object { throw 'native dialogs are forbidden' }
 Wait-AppInstances
 if ($script:checks -lt 4) { throw 'did not wait for every instance' }
 function Get-AppInstances { [pscustomobject]@{Id=123} }
-function New-Object { param($ComObject); $s=[pscustomobject]@{}; $s | Add-Member ScriptMethod Popup { return 2 }; return $s }
-try { Wait-AppInstances; throw 'cancel was ignored' } catch { if ($_.Exception.Message -notlike '*postponed*') { throw } }
+function Get-Date { $script:checks++; [datetime]::new(2026, 1, 1).AddSeconds($script:checks * 601) }
+try { Wait-AppInstances; throw 'timeout was ignored' } catch { if ($_.Exception.Message -ne $stillMessage) { throw } }
 'instances-and-cancel-pass'
 "#;
     let script = tmp.0.join("wait.ps1");

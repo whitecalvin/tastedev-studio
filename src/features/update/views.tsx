@@ -63,7 +63,7 @@ function UpdateDialog({ service }: { service: UpdateService }) {
       {status?.stage === 'downloading' && <><progress max={status.total || 1} value={status.downloaded} /><p>{Math.round(status.downloaded / Math.max(1, status.total) * 100)}%</p></>}
       {status?.stage === 'available' && !status.canInstall && <p>{t('This installation needs a manual update. Open the release page.')}</p>}
       {status?.page && <p><button className="button button-quiet" onClick={() => void service.action('release')}>{t('Release notes and downloads')}</button></p>}
-      <p className="update-safety">{t('Installation restarts the app. Save your files and finish active tasks first.')}</p>
+      <p className="update-safety">{t("If you have work in progress, save or finish it, then close all windows of this app yourself. The update waits without forcing windows to close. Choose Later if you are not ready.")}</p>
       <div className="dialog-actions update-actions">
         <button className="button" disabled={busy} onClick={() => void service.action('check')}><RefreshCw size={16} aria-hidden="true"/>{t('Check for updates')}</button>
         {status?.canInstall && ['available', 'error'].includes(status.stage) && <button className="button button-primary" disabled={busy} onClick={() => void service.action('install')}>{t('Install and restart')}</button>}

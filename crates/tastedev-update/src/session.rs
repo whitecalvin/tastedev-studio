@@ -429,6 +429,10 @@ impl Session {
         self.language = Some(language);
     }
 
+    pub(crate) fn install_notice(&self) -> &'static str {
+        crate::install_notice::text(self.language.map_or("en", |language| language()))
+    }
+
     /// 받기 진행을 0 으로 되돌린다("지금 설치" 를 다시 누를 때 — 다시 확인하는 동안 지난 비율을 보이지 않게).
     pub(crate) fn reset_progress(&mut self) {
         self.done.store(0, Ordering::Relaxed);
