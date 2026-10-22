@@ -16,6 +16,42 @@ const PRODUCT: Product = Product {
     version: "0.1.1",
 };
 
+#[test]
+fn renamed_windows_packages_match_without_accepting_neighbor_products() {
+    let kinds = [
+        (
+            InstallKind::Nsis {
+                dir: PathBuf::new(),
+            },
+            "-setup.exe",
+        ),
+        (InstallKind::Msi, ".msi"),
+        (
+            InstallKind::Portable {
+                dir: PathBuf::new(),
+            },
+            ".zip",
+        ),
+    ];
+    for (kind, suffix) in kinds {
+        let name = format!("tastedev-files_0.2.1_windows_x64{suffix}");
+        assert!(asset_name_matches(&name, "tastefiles", &kind, "x86_64"));
+        assert!(asset_name_matches(&name, "tastedev-files", &kind, "x86_64"));
+        assert!(!asset_name_matches(
+            &format!("tastedev-files-cli_0.2.1_windows_x64{suffix}"),
+            "tastefiles",
+            &kind,
+            "x86_64"
+        ));
+        assert!(!asset_name_matches(
+            &format!("tastedev-ftp_0.2.1_windows_x64{suffix}"),
+            "tastefiles",
+            &kind,
+            "x86_64"
+        ));
+    }
+}
+
 // ───────────────────────────── 도우미 ─────────────────────────────
 
 use crate::testing::{Fixture, Harness, NoNetwork, Recorder, Temp};
@@ -746,7 +782,7 @@ fn windows_nsis_install_now_waits_for_the_app_then_runs_setup_silently_and_relau
         powershell_quote(&file.to_string_lossy())
     )));
     assert!(
-        body.contains("Start-Process -FilePath 'C:/Program Files/TASTE FILES/tastefiles.exe'"),
+        body.contains("Restart-App -Executable 'C:/Program Files/TASTE FILES/tastefiles.exe'"),
         "다시 켠다"
     );
     assert!(body.contains(&powershell_quote(
@@ -781,7 +817,7 @@ fn windows_msi_install_now_runs_msiexec_after_the_app_exits() {
         file.display()
     )));
     assert!(body.contains("-ne 3010"), "3010(다시 부팅 필요)도 성공");
-    assert!(body.contains("Start-Process -FilePath 'C:/Program Files/TASTEFILES/tastefiles.exe'"));
+    assert!(body.contains("Restart-App -Executable 'C:/Program Files/TASTEFILES/tastefiles.exe'"));
 }
 
 #[test]
@@ -809,7 +845,7 @@ fn windows_zip_replaces_files_with_rollback() {
         body.contains("Copy-Item -LiteralPath $b -Destination $t -Force"),
         "실패하면 되돌린다"
     );
-    assert!(body.contains("Start-Process -FilePath 'D:/tools/it''s files/tastefiles.exe'"));
+    assert!(body.contains("Restart-App -Executable 'D:/tools/it''s files/tastefiles.exe'"));
 }
 
 /// 설치 프로그램은 GXSOFT 서명을 확인한 **다음에만** 돈다. 크기 · SHA-256 은 같은 릴리스 응답에서 오므로
@@ -901,9 +937,24 @@ fn a_failed_install_relaunches_the_old_app_only_after_it_exited() {
         let tail = &body[catch..];
         assert!(tail.contains("if ($exited)"), "{name}");
         assert!(
-            tail.contains("Start-Process -FilePath 'C:/Program Files/TASTEFILES/tastefiles.exe'"),
+            tail.contains("Restart-App -Executable 'C:/Program Files/TASTEFILES/tastefiles.exe'"),
             "{name}: 실패해도 옛 판을 다시 켠다"
         );
+    }
+}
+
+#[test]
+fn windows_restart_is_observed_without_reclassifying_install_success() {
+    for (name, body) in windows_scripts() {
+        assert!(body.contains(include_str!("windows_restart.ps1")), "{name}");
+        assert!(body.contains("-WorkingDirectory $workingDirectory -WindowStyle Normal -PassThru"));
+        let installed = body.find("Write-Log 'installed ").unwrap();
+        let restart = body[installed..].find("Restart-App -Executable").unwrap();
+        assert!(body[installed..installed + restart].contains("$installLock.Dispose()"));
+        // Restart-App catches its own error; a successful installation must not
+        // become an install failure or trigger the recovery relaunch a second time.
+        assert!(body.contains("Write-Log ('restart failed: '"));
+        assert!(body.contains("restart confirmed: pid="));
     }
 }
 

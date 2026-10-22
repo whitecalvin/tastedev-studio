@@ -6,6 +6,8 @@
 
 ## 이번 판에서 달라진 것
 
+- Windows 업데이트 후 앱을 일반 창으로 다시 실행하고 실행 여부를 확인합니다. 재시작 실패 원인은 업데이트 로그에 별도로 남깁니다.
+
 - Windows 업데이트 준비 안내를 앱 내부에 표시하고, 진행 중인 작업이 있는 경우에만 저장·완료가 필요함을 명확히 했습니다.
 
 - 업데이트 확인과 설치를 다른 TASTEDEV 제품과 같은 공통 흐름으로 통합하고, 설치 선택 후 최신 버전 재확인·다운로드·검증을 이어서 처리합니다.
@@ -13,6 +15,8 @@
 - Windows 업데이트가 작업 창을 자동으로 닫지 않고, 작업을 저장한 뒤 같은 설치본의 모든 창을 직접 닫으면 설치를 진행하도록 개선했습니다.
 
 ## What's new [en]
+
+- After a Windows update, the app restarts in a normal window and checks that the process is running. Restart failures are recorded separately in the update log.
 
 - Windows update preparation guidance now appears inside the app and only asks you to save or finish work if you have tasks in progress.
 
@@ -22,6 +26,8 @@
 
 ## What's new [ja]
 
+- Windows 更新後は通常のウィンドウでアプリを再起動し、プロセスの動作を確認します。再起動の失敗理由は更新ログに個別に記録します。
+
 - Windows更新の準備案内をアプリ内に表示し、作業中の場合にのみ保存・完了が必要なことを明確にしました。
 
 - 更新処理を他の TASTEDEV 製品と共通化し、インストールを選ぶと最新バージョンの再確認、ダウンロード、検証を続けて行います。
@@ -29,6 +35,8 @@
 - Windows の更新時に作業ウィンドウを自動で閉じず、作業を保存して同じインストール先のすべてのウィンドウを閉じてからインストールするよう改善しました。
 
 ## What's new [zh]
+
+- Windows 更新后，应用会以正常窗口重新启动并检查进程是否运行。重启失败原因会单独记录在更新日志中。
 
 - Windows 更新准备说明现显示在应用内，并明确仅在有进行中的工作时才需保存或完成。
 
@@ -38,6 +46,8 @@
 
 ## What's new [zh-hant]
 
+- Windows 更新後，應用程式會以正常視窗重新啟動並檢查程序是否執行。重新啟動失敗原因會另行記錄在更新日誌中。
+
 - Windows 更新準備說明現顯示在應用程式內，並明確僅在有進行中的工作時才需儲存或完成。
 
 - 更新流程現已與其他 TASTEDEV 產品統一；選擇安裝後將依序重新檢查最新版本、下載並驗證。
@@ -45,6 +55,8 @@
 - Windows 更新不再自動關閉工作視窗；請儲存工作並手動關閉同一安裝位置的所有視窗，然後繼續安裝。
 
 ## What's new [de]
+
+- Nach einem Windows-Update startet die App mit normalem Fenster und prüft den laufenden Prozess. Neustartfehler werden separat im Updateprotokoll erfasst.
 
 - Die Vorbereitung auf Windows-Updates wird jetzt in der App erklärt. Speichern oder beenden Sie Ihre Arbeit nur, wenn Aufgaben laufen.
 
@@ -54,6 +66,8 @@
 
 ## What's new [es]
 
+- Tras actualizar en Windows, la aplicación se reinicia con una ventana normal y comprueba que el proceso sigue activo. Los errores de reinicio se registran por separado.
+
 - La preparación de actualizaciones de Windows se explica dentro de la aplicación; solo debe guardar o finalizar trabajo si hay tareas en curso.
 
 - Las actualizaciones usan el mismo flujo que otros productos TASTEDEV: al elegir instalar, se vuelve a comprobar la última versión, se descarga y se verifica.
@@ -61,6 +75,8 @@
 - Las actualizaciones de Windows esperan a que guarde su trabajo y cierre todas las ventanas de la misma instalación, sin cerrarlas automáticamente.
 
 ## What's new [fr]
+
+- Après une mise à jour Windows, l’application redémarre dans une fenêtre normale et vérifie que le processus fonctionne. Les erreurs de redémarrage sont consignées séparément.
 
 - La préparation des mises à jour Windows est désormais expliquée dans l’application, en précisant qu’il faut enregistrer ou terminer le travail seulement s’il est en cours.
 
@@ -70,6 +86,8 @@
 
 ## What's new [it]
 
+- Dopo un aggiornamento Windows, l’app si riavvia in una finestra normale e verifica che il processo sia attivo. Gli errori di riavvio vengono registrati separatamente.
+
 - Le istruzioni per gli aggiornamenti Windows ora appaiono nell’app e richiedono di salvare o completare il lavoro solo se ci sono attività in corso.
 
 - Gli aggiornamenti usano lo stesso flusso degli altri prodotti TASTEDEV: dopo la scelta di installare, verificano nuovamente l’ultima versione, la scaricano e la controllano.
@@ -77,6 +95,8 @@
 - Gli aggiornamenti Windows attendono il salvataggio del lavoro e la chiusura di tutte le finestre della stessa installazione, senza chiuderle automaticamente.
 
 ## What's new [pt]
+
+- Após uma atualização no Windows, o aplicativo reinicia em uma janela normal e verifica se o processo está ativo. Falhas de reinicialização são registradas separadamente.
 
 - As instruções de preparação das atualizações Windows agora aparecem no aplicativo e pedem para salvar ou concluir apenas trabalhos em andamento.
 
@@ -86,6 +106,8 @@
 
 ## What's new [ru]
 
+- После обновления Windows приложение запускается в обычном окне и проверяет работу процесса. Причины неудачного перезапуска записываются отдельно в журнал обновления.
+
 - Подготовка к обновлению Windows теперь объясняется внутри приложения; сохранять или завершать работу нужно только при наличии текущих задач.
 
 - Обновления используют общий процесс TASTEDEV: после выбора установки повторно проверяется последняя версия, затем выполняются загрузка и проверка файла.
@@ -93,6 +115,8 @@
 - Обновления Windows теперь ждут, пока вы сохраните работу и закроете все окна одной установки, не закрывая их автоматически.
 
 ## What's new [nl]
+
+- Na een Windows-update start de app in een normaal venster en controleert of het proces actief is. Herstartfouten worden apart in het updatelog vastgelegd.
 
 - De voorbereiding op Windows-updates wordt nu in de app uitgelegd. Opslaan of afronden is alleen nodig als er werk bezig is.
 
@@ -102,6 +126,8 @@
 
 ## What's new [pl]
 
+- Po aktualizacji w Windows aplikacja uruchamia się ponownie w zwykłym oknie i sprawdza działanie procesu. Błędy ponownego uruchomienia są zapisywane oddzielnie.
+
 - Instrukcje przygotowania aktualizacji Windows są teraz w aplikacji i wskazują, że zapisywanie lub kończenie pracy jest potrzebne tylko przy aktywnych zadaniach.
 
 - Aktualizacje korzystają ze wspólnego procesu TASTEDEV: po wybraniu instalacji ponownie sprawdzana jest najnowsza wersja, a następnie jest pobierana i weryfikowana.
@@ -109,6 +135,8 @@
 - Aktualizacje Windows czekają teraz na zapisanie pracy i zamknięcie wszystkich okien tej samej instalacji, bez automatycznego zamykania okien.
 
 ## What's new [uk]
+
+- Після оновлення Windows програма запускається у звичайному вікні та перевіряє роботу процесу. Причини невдалого перезапуску записуються окремо в журнал оновлення.
 
 - Підготовка до оновлення Windows тепер пояснюється в застосунку; зберігати або завершувати роботу потрібно лише за наявності поточних завдань.
 
@@ -118,6 +146,8 @@
 
 ## What's new [tr]
 
+- Windows güncellemesinden sonra uygulama normal bir pencerede yeniden başlar ve işlemin çalıştığını denetler. Yeniden başlatma hataları günlüğe ayrı olarak kaydedilir.
+
 - Windows güncelleme hazırlığı artık uygulama içinde açıklanıyor; kaydetme veya tamamlama yalnızca devam eden işler varsa isteniyor.
 
 - Güncellemeler diğer TASTEDEV ürünleriyle aynı akışı kullanır; kurulum seçildikten sonra son sürüm yeniden kontrol edilir, indirilir ve doğrulanır.
@@ -125,6 +155,8 @@
 - Windows güncellemeleri artık pencerelerinizi otomatik kapatmadan, çalışmanızı kaydedip aynı kurulumun tüm pencerelerini kapatmanızı bekler.
 
 ## What's new [cs]
+
+- Po aktualizaci ve Windows se aplikace spustí v běžném okně a ověří běh procesu. Chyby opětovného spuštění se zapisují samostatně do protokolu aktualizace.
 
 - Pokyny k přípravě aktualizace Windows se nyní zobrazují v aplikaci a upřesňují, že ukládat či dokončovat je nutné jen rozpracované úlohy.
 
@@ -134,6 +166,8 @@
 
 ## What's new [sv]
 
+- Efter en Windows-uppdatering startar appen i ett normalt fönster och kontrollerar att processen körs. Omstartsfel registreras separat i uppdateringsloggen.
+
 - Förberedelser inför Windows-uppdateringar visas nu i appen och ber dig bara spara eller avsluta arbete om uppgifter pågår.
 
 - Uppdateringar följer samma flöde som andra TASTEDEV-produkter: när du väljer installation kontrolleras den senaste versionen igen, hämtas och verifieras.
@@ -141,6 +175,8 @@
 - Windows-uppdateringar väntar nu tills du har sparat arbetet och stängt alla fönster för samma installation, utan att stänga dem automatiskt.
 
 ## What's new [da]
+
+- Efter en Windows-opdatering genstarter appen i et normalt vindue og kontrollerer, at processen kører. Genstartsfejl registreres særskilt i opdateringsloggen.
 
 - Forberedelse til Windows-opdateringer vises nu i appen og beder kun om at gemme eller afslutte arbejde, hvis der er igangværende opgaver.
 
@@ -150,6 +186,8 @@
 
 ## What's new [nb]
 
+- Etter en Windows-oppdatering starter appen i et normalt vindu og kontrollerer at prosessen kjører. Feil ved omstart registreres separat i oppdateringsloggen.
+
 - Forberedelse til Windows-oppdateringer vises nå i appen og ber bare om å lagre eller fullføre arbeid hvis oppgaver pågår.
 
 - Oppdateringer bruker samme flyt som andre TASTEDEV-produkter: når du velger installasjon, kontrolleres siste versjon på nytt, lastes ned og verifiseres.
@@ -157,6 +195,8 @@
 - Windows-oppdateringer venter nå til du har lagret arbeidet og lukket alle vinduer fra samme installasjon, uten å lukke dem automatisk.
 
 ## What's new [fi]
+
+- Windows-päivityksen jälkeen sovellus käynnistyy tavallisessa ikkunassa ja tarkistaa prosessin toiminnan. Uudelleenkäynnistyksen virheet kirjataan päivityslokiin erikseen.
 
 - Windows-päivityksen valmisteluohje näkyy nyt sovelluksessa ja pyytää tallentamaan tai viimeistelemään vain keskeneräisen työn.
 
@@ -166,6 +206,8 @@
 
 ## What's new [hu]
 
+- Windows-frissítés után az alkalmazás normál ablakban indul újra, és ellenőrzi a folyamat működését. Az újraindítás hibái külön kerülnek a frissítési naplóba.
+
 - A Windows-frissítés előkészítése most az alkalmazásban jelenik meg, és csak folyamatban lévő feladatok esetén kér mentést vagy befejezést.
 
 - A frissítések a többi TASTEDEV-termékkel közös folyamatot használják: a telepítés kiválasztása után újra ellenőrzik a legújabb verziót, letöltik és hitelesítik.
@@ -173,6 +215,8 @@
 - A Windows-frissítések megvárják a munka mentését és az azonos telepítéshez tartozó összes ablak bezárását, automatikus ablakbezárás nélkül.
 
 ## What's new [ro]
+
+- După o actualizare Windows, aplicația repornește într-o fereastră normală și verifică dacă procesul rulează. Erorile de repornire sunt înregistrate separat.
 
 - Instrucțiunile pentru pregătirea actualizărilor Windows apar acum în aplicație și cer salvarea sau finalizarea lucrului numai dacă există sarcini în curs.
 
@@ -182,6 +226,8 @@
 
 ## What's new [el]
 
+- Μετά από ενημέρωση Windows, η εφαρμογή επανεκκινείται σε κανονικό παράθυρο και ελέγχει ότι η διεργασία εκτελείται. Τα σφάλματα επανεκκίνησης καταγράφονται χωριστά.
+
 - Οι οδηγίες προετοιμασίας ενημέρωσης Windows εμφανίζονται πλέον στην εφαρμογή και ζητούν αποθήκευση ή ολοκλήρωση μόνο αν υπάρχει εργασία σε εξέλιξη.
 
 - Οι ενημερώσεις ακολουθούν την κοινή ροή των προϊόντων TASTEDEV: αφού επιλέξετε εγκατάσταση, ελέγχεται ξανά η τελευταία έκδοση, γίνεται λήψη και επαλήθευση.
@@ -190,6 +236,8 @@
 
 ## What's new [vi]
 
+- Sau khi cập nhật trên Windows, ứng dụng khởi động lại trong cửa sổ bình thường và kiểm tra tiến trình đang chạy. Lỗi khởi động lại được ghi riêng trong nhật ký cập nhật.
+
 - Hướng dẫn chuẩn bị cập nhật Windows nay xuất hiện trong ứng dụng và chỉ yêu cầu lưu hoặc hoàn tất khi có công việc đang thực hiện.
 
 - Cập nhật dùng chung quy trình với các sản phẩm TASTEDEV khác: sau khi chọn cài đặt, hệ thống kiểm tra lại phiên bản mới nhất, tải xuống và xác minh.
@@ -197,6 +245,8 @@
 - Bản cập nhật Windows nay chờ bạn lưu công việc và đóng mọi cửa sổ của cùng một bản cài đặt, thay vì tự động đóng cửa sổ.
 
 ## What's new [id]
+
+- Setelah pembaruan Windows, aplikasi dimulai ulang dalam jendela normal dan memeriksa prosesnya. Penyebab kegagalan mulai ulang dicatat terpisah dalam log pembaruan.
 
 - Panduan persiapan pembaruan Windows kini tampil di dalam aplikasi dan hanya meminta penyimpanan atau penyelesaian jika ada pekerjaan yang berlangsung.
 

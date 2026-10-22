@@ -213,7 +213,10 @@ fn windows(kind: &InstallKind, file: &Path, ctx: &Ctx<'_>) -> Step {
         }
         _ => String::new(),
     };
-    let relaunch = format!("    Start-Process -FilePath {}\n", q(&path_str(ctx.exe)));
+    let relaunch = format!(
+        "    $null = Restart-App -Executable {}\n",
+        q(&path_str(ctx.exe))
+    );
     let script = ctx.work_dir.join(format!("install-{ver}.ps1"));
     // 앱이 끝나기를 기다린다: 0.5초마다 그 번호의 프로세스가 아직 있는지(이름도 같은지 — 번호 재사용) 본다.
     // Wait-Process 는 쓰지 않는다. 앱이 관리자 권한으로 떠 있으면(설치 프로그램 마지막 화면의 "실행"으로 켬)
@@ -246,6 +249,7 @@ fn windows(kind: &InstallKind, file: &Path, ctx: &Ctx<'_>) -> Step {
          }}\n\
          {check}\
          {instances}\n\
+         {restart}\n\
          try {{\n\
          \x20   $installLock = [IO.File]::Open((Join-Path (Split-Path -Parent $result) '.update-install.lock'), [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::ReadWrite)\n\
          \x20   $lockDeadline = (Get-Date).AddSeconds(10)\n\
@@ -280,6 +284,7 @@ fn windows(kind: &InstallKind, file: &Path, ctx: &Ctx<'_>) -> Step {
         name = ctx.product.name,
         check = signature_check(),
         instances = include_str!("windows_instances.ps1"),
+        restart = include_str!("windows_restart.ps1"),
         result = q(&path_str(&ctx.work_dir.join(RESULT_FILE))),
         log = q(&path_str(&ctx.work_dir.join(LOG_FILE))),
         app = q(&path_str(ctx.exe)),
