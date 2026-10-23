@@ -273,6 +273,7 @@ fn windows(kind: &InstallKind, file: &Path, ctx: &Ctx<'_>) -> Step {
          \x20   Write-Log ('started {ver}, waiting for process ' + {pid})\n\
          \x20   Set-UpdatePhase 'waiting'\n\
          \x20   Start-UpdateProgress\n\
+         \x20   Request-ExitConsent\n\
          \x20   Wait-AppInstances\n\
          \x20   $exited = $true\n\
          \x20   Write-Log 'the app exited'\n\
@@ -282,17 +283,9 @@ fn windows(kind: &InstallKind, file: &Path, ctx: &Ctx<'_>) -> Step {
          \x20   Set-Content -LiteralPath $result -Value {ok} -Encoding UTF8\n\
          \x20   Write-Log 'installed {ver}'\n\
          \x20   $installed = $true\n\
-         \x20   if (Wait-RestartChoice) {{\n\
-         \x20       Set-UpdatePhase 'waiting'\n\
-         \x20       Wait-AppInstances\n\
-         \x20       if (@(Get-AppInstances).Count -ne 0) {{ throw $stillMessage }}\n\
-         \x20       $installLock.Dispose(); $installLock = $null\n\
-         \x20       Set-UpdatePhase 'restarting'\n\
+         \x20   $installLock.Dispose(); $installLock = $null\n\
+         \x20   Set-UpdatePhase 'restarting'\n\
          {relaunch}\
-         \x20   }} else {{\n\
-         \x20       Write-Log 'restart deferred by user or unavailable viewer'\n\
-         \x20       Set-UpdatePhase 'complete'\n\
-         \x20   }}\n\
          }} catch {{\n\
          \x20   if (-not $ownsInstallLock) {{ Write-Log 'another updater owns the install lock'; return }}\n\
          \x20   if (-not $installed) {{ Set-Content -LiteralPath $result -Value ({fail} + $_.Exception.Message) -Encoding UTF8 }}\n\

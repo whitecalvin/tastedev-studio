@@ -284,7 +284,7 @@ fn update_action(
     protected: Option<bool>,
 ) -> std::result::Result<update::Status, String> {
     let processes = app.state::<process::Processes>();
-    if action == "install" {
+    if action == "install" && app.state::<update::Updates>().requires_exit() {
         if protected.unwrap_or(true) {
             return Err("workspace-busy".into());
         }
@@ -313,6 +313,15 @@ fn update_action(
                 app.state::<language::Languages>().end_update();
             }
             if quit {
+                if protected.unwrap_or(true)
+                    || app.state::<debugger::Debuggers>().prepare_update().is_err()
+                    || processes.prepare_update().is_err()
+                {
+                    app.state::<update::Updates>().reject_exit();
+                    app.state::<debugger::Debuggers>().cancel_update();
+                    processes.cancel_update();
+                    return Err("workspace-busy".into());
+                }
                 app.exit(0);
             }
             Ok(status)

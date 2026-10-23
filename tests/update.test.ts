@@ -15,11 +15,12 @@ test('availability never installs automatically and Later stays dismissed', asyn
   const calls: string[] = []; const service = new UpdateService(true, async action => { calls.push(action); return { ...initial, stage: 'available', version: '0.1.5', showPrompt: true }; });
   await service.action('status'); assert.equal(service.snapshot().visible, true); service.dismiss(); await service.action('status'); assert.equal(service.snapshot().visible, false); assert.deepEqual(calls, ['status', 'status']);
 });
-test('dirty or active workspace blocks install before invoking native', async () => {
+test('preparation keeps active work; restart is blocked until work is safe', async () => {
   let calls = 0; let protectedWorkspace = true;
-  const service = new UpdateService(true, async (_, __, protectedValue) => { calls++; assert.equal(protectedValue, false); return initial; }, () => protectedWorkspace);
-  await service.action('install'); assert.equal(calls, 0); assert.match(service.snapshot().error, /Save your files/);
-  protectedWorkspace = false; await service.action('install'); assert.equal(calls, 1);
+  const service = new UpdateService(true, async (_, __, protectedValue) => { calls++; assert.equal(protectedValue, protectedWorkspace); return {...initial,stage:'ready',showPrompt:true}; }, () => protectedWorkspace);
+  await service.action('install'); assert.equal(calls, 1); assert.equal(service.snapshot().visible,true);
+  await service.action('install'); assert.equal(calls, 1); assert.match(service.snapshot().error, /Save your files/);
+  protectedWorkspace = false; await service.action('install'); assert.equal(calls, 2);
 });
 test('concurrent clicks serialize; command failures are recoverable and sanitized', async () => {
   let finish: ((status: UpdateStatus) => void) | undefined; let calls = 0;
@@ -28,7 +29,7 @@ test('concurrent clicks serialize; command failures are recoverable and sanitize
   const failed = new UpdateService(true, async () => { throw 'private diagnostic'; }); await failed.action('check'); assert.equal(failed.snapshot().pending, false); assert.doesNotMatch(failed.snapshot().error, /private/);
 });
 test('all supported languages have update messages', () => {
-  for (const language of languages.filter(l => l !== 'en')) { assert.equal(Object.keys(updateMessages[language]!).length, 25); for (const value of Object.values(updateMessages[language]!)) assert.ok(value.trim()); }
+  for (const language of languages.filter(l => l !== 'en')) { assert.equal(Object.keys(updateMessages[language]!).length, 30); for (const value of Object.values(updateMessages[language]!)) assert.ok(value.trim()); }
 });
 
 
@@ -67,10 +68,11 @@ test('install closes the dialog immediately and retains a progress toast during 
   assert.equal(service.snapshot().visible, false);
   assert.equal(service.snapshot().pending, false);
 });
-test('install errors and workspace protection remain visible as toasts without reopening a dialog', async () => {
-  const blocked = new UpdateService(true, async () => { throw Error('must not invoke'); }, () => true);
+test('restart protection keeps the ready dialog open; installer errors use a toast', async () => {
+  const blocked = new UpdateService(true, async () => ({...initial,stage:'ready',showPrompt:true}), () => true);
+  await blocked.action('status');
   await blocked.action('install');
-  assert.equal(blocked.snapshot().visible, false);
+  assert.equal(blocked.snapshot().visible, true);
   assert.equal(blocked.snapshot().toast?.error, true);
   assert.match(blocked.snapshot().toast!.message, /Save your files/);
   const failed = new UpdateService(true, async () => { throw Error('private installer diagnostic'); }, () => false);

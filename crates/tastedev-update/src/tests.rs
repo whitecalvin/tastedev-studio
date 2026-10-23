@@ -955,9 +955,10 @@ fn windows_restart_is_observed_without_reclassifying_install_success() {
         // become an install failure or trigger the recovery relaunch a second time.
         assert!(body.contains("Write-Log ('restart failed: '"));
         assert!(body.contains("restart confirmed: pid="));
-        assert!(body[installed..].contains("if (Wait-RestartChoice)"));
-        assert!(body[installed..].contains("Wait-AppInstances"));
-        assert!(body.contains("restart deferred by user or unavailable viewer"));
+        let consent = body.find("    Request-ExitConsent").unwrap();
+        let wait = body.find("    Wait-AppInstances").unwrap();
+        assert!(consent < wait && wait < installed);
+        assert!(!body[installed..].contains("Wait-RestartChoice"));
     }
 }
 
@@ -1344,13 +1345,15 @@ fn pump(flow: &mut Flow, until: impl Fn(&Flow) -> bool) {
 
 #[test]
 fn flow_off_makes_no_request_and_never_asks() {
+    let (_fx, h) = msi_harness("0.2.0");
+    let net = h.net.clone();
     let made = Arc::new(AtomicUsize::new(0));
     let counter = Arc::clone(&made);
     let mut flow = Flow::start(
         false,
         move || {
             counter.fetch_add(1, Ordering::Relaxed);
-            unreachable!("꺼져 있으면 세션을 만들지 않는다")
+            h.session
         },
         noop(),
     );
@@ -1360,9 +1363,17 @@ fn flow_off_makes_no_request_and_never_asks() {
     // 며칠이 지나도 스스로는 확인하지 않는다.
     let later = Instant::now() + AUTO_CHECK_INTERVAL * 3;
     assert_eq!(flow.poll_at(later, &noop()), None);
-    assert!(flow.session().is_none() && !flow.showing());
+    assert!(!flow.showing());
+    assert_eq!(
+        net.calls(),
+        0,
+        "local consent polling never checks the network"
+    );
     assert_eq!(flow.status(), Status::Unchecked);
-    assert_eq!(flow.next_check(later), None);
+    assert_eq!(
+        flow.next_check(later),
+        cfg!(windows).then_some(Duration::from_millis(500))
+    );
 }
 
 // ───────────────────────────── 자동 확인 주기 ─────────────────────────────
@@ -1496,6 +1507,12 @@ fn flow_off_manual_check_and_install_button_still_work() {
     flow.offer(&noop());
     assert!(matches!(flow.stage(), Stage::Ask(_)));
     flow.install(&noop());
+    pump(&mut flow, Flow::prepared);
+    assert!(
+        runner.lines().is_empty(),
+        "prepare does not install or close apps"
+    );
+    flow.install(&noop());
     pump(&mut flow, |f| matches!(f.stage(), Stage::Installing(_)));
     assert!(!flow.take_quit());
     assert_eq!(runner.lines().len(), 1);
@@ -1600,6 +1617,12 @@ fn flow_install_now_on_windows_waits_without_closing_unsaved_work() {
     pump(&mut flow, Flow::showing);
     flow.install(&noop());
     assert!(matches!(flow.stage(), Stage::Downloading(_)));
+    pump(&mut flow, Flow::prepared);
+    assert!(
+        runner.lines().is_empty(),
+        "prepare does not install or close apps"
+    );
+    flow.install(&noop());
     pump(&mut flow, |f| matches!(f.stage(), Stage::Installing(_)));
     assert!(
         !flow.take_quit(),
@@ -1610,7 +1633,7 @@ fn flow_install_now_on_windows_waits_without_closing_unsaved_work() {
     assert!(runner.lines()[0].starts_with("spawn powershell.exe "));
     let body = std::fs::read_to_string(work.0.join("install-0.2.0.ps1")).unwrap();
     assert!(body.contains("-ArgumentList '/S /NS /D=C:/Program Files/TASTEFILES' -Verb RunAs"));
-    assert!(flow.next_check(Instant::now()).unwrap() <= Duration::from_millis(250));
+    assert!(flow.next_check(Instant::now()).unwrap() <= Duration::from_millis(500));
     assert!(
         !flow.showing(),
         "대기 중에는 앱의 저장·작업 UI를 가리지 않는다"
@@ -1657,6 +1680,29 @@ fn windows_pending_update_is_preserved_and_duplicate_install_is_refused() {
     .unwrap();
     assert!(h.session.waiting_install_failure().is_some());
     assert!(file.exists(), "보류 후에도 검증한 설치 파일을 보존한다");
+}
+
+#[test]
+fn prepared_later_keeps_work_and_revalidates_the_cached_payload_on_restart() {
+    let fx = fixture("0.2.0", &WIN, None);
+    let h = harness(&fx, InstallKind::Msi, "C:/Apps/tastefiles.exe", &[]);
+    let (mut flow, runner, _, work) = flow_with(h);
+    pump(&mut flow, Flow::showing);
+    flow.install(&noop());
+    pump(&mut flow, Flow::prepared);
+    assert!(flow.prompt_texts().is_some());
+    assert!(runner.lines().is_empty());
+    flow.later();
+    assert!(!flow.showing());
+    assert!(!flow.take_quit());
+    assert!(runner.lines().is_empty());
+    flow.offer(&noop());
+    assert!(flow.prepared());
+    let path = work.0.join(WIN[1]);
+    std::fs::write(path, "tampered cache").unwrap();
+    flow.install(&noop());
+    assert!(matches!(flow.stage(), Stage::Failed { .. }));
+    assert!(runner.lines().is_empty());
 }
 
 #[test]
@@ -2323,6 +2369,12 @@ fn install_after_recheck(next: Option<&str>) -> (Version, Recheck, String, Temp)
         "다시 확인하는 동안은 받는 중으로 보인다"
     );
     assert!(!flow.checking(), "카드는 확인 중이 아니라 받는 중");
+    pump(&mut flow, Flow::prepared);
+    assert!(
+        runner.lines().is_empty(),
+        "prepare does not install or close apps"
+    );
+    flow.install(&noop());
     pump(&mut flow, |f| matches!(f.stage(), Stage::Installing(_)));
     assert!(!flow.take_quit());
     let installed = flow.release().unwrap().version;

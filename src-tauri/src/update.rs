@@ -125,6 +125,9 @@ pub struct Status {
     pub error: Option<String>,
     pub previous_result: Option<String>,
     pub show_prompt: bool,
+    pub prompt_title: Option<String>,
+    pub prompt_action: Option<String>,
+    pub install_notice: String,
 }
 struct Inner {
     flow: Flow,
@@ -139,6 +142,8 @@ impl Inner {
         use tastedev_update::Status as SharedStatus;
         let card = self.flow.status();
         let stage = match self.flow.stage() {
+            _ if self.flow.exit_confirmation() => "exit-confirmation",
+            _ if self.flow.prepared() => "ready",
             Stage::Downloading(_) => "downloading",
             Stage::Installing(_) => "installing",
             Stage::Failed { .. } => "error",
@@ -170,10 +175,24 @@ impl Inner {
             error: (stage == "error").then(|| "update-failed".into()),
             previous_result: self.previous_result.clone(),
             show_prompt: self.flow.showing(),
+            prompt_title: self.flow.prompt_texts().map(|(title, _)| title.into()),
+            prompt_action: self.flow.prompt_texts().map(|(_, action)| action.into()),
+            install_notice: self.flow.install_notice().into(),
         }
     }
 }
 impl Updates {
+    pub fn requires_exit(&self) -> bool {
+        self.0
+            .lock()
+            .is_ok_and(|inner| inner.flow.prepared() || inner.flow.exit_confirmation())
+    }
+
+    pub fn reject_exit(&self) {
+        if let Ok(mut inner) = self.0.lock() {
+            inner.flow.reject_exit();
+        }
+    }
     pub fn new(data: &Path, cache: &Path) -> Self {
         let preference = data.join("auto-update.json");
         let auto_check = match fs::read(&preference) {
@@ -224,7 +243,10 @@ impl Updates {
     ) -> Result<(Status, bool), String> {
         let mut inner = self.0.lock().map_err(|_| "internal")?;
         let wake: tastedev_update::Waker = Arc::new(|| {});
-        if action == "install" && protected {
+        if action == "install"
+            && protected
+            && (inner.flow.prepared() || inner.flow.exit_confirmation())
+        {
             return Err("workspace-busy".into());
         }
         if matches!(inner.flow.stage(), Stage::Installing(_))
@@ -288,15 +310,23 @@ impl Updates {
                 if matches!(inner.flow.stage(), Stage::Downloading(_)) {
                     return Err("busy".into());
                 }
-                let release = inner.flow.available().ok_or("invalid")?;
-                if !inner.flow.can_install(release) {
-                    return Err("unsupported".into());
+                if !inner.flow.exit_confirmation() {
+                    let release = inner.flow.available().ok_or("invalid")?;
+                    if !inner.flow.can_install(release) {
+                        return Err("unsupported".into());
+                    }
                 }
                 inner.cancelled.store(false, Ordering::Relaxed);
                 inner.cancelled_ui = false;
-                inner.flow.later();
-                inner.flow.offer(&wake);
-                inner.flow.install(&wake);
+                let show_cached_prompt = !inner.flow.exit_confirmation()
+                    && !inner.flow.prepared()
+                    && inner.flow.has_prepared();
+                if !inner.flow.exit_confirmation() {
+                    inner.flow.offer(&wake);
+                }
+                if !show_cached_prompt {
+                    inner.flow.install(&wake);
+                }
             }
             // Old two-step installation is intentionally not a second engine.
             _ => return Err("invalid".into()),

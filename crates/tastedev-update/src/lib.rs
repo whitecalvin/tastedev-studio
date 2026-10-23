@@ -28,6 +28,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 mod flow;
+mod handoff;
 mod install_notice;
 mod plan;
 pub mod release_sig;

@@ -6,14 +6,14 @@
 //! - **켤 때 · 하루 한 번** — 자동 업데이트([`Flow::set_auto`])가 켜져 있으면 켤 때 한 번, 그 뒤 앱이 켜져 있는 동안
 //!   마지막 확인([`Flow::check_now`] 포함)에서 [`AUTO_CHECK_INTERVAL`](24시간)마다 다시 확인한다([`Schedule`]).
 //!   새 판이면 [`Stage::Ask`] — 이번 실행에서 한 번만 묻는다("나중에" 뒤에는 카드 · 배지에만 보인다).
-//!   꺼져 있으면 세션을 만들지 않고(네트워크 요청 없음) 스스로 묻지도 않는다.
+//!   꺼져 있으면 네트워크 확인을 하지 않는다. Windows는 로컬 인스턴스 종료 동의를 계속 확인한다.
 //! - **지금 확인**(설정 › 업데이트 `지금 확인` · 명령 팔레트 `업데이트 확인`) — [`Flow::check_now`]. 자동 업데이트가
 //!   꺼져 있어도 된다. 결과는 카드 · 알림으로만(묻는 창은 띄우지 않는다).
 //! - **업데이트 설치…**(설정 카드 · 상태줄 배지) — [`Flow::offer`]. 찾은 판이 있으면 곧바로 묻는 창, 없으면 확인한 뒤
 //!   새 판이면 묻는 창.
 //! - "지금 설치" → 받기 전에 최신 판을 한 번 더 확인([`Recheck`] — 그사이 더 새 판이 나왔으면 그 판을 받는다.
-//!   출시가 하루에 여러 번 나가면 켤 때 찾은 판이 이미 옛 판일 수 있다) → [`Stage::Downloading`] → 검증 → 설치 명령. Windows 는
-//!   작업을 마친 사용자가 모든 창을 직접 닫기를 기다린다. Linux 는 [`Stage::Installing`] 뒤 성공하면 새 앱을 켜고
+//!   출시가 하루에 여러 번 나가면 켤 때 찾은 판이 이미 옛 판일 수 있다) → [`Stage::Downloading`] → 검증 → 준비 완료. Windows 는
+//!   재시작 선택 후 모든 인스턴스의 동의·정상 종료를 거쳐 설치한다. Linux 는 [`Stage::Installing`] 뒤 성공하면 새 앱을 켜고
 //!   닫는다. 실패는 [`Stage::Failed`](옛 판 그대로).
 
 use std::path::PathBuf;
@@ -252,10 +252,15 @@ pub struct Flow {
     pending: Option<Release>,
     /// 마지막 "지금 설치" 직전 다시 확인한 결과.
     recheck: Option<Recheck>,
+    prepared: Option<(Release, PathBuf)>,
+    peer: Option<crate::handoff::Request>,
+    seen_request: Option<String>,
+    consented: bool,
 }
 
 impl Flow {
-    /// 본 창이 뜬 뒤(첫 프레임) 부른다. `auto` 가 거짓이면 세션을 만들지 않는다(네트워크 요청 없음) —
+    /// 본 창이 뜬 뒤(첫 프레임) 부른다. `auto` 가 거짓이면 네트워크 확인을 하지 않는다 —
+    /// Windows의 첫 poll은 다른 인스턴스와 종료 동의를 조율할 로컬 세션만 준비한다.
     /// 사용자가 `지금 확인` · `업데이트 설치…` 를 누를 때 `make` 로 만든다.
     /// 켜져 있으면 지난 설치 결과를 거두고 곧바로 확인을 시작한다.
     pub fn start(auto: bool, make: impl FnOnce() -> Session + Send + 'static, wake: Waker) -> Self {
@@ -285,6 +290,10 @@ impl Flow {
             last: None,
             pending: None,
             recheck: None,
+            prepared: None,
+            peer: None,
+            seen_request: None,
+            consented: false,
         };
         if auto {
             flow.begin(Why::Auto, &wake, now);
@@ -352,6 +361,11 @@ impl Flow {
 
     /// 다음 자동 확인까지 남은 때(꺼져 있거나 확인 중이면 `None`) — 제품은 `request_repaint_after` 에 쓴다.
     pub fn next_check(&self, now: Instant) -> Option<Duration> {
+        if cfg!(windows) {
+            // Even with automatic network checks disabled, other instances
+            // must observe cooperative close requests without user interaction.
+            return Some(Duration::from_millis(500));
+        }
         if self.waiting_for_exit {
             return Some(Duration::from_millis(250));
         }
@@ -370,7 +384,16 @@ impl Flow {
     /// `업데이트 설치…`(설정 카드) · 상태줄 배지: 찾은 새 판이 있으면 곧바로 묻는 창, 없으면 확인한 뒤 새 판이면
     /// 묻는 창(없으면 [`Checked::manual`] 로 "최신 버전" 을 알린다). 이미 묻는 창이 떠 있으면 그대로.
     pub fn offer(&mut self, wake: &Waker) {
+        if self.peer.is_some() {
+            return;
+        }
         if self.waiting_for_exit || self.showing() {
+            return;
+        }
+        if self.has_prepared()
+            && let Some((release, _)) = &self.prepared
+        {
+            self.stage = Stage::Ask(release.clone());
             return;
         }
         if let Some(release) = self.found.clone()
@@ -433,6 +456,9 @@ impl Flow {
     /// Windows handoff uses the independent progress viewer from the helper;
     /// keeping this modal open would block saving work before closing windows.
     pub fn install_notice(&self) -> &'static str {
+        if self.prepared.is_some() || self.peer.is_some() {
+            return crate::install_notice::ready_words(self.language())[4];
+        }
         if cfg!(windows) {
             self.session.as_ref().map_or("", Session::install_notice)
         } else {
@@ -445,6 +471,82 @@ impl Flow {
         !self.waiting_for_exit && !matches!(self.stage, Stage::Idle)
     }
 
+    fn language(&self) -> &'static str {
+        self.session.as_ref().map_or("en", Session::language_code)
+    }
+
+    pub fn prepared(&self) -> bool {
+        matches!((&self.prepared, &self.stage), (Some((prepared, _)), Stage::Ask(shown)) if prepared == shown)
+    }
+
+    pub fn has_prepared(&self) -> bool {
+        self.prepared.as_ref().is_some_and(|(prepared, _)| {
+            self.found
+                .as_ref()
+                .is_none_or(|found| found.version <= prepared.version)
+        })
+    }
+
+    pub fn exit_confirmation(&self) -> bool {
+        self.peer.is_some() && !self.consented
+    }
+
+    pub fn reject_exit(&mut self) {
+        if let Some(request) = self.session.as_ref().and_then(Session::exit_request) {
+            let _ = request.answer(false);
+        }
+        self.quit = false;
+        self.peer = None;
+        self.consented = false;
+        self.stage = Stage::Idle;
+    }
+
+    /// Localized overrides for the shared native and web update dialogs.
+    pub fn prompt_texts(&self) -> Option<(&'static str, &'static str)> {
+        let words = crate::install_notice::ready_words(self.language());
+        if self.exit_confirmation() {
+            Some((words[2], words[3]))
+        } else if self.prepared() {
+            Some((words[0], words[1]))
+        } else {
+            None
+        }
+    }
+
+    fn poll_exit_request(&mut self) -> bool {
+        if self.waiting_for_exit && self.session.is_none() {
+            return false;
+        }
+        let request = self.ensure_session().and_then(|s| s.exit_request());
+        if let Some(request) = request {
+            if self.seen_request.as_deref() != Some(request.token.as_str()) {
+                self.seen_request = Some(request.token.clone());
+                self.consented = self.waiting_for_exit;
+                if self.consented {
+                    if request.answer(true).is_err() {
+                        return false;
+                    }
+                } else {
+                    self.stage = Stage::Ask(request.release());
+                }
+                self.peer = Some(request.clone());
+            }
+            if self.peer.is_some() && self.consented && request.commit {
+                self.quit = true;
+                self.peer = None;
+                if !self.waiting_for_exit {
+                    self.stage = Stage::Idle;
+                }
+            }
+        } else if self.peer.take().is_some() {
+            self.consented = false;
+            if !self.waiting_for_exit {
+                self.stage = Stage::Idle;
+            }
+        }
+        self.peer.is_some() || self.quit
+    }
+
     /// 매 프레임: 자동 확인할 차례면 시작하고, 끝난 일을 거둔다. 확인이 끝났으면 그 결과를 돌려준다.
     pub fn poll(&mut self, wake: &Waker) -> Option<Checked> {
         self.poll_at(Instant::now(), wake)
@@ -452,6 +554,9 @@ impl Flow {
 
     /// [`Flow::poll`] — 때를 받는다(시험).
     pub fn poll_at(&mut self, now: Instant, wake: &Waker) -> Option<Checked> {
+        if cfg!(windows) && self.poll_exit_request() {
+            return None;
+        }
         if self.waiting_for_exit
             && let Some(error) = self
                 .session
@@ -516,7 +621,37 @@ impl Flow {
                 };
                 let release = release.clone();
                 match result {
-                    Ok((_, file)) => self.install_file(release, file, wake),
+                    Ok((_, file)) => {
+                        let windows = self.session.as_ref().is_some_and(|s| {
+                            matches!(
+                                s.kind(),
+                                crate::InstallKind::Msi
+                                    | crate::InstallKind::Nsis { .. }
+                                    | crate::InstallKind::Portable { .. }
+                            )
+                        });
+                        if windows {
+                            let verified = self
+                                .session
+                                .as_ref()
+                                .and_then(|s| s.asset(&release))
+                                .ok_or(UpdateError::NoAsset)
+                                .and_then(|asset| crate::verify_file(&file, asset));
+                            if let Err(error) = verified {
+                                self.stage = Stage::Failed {
+                                    release,
+                                    error,
+                                    file: None,
+                                };
+                            } else {
+                                self.found = Some(release.clone());
+                                self.prepared = Some((release.clone(), file));
+                                self.stage = Stage::Ask(release);
+                            }
+                        } else {
+                            self.install_file(release, file, wake);
+                        }
+                    }
                     Err(error) => {
                         self.stage = Stage::Failed {
                             release,
@@ -618,6 +753,19 @@ impl Flow {
     /// 그래서 받기 전에 사이트에 한 번 더 묻고, 더 새 판이 있으면 그 판을 받는다(묻는 창 · 카드의 판 번호도 바뀐다).
     /// 확인하지 못하면 기억한 판으로 진행하고 그 사실을 [`Flow::recheck`] · 작업 폴더 기록에 남긴다.
     pub fn install(&mut self, wake: &Waker) {
+        if let Some(request) = self.peer.as_ref() {
+            if request.answer(true).is_ok() {
+                self.consented = true;
+                self.stage = Stage::Idle;
+            }
+            return;
+        }
+        if self.prepared() {
+            if let Some((release, file)) = self.prepared.take() {
+                self.install_file(release, file, wake);
+            }
+            return;
+        }
         let Stage::Ask(release) = &self.stage else {
             return;
         };
@@ -694,6 +842,10 @@ impl Flow {
 
     /// "나중에"(묻기 · 받는 중) · "닫기"(실패): 이번 실행에서는 스스로 다시 묻지 않는다.
     pub fn later(&mut self) {
+        if let Some(request) = self.peer.take() {
+            let _ = request.answer(false);
+            self.consented = false;
+        }
         if !matches!(self.stage, Stage::Installing(_)) {
             self.stage = Stage::Idle;
             self.pending = None;
@@ -702,6 +854,9 @@ impl Flow {
 
     /// 이 PC 에서 자동으로 설치할 수 있는 판인지(묻는 창 주 단추).
     pub fn can_install(&self, release: &Release) -> bool {
+        if self.exit_confirmation() {
+            return true;
+        }
         self.session
             .as_ref()
             .is_some_and(|s| s.can_install(release))

@@ -308,6 +308,14 @@ impl Session {
         &self.kind
     }
 
+    pub(crate) fn exit_request(&self) -> Option<crate::handoff::Request> {
+        crate::handoff::read(&self.work_dir, &self.exe)
+    }
+
+    pub(crate) fn language_code(&self) -> &'static str {
+        self.language.map_or("en", |language| language())
+    }
+
     pub fn work_dir(&self) -> &Path {
         &self.work_dir
     }

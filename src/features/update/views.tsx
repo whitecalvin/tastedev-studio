@@ -52,23 +52,23 @@ function UpdateDialog({ service }: { service: UpdateService }) {
   if (!state.visible) return null;
   const busy = state.pending || ['checking', 'downloading', 'installing'].includes(status?.stage ?? '');
   const stageMessages: Record<string, string> = { idle: 'Check for updates', checking: 'Checking for updates…', current: 'You are up to date.', available: 'A new version is available.', downloading: 'Downloading and verifying…', ready: 'Update verified. Ready to install.', installing: 'Installing update…', cancelled: 'Update cancelled.', error: 'Update failed. Your current installation is unchanged. Try again.' };
-  return <Dialog title="Updates" onClose={() => service.dismiss()}><div className="dialog-body update-dialog">
+  return <Dialog title={status?.promptTitle ? t(status.promptTitle) : t('Updates')} onClose={() => { if (['ready','exit-confirmation'].includes(status?.stage ?? '')) void service.action('cancel'); service.dismiss(); }}><div className="dialog-body update-dialog">
     {!service.desktop ? <p>{t('Automatic updates are available in the desktop app.')}</p> : <>
       <div className="update-version"><div><span>{t('Current version')}</span><strong>{status?.currentVersion ?? buildVersion}</strong></div>{status?.version&&<div><span>{t('A new version is available.')}</span><strong>{status.version}</strong></div>}<ShieldCheck size={24} aria-hidden="true"/></div>
       <label className="update-preference"><input type="checkbox" checked={status?.autoCheck ?? true} disabled={busy || !status} onChange={event => void service.action('preference', event.target.checked)} /> {t('Check for updates when the app starts')}</label>
-      {!state.error&&!status?.error&&<div className="update-status" role="status"><RefreshCw size={18} aria-hidden="true"/><p>{t(stageMessages[status?.stage ?? 'idle'] ?? 'Check for updates')}</p></div>}
+      {!state.error&&!status?.error&&<div className="update-status" role="status"><RefreshCw size={18} aria-hidden="true"/><p>{t(status?.promptTitle ?? stageMessages[status?.stage ?? 'idle'] ?? 'Check for updates')}</p></div>}
       {status?.previousResult && <p role="status">{t(status.previousResult === 'installed' ? 'The previous update was installed.' : 'The previous update could not be installed.')}</p>}
       {(state.error || status?.error) && <div className="update-status update-error" role="alert"><AlertCircle size={18} aria-hidden="true"/><p>{t(state.error || updateFailure(status?.error))}</p></div>}
       {status?.notes && <details className="update-notes"><summary>{t('Release notes and downloads')}</summary><pre>{status.notes}</pre></details>}
       {status?.stage === 'downloading' && <><progress max={status.total || 1} value={status.downloaded} /><p>{Math.round(status.downloaded / Math.max(1, status.total) * 100)}%</p></>}
       {status?.stage === 'available' && !status.canInstall && <p>{t('This installation needs a manual update. Open the release page.')}</p>}
       {status?.page && <p><button className="button button-quiet" onClick={() => void service.action('release')}>{t('Release notes and downloads')}</button></p>}
-      <p className="update-safety">{t("If you have work in progress, save or finish it, then close all windows of this app yourself. The update waits without forcing windows to close. Choose Later if you are not ready.")}</p>
+      <p className="update-safety">{t(status?.installNotice || 'Save your files and finish active tasks before installing.')}</p>
       <div className="dialog-actions update-actions">
         <button className="button" disabled={busy} onClick={() => void service.action('check')}><RefreshCw size={16} aria-hidden="true"/>{t('Check for updates')}</button>
-        {status?.canInstall && ['available', 'error'].includes(status.stage) && <button className="button button-primary" disabled={busy} onClick={() => void service.action('install')}>{t('Install and restart')}</button>}
+        {status?.canInstall && ['available', 'error', 'ready', 'exit-confirmation'].includes(status.stage) && <button className="button button-primary" disabled={busy} onClick={() => void service.action('install')}>{t(status.promptAction ?? 'Install and restart')}</button>}
         {['checking', 'downloading', 'ready'].includes(status?.stage ?? '') && <button className="button" disabled={state.pending} onClick={() => void service.action('cancel')}>{t('Cancel')}</button>}
-        <button className="button" onClick={() => service.dismiss()}>{t('Later')}</button>
+        <button className="button" onClick={() => { if (['ready','exit-confirmation'].includes(status?.stage ?? '')) void service.action('cancel'); service.dismiss(); }}>{t('Later')}</button>
       </div>
     </>}
   </div></Dialog>;

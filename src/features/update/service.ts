@@ -1,5 +1,6 @@
 export interface UpdateStatus {
   stage: string; currentVersion: string; version: string | null; notes: string; page: string | null;
+  promptTitle?: string | null; promptAction?: string | null; installNotice?: string;
   canInstall: boolean; autoCheck: boolean; downloaded: number; total: number;
   error: string | null; previousResult: string | null;
   showPrompt: boolean;
@@ -38,17 +39,17 @@ export class UpdateService {
   }
   async action(action: UpdateAction, enabled?: boolean) {
     if (!this.desktop || this.lock) return;
-    if (action === 'install' && this.protectedWorkspace()) { const message = 'Save your files and finish active tasks before installing.'; this.change({ visible: false, error: message, toast: { message, error: true } }); return; }
+    if (action === 'install' && ['ready','exit-confirmation'].includes(this.state.status?.stage ?? '') && this.protectedWorkspace()) { const message = 'Save your files and finish active tasks before installing.'; this.change({ visible: true, error: message, toast: { message, error: true } }); return; }
     this.lock = true;
     this.change({ pending: action !== 'status'||!this.state.status, error: action === 'status' ? this.state.error : '', ...(action === 'install' ? { visible: false, toast: { message: 'Installing update…', error: false } } : {}) });
     try {
-      const status = await this.invoke(action, enabled, action === 'install' ? this.protectedWorkspace() : true);
-      const newlyAvailable = status.stage === 'available' && (this.state.status?.stage !== 'available' || this.state.status?.version !== status.version);
+      const status = await this.invoke(action, enabled, this.protectedWorkspace());
+      const newlyAvailable = ['available', 'ready', 'exit-confirmation'].includes(status.stage) && (this.state.status?.stage !== status.stage || this.state.status?.version !== status.version);
       const previousResult = !!status.previousResult && !this.state.status;
       // 재시작 후 설치 결과는 모달을 다시 열지 않고 토스트로 알린다.
       const toast = previousResult ? { message: status.previousResult === 'installed' ? 'The previous update was installed.' : 'The previous update could not be installed.', error: status.previousResult !== 'installed' }
         : status.error && (action === 'install' || this.state.toast?.message === 'Installing update…') ? { message: updateFailure(status.error), error: true } : this.state.toast;
-      this.change({ status, toast, ...(!this.state.status?{error:''}:{}), visible: this.state.visible || (newlyAvailable && status.showPrompt && action !== 'install' && !previousResult) });
+      this.change({ status, toast, ...(!this.state.status?{error:''}:{}), visible: this.state.visible || (newlyAvailable && status.showPrompt && !previousResult) });
     } catch (error) {
       const message = updateFailure(error);
       this.change({ error: message, ...(action === 'install' ? { visible: false, toast: { message, error: true } } : {}) });
