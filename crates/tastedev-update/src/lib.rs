@@ -1097,7 +1097,10 @@ pub fn clean_work_dir(work_dir: &Path) {
         if e.file_name() == RESULT_FILE {
             continue;
         }
-        if e.file_name() == LOG_FILE && e.metadata().is_ok_and(|m| m.len() <= MAX_LOG_BYTES) {
+        if (e.file_name() == LOG_FILE
+            || e.file_name().to_string_lossy().ends_with(".viewer-log.txt"))
+            && e.metadata().is_ok_and(|m| m.len() <= MAX_LOG_BYTES)
+        {
             continue;
         }
         let p = e.path();

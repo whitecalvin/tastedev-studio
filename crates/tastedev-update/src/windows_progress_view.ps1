@@ -30,6 +30,33 @@ fr=@('En attente de la fermeture de l''application','Installation de la mise à 
     vi=@('Đang chờ đóng các cửa sổ ứng dụng','Đang cài đặt bản cập nhật','Đang khởi động lại ứng dụng','Cập nhật hoàn tất','Bản cập nhật cần được xử lý','Hãy lưu hoặc hoàn tất công việc rồi đóng mọi cửa sổ của ứng dụng. Không cửa sổ nào bị buộc đóng.','Đóng cửa sổ trạng thái')
     id=@('Menunggu jendela aplikasi ditutup','Memasang pembaruan','Memulai ulang aplikasi','Pembaruan selesai','Pembaruan memerlukan perhatian','Simpan atau selesaikan pekerjaan lalu tutup semua jendela aplikasi ini. Tidak ada jendela yang ditutup paksa.','Tutup jendela status')
 }
+$restartTranslations = @{
+    en=@('Restart now','Later','Installation is complete. Start the updated app now or leave it closed until later.')
+    ko=@('지금 재시작','나중에','설치가 완료되었습니다. 업데이트된 앱을 지금 실행하거나 나중에 직접 실행할 수 있습니다.')
+    ja=@('今すぐ再起動','後で','インストールが完了しました。更新したアプリを今すぐ起動するか、後で起動できます。')
+    zh=@('立即重启','稍后','安装已完成。现在启动更新后的应用，或稍后手动启动。')
+    'zh-hant'=@('立即重新啟動','稍後','安裝已完成。現在啟動更新後的應用程式，或稍後手動啟動。')
+    de=@('Jetzt neu starten','Später','Installation abgeschlossen. Starten Sie die aktualisierte App jetzt oder später manuell.')
+    es=@('Reiniciar ahora','Más tarde','Instalación completada. Inicie la aplicación actualizada ahora o más tarde manualmente.')
+    fr=@('Redémarrer maintenant','Plus tard','Installation terminée. Lancez maintenant l''application mise à jour ou ouvrez-la plus tard.')
+    it=@('Riavvia ora','Più tardi','Installazione completata. Avvia ora l''app aggiornata o aprila manualmente più tardi.')
+    pt=@('Reiniciar agora','Mais tarde','Instalação concluída. Abra o aplicativo atualizado agora ou manualmente mais tarde.')
+    ru=@('Перезапустить сейчас','Позже','Установка завершена. Запустите обновлённое приложение сейчас или позже вручную.')
+    nl=@('Nu herstarten','Later','Installatie voltooid. Start de bijgewerkte app nu of open deze later handmatig.')
+    pl=@('Uruchom ponownie','Później','Instalacja zakończona. Uruchom zaktualizowaną aplikację teraz lub później ręcznie.')
+    uk=@('Перезапустити зараз','Пізніше','Установлення завершено. Запустіть оновлену програму зараз або пізніше вручну.')
+    tr=@('Şimdi yeniden başlat','Daha sonra','Kurulum tamamlandı. Güncellenen uygulamayı şimdi veya daha sonra elle açın.')
+    cs=@('Restartovat nyní','Později','Instalace dokončena. Spusťte aktualizovanou aplikaci nyní nebo později ručně.')
+    sv=@('Starta om nu','Senare','Installationen är klar. Starta den uppdaterade appen nu eller öppna den manuellt senare.')
+    da=@('Genstart nu','Senere','Installationen er fuldført. Start den opdaterede app nu eller åbn den manuelt senere.')
+    nb=@('Start på nytt nå','Senere','Installasjonen er fullført. Start den oppdaterte appen nå eller åpne den manuelt senere.')
+    fi=@('Käynnistä nyt','Myöhemmin','Asennus on valmis. Käynnistä päivitetty sovellus nyt tai avaa se myöhemmin itse.')
+    hu=@('Újraindítás most','Később','A telepítés kész. Indítsa el a frissített alkalmazást most, vagy nyissa meg később kézzel.')
+    ro=@('Repornește acum','Mai târziu','Instalarea s-a încheiat. Porniți aplicația actualizată acum sau deschideți-o manual mai târziu.')
+    el=@('Επανεκκίνηση τώρα','Αργότερα','Η εγκατάσταση ολοκληρώθηκε. Ανοίξτε την ενημερωμένη εφαρμογή τώρα ή χειροκίνητα αργότερα.')
+    vi=@('Khởi động lại ngay','Để sau','Đã cài đặt xong. Mở ứng dụng đã cập nhật ngay hoặc mở thủ công sau.')
+    id=@('Mulai ulang sekarang','Nanti','Pemasangan selesai. Buka aplikasi yang diperbarui sekarang atau secara manual nanti.')
+}
 # Skin::light/dark roles: surface, text, muted, inset, divider, accent, danger.
 $palettes = @{
     light=@('#FFFFFF','#1D2330','#5B6475','#F6F7F9','#C3C8D2','#2563B0','#B8372A')
@@ -44,7 +71,10 @@ $palettes = @{
   <TextBlock Name="Guidance" TextWrapping="Wrap" Margin="0,0,0,12"/>
   <TextBox Name="Detail" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Padding="10" MaxHeight="120" VerticalScrollBarVisibility="Auto" Visibility="Collapsed"/>
   <TextBlock Name="Elapsed" Margin="0,12,0,12"/>
-  <Button Name="CloseStatus" HorizontalAlignment="Right" MinHeight="34" Padding="12,4" Cursor="Arrow"/>
+  <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+   <Button Name="RestartNow" MinHeight="34" Padding="12,4" Margin="0,0,8,0" Visibility="Collapsed" Cursor="Arrow"/>
+   <Button Name="CloseStatus" MinHeight="34" Padding="12,4" Cursor="Arrow"/>
+  </StackPanel>
  </StackPanel></Border>
 </Window>
 '@
@@ -52,7 +82,22 @@ $window = [Windows.Markup.XamlReader]::Load([Xml.XmlNodeReader]::new($xaml))
 $brand = $window.FindName('Brand'); $phaseLabel = $window.FindName('Phase')
 $bar = $window.FindName('Bar'); $guidance = $window.FindName('Guidance')
 $detail = $window.FindName('Detail'); $elapsed = $window.FindName('Elapsed'); $close = $window.FindName('CloseStatus')
-$close.Add_Click({ $window.Close() })
+$restart = $window.FindName('RestartNow')
+function Send-RestartChoice([string]$Choice) {
+    # Atomic create: first click wins. Closing the window means Later.
+    $path = $StatePath + '.choice'
+    try {
+        $file = [IO.File]::Open($path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::Read)
+        $writer = [IO.StreamWriter]::new($file, [Text.UTF8Encoding]::new($false))
+        try { $writer.Write($Choice) } finally { $writer.Dispose() }
+        $restart.IsEnabled=$false; $close.IsEnabled=$false
+    } catch { if (-not [IO.File]::Exists($path)) { throw } }
+}
+$restart.Add_Click({ Send-RestartChoice 'now' })
+$close.Add_Click({
+    if ($script:lastState -and $script:lastState.phase -eq 'awaiting_restart') { Send-RestartChoice 'later' }
+    $window.Close()
+})
 $watch = [Diagnostics.Stopwatch]::StartNew()
 $script:doneAt = $null
 $script:lastState = $null
@@ -91,27 +136,47 @@ $updateView = {
                 $s.detail = 'The update helper stopped. See update-log.txt.'
             }
         }
-        $index = switch($phase) { 'waiting' {0} 'installing' {1} 'restarting' {2} 'complete' {3} default {4} }
+        $index = switch($phase) { 'waiting' {0} 'installing' {1} 'restarting' {2} 'complete' {3} 'awaiting_restart' {3} default {4} }
         $phaseLabel.Text=$words[$index]
         $phaseLabel.Foreground=if($phase -eq 'failed'){$colors[6]}else{$colors[1]}
         $guidance.Text=if($phase -eq 'waiting'){$words[5]}else{''}
         $close.Content=$words[6]
+        $choiceWords = $restartTranslations[$s.language]
+        if (-not $choiceWords) { $choiceWords = $restartTranslations.en }
+        $restart.Content=$choiceWords[0]
+        $restart.Visibility=if($phase -eq 'awaiting_restart'){'Visible'}else{'Collapsed'}
+        $restart.Background=$colors[5]; $restart.Foreground='#FFFFFF'
+        if ($phase -eq 'awaiting_restart') {
+            $close.Content=$choiceWords[1]
+            $guidance.Text=$choiceWords[2]
+        }
         $detail.Text=$s.detail
         $detail.Visibility=if($s.detail){'Visible'}else{'Collapsed'}
-        $bar.IsIndeterminate=$phase -notin @('complete','failed')
-        $bar.Value=if($phase -eq 'complete'){100}else{0}
+        $bar.IsIndeterminate=$phase -notin @('complete','failed','awaiting_restart')
+        $bar.Value=if($phase -in @('complete','awaiting_restart')){100}else{0}
         $elapsed.Text=$watch.Elapsed.ToString('hh\:mm\:ss')
         if ($phase -eq 'complete') {
             if ($null -eq $script:doneAt) { $script:doneAt=$watch.ElapsedMilliseconds }
             if ($watch.ElapsedMilliseconds - $script:doneAt -ge 5000) { $window.Close() }
         }
-    } catch { # Partial/unavailable state never replaces the last valid display.
+    } catch {
+        # Never silently leave a stale Waiting screen. Retry on the next tick,
+        # but surface the concrete state-read/render failure and retain evidence.
+        $problem=$_.Exception.Message
+        $failureWords=if($script:lastState){$translations[$script:lastState.language]}else{$null}
+        $phaseLabel.Text=if($failureWords){$failureWords[4]}else{$translations.en[4]}
+        $bar.IsIndeterminate=$false
+        $detail.Text=$problem; $detail.Visibility='Visible'
+        try { Add-Content -LiteralPath ($StatePath + '.viewer-log.txt') -Value ((Get-Date -Format o) + ' ' + $problem) -Encoding UTF8 } catch { }
     }
 }
 $timer.Add_Tick($updateView)
 $window.Add_Loaded({
     & $updateView
     [IO.File]::WriteAllText($StatePath + '.ready', 'ready')
+})
+$window.Add_Closing({
+    if ($script:lastState -and $script:lastState.phase -eq 'awaiting_restart' -and -not [IO.File]::Exists($StatePath + '.choice')) { Send-RestartChoice 'later' }
 })
 $window.Add_Closed({$timer.Stop(); $viewerLease.Dispose()})
 $timer.Start()

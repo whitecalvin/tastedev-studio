@@ -10,12 +10,19 @@ function Set-UpdatePhase([string]$Phase, [string]$Detail = '') {
         if ([IO.File]::Exists($progressState)) { [IO.File]::Replace($tempState, $progressState, [NullString]::Value) }
         else { [IO.File]::Move($tempState, $progressState) }
         Write-Log ('phase=' + $Phase)
-    } catch { Write-Log ('progress state failed: ' + $_.Exception.Message) }
+    } catch {
+        Write-Log ('progress state failed: ' + $_.Exception.Message)
+        # Do not continue installing/relaunching while the viewer still shows
+        # an older phase. The viewer detects helper exit and displays failure.
+        throw
+    }
 }
 function Start-UpdateProgress {
     $viewer = $null
     try {
         $ready = $progressState + '.ready'
+        $choice = $progressState + '.choice'
+        if (Test-Path -LiteralPath $choice) { Remove-Item -LiteralPath $choice -Force }
         if (Test-Path -LiteralPath $ready) { Remove-Item -LiteralPath $ready -Force }
         [IO.File]::WriteAllText($progressScript, $progressSource, [Text.UTF8Encoding]::new($true))
         $command = '& ' + "'" + $progressScript.Replace("'", "''") + "' -StatePath '" + $progressState.Replace("'", "''") + "'"
@@ -35,4 +42,26 @@ function Start-UpdateProgress {
     } finally {
         if ($viewer) { $viewer.Dispose() }
     }
+}
+
+# The app has already closed safely before the installer replaces its files.
+# Keep the successful install result separate from this explicit launch choice.
+function Wait-RestartChoice {
+    param([int]$TimeoutSeconds = 600)
+    $choice = $progressState + '.choice'
+    Set-UpdatePhase 'awaiting_restart'
+    Write-Log 'waiting for restart choice (now/later); no automatic restart'
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        if (Test-Path -LiteralPath $choice) {
+            $answer = [IO.File]::ReadAllText($choice).Trim()
+            if ($answer -in @('now','later')) {
+                Write-Log ('restart choice=' + $answer)
+                return $answer -eq 'now'
+            }
+        }
+        Start-Sleep -Milliseconds 250
+    }
+    Write-Log 'restart choice timed out; restart deferred'
+    return $false
 }

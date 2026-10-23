@@ -245,6 +245,7 @@ fn windows(kind: &InstallKind, file: &Path, ctx: &Ctx<'_>) -> Step {
          $installLock = $null\n\
          $ownsInstallLock = $false\n\
          $exited = $false\n\
+         $installed = $false\n\
          function Write-Log([string]$text) {{\n\
          \x20   try {{ Add-Content -LiteralPath $log -Value ((Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' script: ' + $text) -Encoding UTF8 }} catch {{ }}\n\
          }}\n\
@@ -280,15 +281,24 @@ fn windows(kind: &InstallKind, file: &Path, ctx: &Ctx<'_>) -> Step {
          {install}\
          \x20   Set-Content -LiteralPath $result -Value {ok} -Encoding UTF8\n\
          \x20   Write-Log 'installed {ver}'\n\
-         \x20   $installLock.Dispose(); $installLock = $null\n\
-         \x20   Set-UpdatePhase 'restarting'\n\
+         \x20   $installed = $true\n\
+         \x20   if (Wait-RestartChoice) {{\n\
+         \x20       Set-UpdatePhase 'waiting'\n\
+         \x20       Wait-AppInstances\n\
+         \x20       if (@(Get-AppInstances).Count -ne 0) {{ throw $stillMessage }}\n\
+         \x20       $installLock.Dispose(); $installLock = $null\n\
+         \x20       Set-UpdatePhase 'restarting'\n\
          {relaunch}\
+         \x20   }} else {{\n\
+         \x20       Write-Log 'restart deferred by user or unavailable viewer'\n\
+         \x20       Set-UpdatePhase 'complete'\n\
+         \x20   }}\n\
          }} catch {{\n\
          \x20   if (-not $ownsInstallLock) {{ Write-Log 'another updater owns the install lock'; return }}\n\
-         \x20   Set-Content -LiteralPath $result -Value ({fail} + $_.Exception.Message) -Encoding UTF8\n\
+         \x20   if (-not $installed) {{ Set-Content -LiteralPath $result -Value ({fail} + $_.Exception.Message) -Encoding UTF8 }}\n\
          \x20   Write-Log ('failed: ' + $_.Exception.Message)\n\
          \x20   Set-UpdatePhase 'failed' $_.Exception.Message\n\
-         \x20   if ($exited) {{\n\
+         \x20   if ($exited -and -not $installed) {{\n\
          \x20       if ($installLock) {{ $installLock.Dispose(); $installLock = $null }}\n\
          \x20       try {{\n\
          \x20   $null = Restart-App -Executable {app} -Recovery\n\

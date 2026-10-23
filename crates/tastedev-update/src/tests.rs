@@ -935,7 +935,7 @@ fn a_failed_install_relaunches_the_old_app_only_after_it_exited() {
         // 바깥(줄 맨 앞) catch 부터 끝까지.
         let catch = body.find("\n} catch {").unwrap();
         let tail = &body[catch..];
-        assert!(tail.contains("if ($exited)"), "{name}");
+        assert!(tail.contains("if ($exited -and -not $installed)"), "{name}");
         assert!(
             tail.contains("Restart-App -Executable 'C:/Program Files/TASTEFILES/tastefiles.exe'"),
             "{name}: 실패해도 옛 판을 다시 켠다"
@@ -955,6 +955,9 @@ fn windows_restart_is_observed_without_reclassifying_install_success() {
         // become an install failure or trigger the recovery relaunch a second time.
         assert!(body.contains("Write-Log ('restart failed: '"));
         assert!(body.contains("restart confirmed: pid="));
+        assert!(body[installed..].contains("if (Wait-RestartChoice)"));
+        assert!(body[installed..].contains("Wait-AppInstances"));
+        assert!(body.contains("restart deferred by user or unavailable viewer"));
     }
 }
 
@@ -2436,9 +2439,12 @@ fn unfinished_install_scripts_are_reported_as_failures() {
 
     let t = Temp::new("log");
     std::fs::write(t.0.join(LOG_FILE), "x\n").unwrap();
+    let viewer_log = t.0.join("progress-0.2.6.json.viewer-log.txt");
+    std::fs::write(&viewer_log, "state read failed\n").unwrap();
     std::fs::write(t.0.join("install-0.2.6.ps1"), "x").unwrap();
     clean_work_dir(&t.0);
     assert!(t.0.join(LOG_FILE).is_file(), "기록은 남긴다");
+    assert!(viewer_log.is_file(), "진행 화면 오류 기록도 남긴다");
     assert!(!t.0.join("install-0.2.6.ps1").exists());
     std::fs::write(
         t.0.join(LOG_FILE),
