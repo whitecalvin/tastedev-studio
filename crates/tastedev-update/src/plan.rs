@@ -60,6 +60,8 @@ pub struct Ctx<'a> {
     pub work_dir: &'a Path,
     /// 설치할 판.
     pub version: Version,
+    /// App-selected language for the independent Windows progress window.
+    pub language: &'a str,
     /// 파일이 있는지(`/usr/bin/pkexec` · `apt-get` · `dnf`). 시험은 가짜를 준다.
     pub exists: &'a dyn Fn(&Path) -> bool,
 }
@@ -233,6 +235,12 @@ fn windows(kind: &InstallKind, file: &Path, ctx: &Ctx<'_>) -> Step {
          $result = {result}\n\
          $log = {log}\n\
          $app = {app}\n\
+         $updateProduct = {product}\n\
+         $updateVersion = {version}\n\
+         $updateLanguage = {language}\n\
+         $progressState = {progress_state}\n\
+         $progressScript = {progress_script}\n\
+         $progressSource = {progress_view}\n\
          $stillMessage = {still}\n\
          $installLock = $null\n\
          $ownsInstallLock = $false\n\
@@ -250,6 +258,7 @@ fn windows(kind: &InstallKind, file: &Path, ctx: &Ctx<'_>) -> Step {
          {check}\
          {instances}\n\
          {restart}\n\
+         {progress}\n\
          try {{\n\
          \x20   $installLock = [IO.File]::Open((Join-Path (Split-Path -Parent $result) '.update-install.lock'), [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::ReadWrite)\n\
          \x20   $lockDeadline = (Get-Date).AddSeconds(10)\n\
@@ -261,23 +270,28 @@ fn windows(kind: &InstallKind, file: &Path, ctx: &Ctx<'_>) -> Step {
          \x20   }}\n\
          \x20   Set-Content -LiteralPath $result -Value ({started} + (Get-Date -Format 'yyyy-MM-ddTHH:mm:ssK')) -Encoding UTF8\n\
          \x20   Write-Log ('started {ver}, waiting for process ' + {pid})\n\
+         \x20   Set-UpdatePhase 'waiting'\n\
+         \x20   Start-UpdateProgress\n\
          \x20   Wait-AppInstances\n\
          \x20   $exited = $true\n\
          \x20   Write-Log 'the app exited'\n\
          \x20   if (@(Get-AppInstances).Count -ne 0) {{ throw $stillMessage }}\n\
+         \x20   Set-UpdatePhase 'installing'\n\
          {install}\
          \x20   Set-Content -LiteralPath $result -Value {ok} -Encoding UTF8\n\
          \x20   Write-Log 'installed {ver}'\n\
          \x20   $installLock.Dispose(); $installLock = $null\n\
+         \x20   Set-UpdatePhase 'restarting'\n\
          {relaunch}\
          }} catch {{\n\
          \x20   if (-not $ownsInstallLock) {{ Write-Log 'another updater owns the install lock'; return }}\n\
          \x20   Set-Content -LiteralPath $result -Value ({fail} + $_.Exception.Message) -Encoding UTF8\n\
          \x20   Write-Log ('failed: ' + $_.Exception.Message)\n\
+         \x20   Set-UpdatePhase 'failed' $_.Exception.Message\n\
          \x20   if ($exited) {{\n\
          \x20       if ($installLock) {{ $installLock.Dispose(); $installLock = $null }}\n\
          \x20       try {{\n\
-         \x20   {relaunch}\
+         \x20   $null = Restart-App -Executable {app} -Recovery\n\
          \x20       }} catch {{ Write-Log ('restart failed: ' + $_.Exception.Message) }}\n\
          \x20   }}\n\
          }} finally {{ if ($installLock) {{ $installLock.Dispose() }} }}\n",
@@ -285,6 +299,15 @@ fn windows(kind: &InstallKind, file: &Path, ctx: &Ctx<'_>) -> Step {
         check = signature_check(),
         instances = include_str!("windows_instances.ps1"),
         restart = include_str!("windows_restart.ps1"),
+        progress = include_str!("windows_progress.ps1"),
+        progress_view = q(include_str!("windows_progress_view.ps1")),
+        product = q(ctx.product.name),
+        version = q(&ver),
+        language = q(ctx.language),
+        progress_state = q(&path_str(
+            &ctx.work_dir.join(format!("progress-{ver}.json"))
+        )),
+        progress_script = q(&path_str(&ctx.work_dir.join(format!("progress-{ver}.ps1")))),
         result = q(&path_str(&ctx.work_dir.join(RESULT_FILE))),
         log = q(&path_str(&ctx.work_dir.join(LOG_FILE))),
         app = q(&path_str(ctx.exe)),

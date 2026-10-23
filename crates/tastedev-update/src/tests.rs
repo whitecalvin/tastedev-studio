@@ -2464,6 +2464,26 @@ fn the_app_still_running_failure_reaches_the_next_start() {
     assert_eq!(flow.take_last_result(), None, "한 번만");
 }
 
+#[test]
+fn startup_cleanup_preserves_the_live_progress_window_until_it_closes() {
+    let tmp = Temp::new("progress-cleanup");
+    let state = tmp.0.join("progress-1.2.3.json");
+    std::fs::write(&state, "{}").unwrap();
+    let lease = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(tmp.0.join(".update-progress.lock"))
+        .unwrap();
+    lease.try_lock().unwrap();
+    clean_work_dir(&tmp.0);
+    assert!(state.is_file());
+    drop(lease);
+    clean_work_dir(&tmp.0);
+    assert!(!state.exists());
+}
+
 /// 실제 설치·GUI 없이 Windows 대기 함수를 실행한다.
 #[cfg(windows)]
 #[test]
@@ -2479,7 +2499,8 @@ $stillMessage = 'the app is still running'
 function Get-Process { [pscustomobject]@{Path='C:/Apps/tastefiles.exe'}; [pscustomobject]@{Path='C:/Other/tastefiles.exe'} }
 if (@(Get-AppInstances).Count -ne 1) { throw 'wrong install identity' }
 function Get-Process { [pscustomobject]@{Path=$null} }
-try { Get-AppInstances; throw 'unknown path was accepted' } catch { if ($_.Exception.Message -eq 'unknown path was accepted') { throw } }
+if (@(Get-AppInstances | Where-Object { $_.PathVerified -eq $false }).Count -ne 1) { throw 'unverified live path did not block installation' }
+function Write-Log { param($text) }
 $script:checks = 0
 function Get-AppInstances { $script:checks++; if ($script:checks -lt 4) { [pscustomobject]@{Id=123} } }
 function New-Object { throw 'native dialogs are forbidden' }

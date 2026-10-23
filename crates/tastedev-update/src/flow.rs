@@ -430,6 +430,8 @@ impl Flow {
     }
 
     /// 묻는 창을 보일 차례인지.
+    /// Windows handoff uses the independent progress viewer from the helper;
+    /// keeping this modal open would block saving work before closing windows.
     pub fn install_notice(&self) -> &'static str {
         if cfg!(windows) {
             self.session.as_ref().map_or("", Session::install_notice)

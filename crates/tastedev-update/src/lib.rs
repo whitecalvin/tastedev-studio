@@ -1074,11 +1074,24 @@ pub fn take_result(work_dir: &Path) -> Option<InstallResult> {
 /// 작업 폴더를 치운다(받아 둔 설치 파일 · 스크립트 · 받다 만 파일). 결과 파일과 업데이트 기록([`LOG_FILE`],
 /// [`MAX_LOG_BYTES`] 이하일 때)은 남긴다.
 pub fn clean_work_dir(work_dir: &Path) {
+    // The newly restarted app may collect the installation result while the
+    // independent progress window is still showing restart confirmation.
+    let progress_active = match fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(work_dir.join(".update-progress.lock"))
+    {
+        Ok(lease) => lease.try_lock().is_err(),
+        Err(error) => error.kind() != std::io::ErrorKind::NotFound,
+    };
     let Ok(entries) = fs::read_dir(work_dir) else {
         return;
     };
     for e in entries.flatten() {
-        if e.file_name() == ".update-install.lock" {
+        if e.file_name() == ".update-install.lock" || e.file_name() == ".update-progress.lock" {
+            continue;
+        }
+        if progress_active && e.file_name().to_string_lossy().starts_with("progress-") {
             continue;
         }
         if e.file_name() == RESULT_FILE {

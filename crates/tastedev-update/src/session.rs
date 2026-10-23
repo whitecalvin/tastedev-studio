@@ -487,6 +487,7 @@ impl Session {
             pid: std::process::id(),
             work_dir: &self.work_dir,
             version: release.version,
+            language: self.language.map_or("en", |language| language()),
             exists: &move |p: &Path| exists(p),
         };
         plan::plan(&self.kind, file, &ctx)

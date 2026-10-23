@@ -1,7 +1,7 @@
 # The installer result and the restart result are independent. Never reinstall
 # or launch a second copy merely because startup verification failed.
 function Restart-App {
-    param([string]$Executable, [int]$ObserveMilliseconds = 5000)
+    param([string]$Executable, [int]$ObserveMilliseconds = 5000, [switch]$Recovery)
     $child = $null
     try {
         if (-not (Test-Path -LiteralPath $Executable -PathType Leaf)) {
@@ -26,14 +26,16 @@ function Restart-App {
         if ($child.HasExited) {
             throw ('restart process exited during startup: pid=' + $child.Id + '; exitCode=' + $child.ExitCode)
         }
-        $matches = @(Get-AppInstances | Where-Object { $_.Id -eq $child.Id })
+        $matches = @(Get-AppInstances | Where-Object { $_.Id -eq $child.Id -and $_.PathVerified -ne $false })
         if ($matches.Count -ne 1) { throw 'restart process executable path could not be verified' }
         Write-Log ('restart confirmed: pid=' + $child.Id + '; executable=' + $Executable + '; observedMs=' + $clock.ElapsedMilliseconds)
+        if (-not $Recovery -and (Get-Command Set-UpdatePhase -ErrorAction SilentlyContinue)) { Set-UpdatePhase 'complete' }
         return $true
     } catch {
         $nativeCode = ''
         if ($_.Exception.PSObject.Properties['NativeErrorCode']) { $nativeCode = '; nativeErrorCode=' + $_.Exception.NativeErrorCode }
         Write-Log ('restart failed: ' + $_.Exception.GetType().FullName + ': ' + $_.Exception.Message + $nativeCode)
+        if (-not $Recovery -and (Get-Command Set-UpdatePhase -ErrorAction SilentlyContinue)) { Set-UpdatePhase 'failed' $_.Exception.Message }
         return $false
     } finally {
         if ($child -is [IDisposable]) { $child.Dispose() }
