@@ -1,0 +1,24 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {TeamDispatch,type TeamDispatchBridge} from '../transport/team-dispatch.ts';
+import type {TeamWorkOverview} from '../src/features/orchestration/team-intent.ts';
+import type {GraphOverview} from '../src/features/orchestration/execution.ts';
+import type {FactoryOverview} from '../src/features/orchestration/factory.ts';
+const hash='a'.repeat(64);
+function fixture(){
+  const work={intents:[{id:'recipient',version:1,digest:hash,ready:true,responsibility:'design'}],assignments:[{intentId:'recipient',intentVersion:1,graphRevision:1,inputChecksum:hash,taskNodeId:'design'}],messages:[{id:'message',intentId:'sender',kind:'handoff',to:'design',body:'Review design',acknowledgedAt:'2026-10-24T00:00:00Z'}]} as unknown as TeamWorkOverview;
+  const graph={definition:{revision:1,checksum:hash,inputChecksum:hash},executions:[]} as unknown as GraphOverview,factory={tasks:[],durable:true,maximumParallel:2} as FactoryOverview;
+  let saved:unknown,deny='',lost=false,calls=0,writes=0;
+  const bridge:TeamDispatchBridge={work:()=>work,graph:()=>graph,factory:()=>factory,authorize:(_a,_p,p)=>{if(p===deny)throw Error('denied');},graphRequest:async(p,a,i)=>{calls++;const input=i as {requestId:string};if(a==='start'&&!graph.executions.some(e=>e.id===input.requestId))graph.executions.push({id:input.requestId,projectId:p,status:'running',activations:[]} as unknown as GraphOverview['executions'][number]);if(lost){lost=false;throw Error('reply lost');}},factoryRequest:async()=>{calls++;}};
+  const persistence={load:()=>saved,save:(s:unknown)=>{writes++;saved=structuredClone(s);}};let service=new TeamDispatch(bridge,persistence);
+  const act=(action:string,input:Record<string,unknown>={})=>service.request('project',action,{id:'handoff',revision:service.overview('project').revision,...input},'local');
+  const prepare=()=>act('prepare',{messageId:'message',intentId:'recipient'});
+  return{work,graph,factory,bridge,act,prepare,current:()=>service.overview('project'),restart:()=>service=new TeamDispatch(bridge,persistence),deny:(p:string)=>deny=p,lose:()=>lost=true,counts:()=>({calls,writes})};
+}
+test('acknowledged handoff does not execute until approve+run, and links actual execution/results',async()=>{const f=fixture();await f.prepare();assert.equal(f.counts().calls,0);f.deny('approve');await assert.rejects(f.act('dispatch'),/denied/);f.deny('run');await assert.rejects(f.act('dispatch'),/denied/);f.deny('');await f.act('dispatch');assert.equal(f.graph.executions.length,1);assert.equal(f.current().handoffs[0].runtimeStatus,'running');assert.equal('actor' in f.current().handoffs[0]&&JSON.stringify(f.current().handoffs[0]).includes('local'),false);});
+test('lost launch reply and Core restart reuse the same execution without duplicate model or job',async()=>{const f=fixture();await f.prepare();f.lose();await assert.rejects(f.act('dispatch'),/reply lost/);assert.equal(f.current().handoffs[0].status,'paused');f.restart();await f.act('resume');assert.equal(f.graph.executions.length,1);assert.equal(f.counts().calls,1);assert.equal(f.current().handoffs[0].status,'dispatched');});
+test('new intent version, unacknowledged message, wrong recipient and stale client are blocked',async()=>{const f=fixture();delete f.work.messages[0].acknowledgedAt;await assert.rejects(f.prepare(),/acknowledged/);f.work.messages[0].acknowledgedAt='2026-10-24T00:00:00Z';f.work.messages[0].to='review';await assert.rejects(f.prepare(),/recipient/);f.work.messages[0].to='design';await f.prepare();f.work.intents[0].version++;await assert.rejects(f.act('dispatch'),/changed/);assert.equal(f.counts().calls,0);});
+test('message dispatch identity cannot be repurposed and cancellation prevents future dispatch',async()=>{const f=fixture();await f.prepare();await assert.rejects(f.act('prepare',{messageId:'other',intentId:'recipient'}),/conflict/);await f.act('cancel');await assert.rejects(f.act('dispatch'),/Cancelled/);assert.equal(f.counts().calls,0);assert.equal(f.current().handoffs.length,1);});
+test('project isolation and preserved malformed durable state fail closed',async()=>{const f=fixture();await f.prepare();assert.equal((await f.bridge.graph('other')).executions.length,0);const p={load:()=>({version:1,revision:0,handoffs:[{id:'bad'}]}),save:()=>{throw Error('must preserve');}};assert.throws(()=>new TeamDispatch(f.bridge,p),/Invalid durable/);await assert.rejects(f.act('prepare',{id:'other-handoff',messageId:'message',intentId:'recipient'}),/already linked/);});
+
+test('restart keeps terminal handoff results terminal instead of offering a completed execution again',async()=>{const f=fixture();await f.prepare();await f.act('dispatch');f.graph.executions[0].status='passed';f.restart();assert.equal(f.current().handoffs[0].status,'dispatched');assert.equal(f.current().handoffs[0].runtimeStatus,'passed');assert.equal(f.counts().calls,1);});

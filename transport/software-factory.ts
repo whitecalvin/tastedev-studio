@@ -47,7 +47,14 @@ export class SoftwareFactory {
     const permission=action==='list'?'read':['create','create-plan'].includes(action)?'history-write':action==='cancel'?'cancel':action==='review'?'approve':'run';this.authority(actor,project,permission);
     if(action==='list')return this.overview(project);
     const i=input as {taskId:string;version:number;contract:FactoryContract;accepted?:boolean;notes?:string};
-    if(action==='create-plan'){
+    if(action==='queue-plan'){
+      this.authority(actor,project,'approve');
+      const items=(input as {tasks:{taskId:string;version:number}[]})?.tasks;
+      if(!Array.isArray(items)||!items.length||items.length>8||new Set(items.map(t=>t.taskId)).size!==items.length)fail('Invalid reviewed plan batch.');
+      const tasks=items.map(item=>this.task(project,item.taskId));
+      for(const [index,task] of tasks.entries()){if(task.status!=='draft'||task.version!==items[index].version)fail('Plan changed. Review every draft before queueing.');this.validateDefinition(task.contract);for(const dep of task.contract.dependencies){this.authority(actor,dep.projectId,'read');this.task(dep.projectId,dep.taskId);}}
+      this.commit(next=>{for(const task of tasks){const target=next.find(t=>t.contract.projectId===project&&t.contract.taskId===task.contract.taskId)!;target.status='queued';target.actor=actor;target.version++;target.deadline=new Date(this.now()+target.contract.timeoutMinutes*60000).toISOString();delete target.reason;}});
+    }else if(action==='create-plan'){
       const values=(input as {contracts:unknown[]})?.contracts;
       if(!Array.isArray(values)||!values.length||values.length>8)fail('Invalid plan batch.');
       const batch=values.map(value=>validateFactoryContract(value,project));

@@ -84,3 +84,16 @@ test('read-only role context pins intent, feedback and decision data without ena
  const context=f.service().roleContext('project','intent','team-design');assert.match(context.question,/Explain a safe design/);assert.match(context.question,/existing read-only tools/);assert.equal(context.intent.responsibility,'design');
  f.graph.definition!.graph.edges.push({id:'invalid-follow',from:'team-design',to:'team-implementation',relation:'success'});assert.throws(()=>f.service().roleContext('project','intent','team-design'),/isolated/);
 });
+
+
+test('completion report stays incomplete for empty contracts or unaccepted and mismatching actual evidence',()=>{
+ const f=fixture();f.prepare();assert.equal(f.service().completion('project','intent').status,'incomplete');f.execution(f.contract());const r=f.service().completion('project','intent');assert.equal(r.status,'incomplete');assert.ok(r.issues.some(i=>i.includes('not been accepted')));assert.equal(r.automaticCommit,false);assert.equal(r.automaticDeployment,false);
+});
+test('completion report requires all current actual gates and preserves historical contracts',()=>{
+ const f=fixture(),c=f.prepare();f.execution(c);f.fixes[0].patches=[];
+ for(const category of gateCategories)f.action('gate-record',{id:'report-'+category,factoryTaskId:'work',executionId:'execution',category,result:category==='tests'?'passed':'not-applicable',kind:category==='tests'?'run':'manual',runId:'retest',note:'Actual fixture evidence / explicit applicability'});
+ f.factory.tasks[0].status='completed';assert.equal(f.service().completion('project','intent').status,'verified');f.runs[0].revision!.commit=hash;assert.equal(f.service().completion('project','intent').status,'incomplete');
+});
+
+
+test('accepted and cancelled task notes never become execution waiting blockers',()=>{const f=fixture(),c=f.prepare();f.execution(c);f.factory.tasks[0].status='completed';f.factory.tasks[0].reason='Accepted result';assert.ok(!f.service().overview('project').waiting[0].reasons.includes('Accepted result'));f.factory.tasks[0].status='failed';assert.ok(f.service().overview('project').waiting[0].reasons.includes('Accepted result'));});

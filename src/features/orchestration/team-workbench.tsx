@@ -1,5 +1,8 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
+import {TeamPolicyPanel} from './team-policy-view';
+import {TeamReportPanel} from './team-report-view';
+import {TeamReadinessPanel} from './team-readiness-view';
 import {TeamOperationsPanel} from './team-operations-panel';
 import {ClipboardList,RefreshCw} from 'lucide-react';
 import {CustomSelect} from '@/components/ui/custom-select';
@@ -27,7 +30,7 @@ export function TeamWorkbench({onUseIntent,onChoose}:{onUseIntent:(intent:TeamIn
   async function save(){try{const content=intentContent({objective,userRequest:request,exclusions:lines(exclusions),acceptance:lines(acceptance),paths:lines(paths),responsibility:role});const id=editing??crypto.randomUUID();const value=await mutate(editing?'intent-revise':'intent-create',editing?{intentId:editing,intentVersion:current!.intents.find(i=>i.id===editing)?.version,content,reason}:{id,content});if(value){setSelected(id);setEditing(null);setObjective('');setRequest('');setExclusions('');setAcceptance('');setReason('');}}catch(e){setError(e instanceof Error?e.message:'Invalid work intent.');}}
   return <details className="orch-team-work"><summary><ClipboardList size={16} aria-hidden="true"/>{t('Team operations')}<span>{current?.intents.length??0}</span></summary>
     {!connected?<p>{t('Connect to Core to use durable team operations.')}</p>:<>
-      <div className="orch-team-tabs" role="tablist" aria-label={t('Team operations')}>{[['intent','Work intent'],['assignment','Assignment'],['quality','Quality gates'],['inbox','Inbox'],['rules','Project rules']].map(([id,label])=><button type="button" role="tab" tabIndex={tab===id?0:-1} onKeyDown={e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const buttons=Array.from(e.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>('[role=tab]'));const at=buttons.indexOf(e.currentTarget),next=e.key==='Home'?0:e.key==='End'?buttons.length-1:(at+(e.key==='ArrowRight'?1:-1)+buttons.length)%buttons.length;buttons[next].click();buttons[next].focus();}} aria-selected={tab===id} aria-controls={`team-${project}-${id}`} id={`team-tab-${project}-${id}`} className="fs-button" key={id} onClick={()=>setTab(id)}>{t(label)}</button>)}<button type="button" className="fs-button" disabled={busy} title={t('Refresh')} aria-label={t('Refresh')} onClick={()=>setRefresh(v=>v+1)}><RefreshCw size={14}/></button></div>
+      <div className="orch-team-tabs" role="tablist" aria-label={t('Team operations')}>{[['intent','Work intent'],['assignment','Assignment'],['preflight','Execution preflight'],['isolation','Workspace isolation'],['quality','Quality gates'],['inbox','Inbox'],['rules','Project rules'],['policy','AI operating policy'],['report','Completion report']].map(([id,label])=><button type="button" role="tab" tabIndex={tab===id?0:-1} onKeyDown={e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const buttons=Array.from(e.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>('[role=tab]'));const at=buttons.indexOf(e.currentTarget),next=e.key==='Home'?0:e.key==='End'?buttons.length-1:(at+(e.key==='ArrowRight'?1:-1)+buttons.length)%buttons.length;buttons[next].click();buttons[next].focus();}} aria-selected={tab===id} aria-controls={`team-${project}-${id}`} id={`team-tab-${project}-${id}`} className="fs-button" key={id} onClick={()=>setTab(id)}>{t(label)}</button>)}<button type="button" className="fs-button" disabled={busy} title={t('Refresh')} aria-label={t('Refresh')} onClick={()=>setRefresh(v=>v+1)}><RefreshCw size={14}/></button></div>
       {!current?<p role="status">{t('Loading…')}</p>:<><p>{current.durable?t('Saved in Core'):t('Core is using memory storage. Changes will not survive restart.')}</p>
       <label>{t('Work intent')}<CustomSelect value={intent?.id??''} onChange={e=>{setSelected(e.target.value);setEditing(null);}}><option value="">{t('Select')}</option>{current.intents.map(i=><option key={i.id} value={i.id}>{i.objective} · v{i.version}</option>)}</CustomSelect></label>
       <section role="tabpanel" id={`team-${project}-${tab}`} aria-labelledby={`team-tab-${project}-${tab}`} tabIndex={0}>
@@ -46,7 +49,10 @@ export function TeamWorkbench({onUseIntent,onChoose}:{onUseIntent:(intent:TeamIn
           <label>{t('Decision')}<input value={decision} maxLength={1000} onChange={e=>setDecision(e.target.value)}/></label><button className="fs-button" disabled={busy||!decision.trim()} onClick={()=>void mutate('decision-add',{...identity,id:crypto.randomUUID(),text:decision}).then(value=>{if(value)setDecision('');})}>{t('Record decision')}</button><ul>{intent.decisions.map(d=><li key={d.id}>{d.text} · {d.author} · {d.at}</li>)}</ul>
         </article>}
       </>}
-      {tab!=='intent'&&<TeamOperationsPanel key={intent?.id} tab={tab} current={current} intent={intent} busy={busy} mutate={mutate} onChoose={onChoose}/>}
+      {tab==='preflight'&&intent&&<TeamReadinessPanel project={project} intentId={intent.id} revision={current.revision} onChoose={onChoose}/>}
+      {tab==='policy'&&<TeamPolicyPanel key={JSON.stringify([project,session])} project={project}/>}
+      {tab==='report'&&intent&&<TeamReportPanel key={intent.id} intentId={intent.id} revision={current.revision} project={project}/>}
+      {tab!=='intent'&&tab!=='preflight'&&tab!=='policy'&&tab!=='report'&&<TeamOperationsPanel key={intent?.id} tab={tab} current={current} intent={intent} busy={busy} mutate={mutate} onChoose={onChoose}/>}
       </section></>}
     </>}{error&&<div role="alert"><p>{t(error)}</p>{pending&&<><button className="fs-button" disabled={busy} onClick={()=>{const request=pending;if(request)void mutate(request.action,request.input);}}>{t('Retry same request')}</button><button className="fs-button" onClick={()=>{setPending(null);setError('');}}>{t('Dismiss')}</button></>}</div>}
   </details>;

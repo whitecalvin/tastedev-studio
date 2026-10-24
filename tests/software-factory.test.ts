@@ -112,3 +112,12 @@ test('retry rechecks revised team policy before changing attempts or invoking Gr
  const f=fixture();await f.queue();const e=f.overview('p').executions[0];e.status='failed';e.activations=[{id:'impl',nodeId:'factory-implementation',attempt:1,status:'passed'},{id:'review-failure',nodeId:'factory-review',attempt:1,status:'failed'}];await f.factory().tick();
  f.bridge.validateContract=()=>{throw Error('Work intent changed');};const calls=f.calls.length;await assert.rejects(f.action('retry',{notes:'Retry stale intent'}),/Work intent changed/);assert.equal(f.calls.length,calls);assert.equal(f.get().attempts.length,1);assert.equal(e.activations[0].status,'passed');
 });
+
+
+test('reviewed batch queue validates all draft versions before any launch or state change',async()=>{
+  const f=fixture();await f.create(contract('p','first'));await f.create({...contract('p','second'),dependencies:[{projectId:'p',taskId:'first'}]});
+  await assert.rejects(f.action('queue-plan',{tasks:[{taskId:'first',version:1},{taskId:'second',version:99}]}),/Plan changed/);
+  assert.equal(f.get('p','first').status,'draft');assert.equal(f.calls.length,0);
+  await f.action('queue-plan',{tasks:[{taskId:'first',version:1},{taskId:'second',version:1}]});
+  assert.equal(f.get('p','first').status,'running');assert.equal(f.get('p','second').status,'queued');assert.match(f.get('p','second').reason!,/dependencies/);assert.equal(f.calls.length,1);
+});

@@ -1,0 +1,3 @@
+export interface TeamHandoff {id:string;projectId:string;messageId:string;intentId:string;intentVersion:number;intentDigest:string;graphRevision:number;graphChecksum:string;inputChecksum:string;nodeId:string;factoryTaskId?:string;factoryVersion?:number;executionId:string;status:'prepared'|'launching'|'dispatched'|'paused'|'cancelled';createdAt:string;approvedAt?:string;actor:string;reason?:string}
+export interface TeamHandoffView extends Omit<TeamHandoff,'actor'> {runtimeStatus:string;runIds:string[];analysisIds:string[]}
+export interface TeamDispatchOverview {revision:number;durable:boolean;handoffs:TeamHandoffView[]}

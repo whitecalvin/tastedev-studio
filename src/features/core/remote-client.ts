@@ -88,6 +88,10 @@ export class RemoteCoreClient {
   cancelJob(_projectId:string,id:string){return this.call<CoreSnapshot['jobs'][number]>('cancelJob',[id]);}
   retryJob(_projectId:string,id:string){return this.call<CoreSnapshot['jobs'][number]>('retryJob',[id]);}
   operationsRequest<T>(action:string,input?:unknown){return this.call<T>('operations',[action,input]);}
+  teamReportRequest<T>(intentId:string){return this.call<T>('team-report',[intentId]);}
+  teamPolicyRequest<T>(action:string,input?:unknown){return this.call<T>('team-policy',[action,input]);}
+  teamDispatchRequest<T>(action:string,input?:unknown){return this.call<T>('team-dispatch',[action,input]);}
+  teamReadinessRequest<T>(intentId:string){return this.call<T>('team-readiness',[intentId]);}
   teamRequest<T>(action:string,...args:unknown[]){return this.call<T>('team',[action,...args]);}
   schedulerRequest<T>(action:string,...args:unknown[]){return this.call<T>('scheduler',[action,...args]);}
   async historyRequest<T>(body:unknown,projectId:string):Promise<T>{

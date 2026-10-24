@@ -1,3 +1,4 @@
+import {teamIsolation} from '../src/features/orchestration/team-isolation.ts';
 import {createHash} from 'node:crypto';
 import {CoreError,type Agent,type Run} from '../src/features/core/domain.ts';
 import {gateCategories,intentContent,intentReference,teamId,teamText,type TeamWorkspace,type TeamIntent,type TeamWorkOverview,type TeamAssignment,type QualityGate,type TeamRule} from '../src/features/orchestration/team-intent.ts';
@@ -72,10 +73,10 @@ export class TeamWorkflow {
   }
   overview(project:string):TeamWorkOverview{
     const w=this.current(project),assignments=w.assignments??[];
-    const waiting=w.intents.map(i=>{const reasons:string[]=[],a=assignments.find(a=>a.intentId===i.id);if(!i.ready)reasons.push('Intent needs review.');if(!a)reasons.push('Choose an assignment from the published graph.');else{try{const fresh=this.assignment(project,i,a.roleNodeId,a.at);if(!same(a,fresh))reasons.push('Graph, AI profile or intent changed. Review assignment.');}catch(e){reasons.push(e instanceof Error?e.message:'Assignment unavailable.');}const agent=this.bridge.agents?.(project).find(v=>v.id===a.agentId);if(!agent||agent.status==='offline'||agent.status==='error')reasons.push('Agent is unavailable.');if(agent?.status==='busy')reasons.push('Agent is busy.');}for(const task of this.bridge.factory(project).tasks.filter(t=>t.contract.intent?.id===i.id))if(task.reason)reasons.push(task.reason);return{intentId:i.id,reasons:[...new Set(reasons)]};});
+    const waiting=w.intents.map(i=>{const reasons:string[]=[],a=assignments.find(a=>a.intentId===i.id);if(!i.ready)reasons.push('Intent needs review.');if(!a)reasons.push('Choose an assignment from the published graph.');else{try{const fresh=this.assignment(project,i,a.roleNodeId,a.at);if(!same(a,fresh))reasons.push('Graph, AI profile or intent changed. Review assignment.');}catch(e){reasons.push(e instanceof Error?e.message:'Assignment unavailable.');}const agent=this.bridge.agents?.(project).find(v=>v.id===a.agentId);if(!agent||agent.status==='offline'||agent.status==='error')reasons.push('Agent is unavailable.');if(agent?.status==='busy')reasons.push('Agent is busy.');}for(const task of this.bridge.factory(project).tasks.filter(t=>t.contract.intent?.id===i.id&&!['completed','cancelled'].includes(t.status)))if(task.reason)reasons.push(task.reason);return{intentId:i.id,reasons:[...new Set(reasons)]};});
     const roles=this.bridge.graph(project).definition?.graph.nodes.filter(n=>n.kind==='role'&&n.teamRole).map(n=>({id:n.id,label:n.label,responsibility:n.teamRole!}))??[];
     const work=this.bridge.factory(project).tasks.filter(t=>t.contract.intent).map(t=>{const executionId=t.attempts.at(-1)?.executionId,e=this.evidence(project,executionId??'');return{taskId:t.contract.taskId,intentId:t.contract.intent!.id,intentVersion:t.contract.intent!.version,status:t.status,reason:t.reason,executionId,sourceChecksum:e.checksum,runIds:[...new Set([...(e.execution?.activations.flatMap(a=>a.runId?[a.runId]:[])??[]),...e.fixes.flatMap(f=>f.retestRunId?[f.retestRunId]:[])])]};});
-    return{...structuredClone(w),durable:!!this.persistence,assignments:structuredClone(assignments),waiting,roles,work};
+    return{...structuredClone(w),isolations:this.bridge.factory(project).tasks.filter(t=>t.contract.intent).map(t=>teamIsolation(t,this.bridge.graph(project),id=>this.bridge.attempt?.(project,id),id=>this.bridge.run?.(project,id))),durable:!!this.persistence,assignments:structuredClone(assignments),waiting,roles,work};
   }
   request(project:string,action:string,input:unknown,actor:string):TeamWorkOverview{
     const permission:Permission=action==='list'?'read':['intent-ready','gate-record','rule-approve','rule-retire'].includes(action)?'approve':'history-write';this.authority(actor,project,permission);
@@ -131,6 +132,21 @@ export class TeamWorkflow {
     }
     if(i.requestId!==undefined){if((next.receipts?.length??0)>=1000)fail('Request receipt capacity reached.');next.receipts=[...(next.receipts??[]),{id:String(i.requestId),digest:requestDigest}];}
     next.revision++;this.commit(next);return this.overview(project);
+  }
+  completion(project:string,intentId:string):import('../src/features/orchestration/team-report.ts').TeamCompletionReport {
+    const w=this.current(project),intent=w.intents.find(i=>i.id===intentId);if(!intent)fail('Intent unavailable.');
+    const all=this.bridge.factory(project).tasks.filter(t=>t.contract.intent?.id===intentId),tasks=all.filter(t=>t.contract.intent!.version===intent!.version),issues:string[]=[];
+    if(intent!.responsibility!=='implementation')issues.push('Read-only analysis is not implementation completion.');
+    if(!intent!.ready)issues.push('Review and mark the work intent ready.');if(!tasks.length)issues.push('No current implementation contracts.');
+    const rows=tasks.map(t=>{const executionId=t.attempts.at(-1)?.executionId,tested=this.evidence(project,executionId??''),isolation=teamIsolation(t,this.bridge.graph(project),id=>this.bridge.attempt?.(project,id),id=>this.bridge.run?.(project,id));
+      if(t.status!=='completed')issues.push('Work has not been accepted: '+t.contract.taskId);
+      try{this.validateContract(t.contract);this.validateAcceptance(t.contract,executionId??'');}catch{issues.push('Current contract or quality evidence unavailable: '+t.contract.taskId);}
+      if(tested.execution?.status!=='passed'||!isolation.attempts.length||!isolation.attempts.some(a=>a.sourceMatchesRun&&a.runStatus==='passed'))issues.push('Actual verified retest unavailable: '+t.contract.taskId);
+      issues.push(...isolation.issues);
+      const gates=gateCategories.map(category=>w.gates.findLast(g=>g.intentId===intentId&&g.intentVersion===intent!.version&&g.factoryTaskId===t.contract.taskId&&g.executionId===executionId&&g.sourceChecksum===tested.checksum&&g.category===category)).filter(g=>!!g).map(g=>({category:g.category,result:g.result,kind:g.kind,runId:g.runId}));
+      return{id:t.contract.taskId,status:t.status,executionId,sourceChecksum:tested.checksum,runIds:isolation.attempts.flatMap(a=>a.runId?[a.runId]:[]),gates};
+    });
+    return{projectId:project,intentId,intentVersion:intent!.version,workspaceRevision:w.revision,generatedAt:this.now(),status:issues.length?'incomplete':'verified',scope:'implementation-intent',issues:[...new Set(issues)],tasks:rows,historicalTasks:all.length-tasks.length,automaticCommit:false,automaticDeployment:false};
   }
   roleContext(project:string,intentId:string,nodeId:string){
     const i=this.current(project).intents.find(i=>i.id===intentId),a=this.current(project).assignments?.find(a=>a.intentId===intentId);

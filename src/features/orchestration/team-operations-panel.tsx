@@ -1,4 +1,5 @@
 'use client';
+import {TeamDispatchPanel} from './team-dispatch-view';
 import {remoteCore} from '../core/remote-client';
 import {useState} from 'react';
 import {CustomSelect} from '@/components/ui/custom-select';
@@ -27,6 +28,7 @@ export function TeamOperationsPanel({tab,current,intent,busy,mutate,onChoose}:{t
       {assignment&&intent.responsibility!=='implementation'&&<button className="fs-button" disabled={busy||launching||!intent.ready||!!current.waiting.find(w=>w.intentId===intent.id)?.reasons.length} onClick={()=>void startRole()}>{t('Prepare read-only role execution')}</button>}{launchError&&<p role="alert">{t(launchError)}</p>}
       <ul>{work.map(w=><li key={w.taskId}><code>{w.taskId}</code>{t(w.status)} · {w.reason&&t(w.reason)}{w.executionId&&<code>{w.executionId}</code>}</li>)}</ul>
     </>}
+    {tab==='isolation'&&<><h3>{t('Workspace isolation')}</h3><p>{t('Source writes are serialized per project. Each Agent retest uses its own Snapshot workspace. Patch integration keeps existing approval, dirty-editor and base-hash checks.')}</p>{current.isolations?.filter(w=>w.taskId&&work.some(t=>t.taskId===w.taskId)).map(w=><article key={w.taskId}><strong>{w.taskId}</strong><code>{w.baselineChecksum}</code><p>{w.paths.join(' · ')}</p>{w.issues.map(i=><p role="alert" key={i}>{t(i)}</p>)}{w.attempts.map(a=><div key={a.id}><p>{t('Attempt')} {a.id} · {t(a.status)}</p><code>{a.snapshotId} · {a.snapshotChecksum}</code><p>{t('Run')} {a.runId??'—'} · {t(a.runStatus??'not-run')} · {t(a.sourceMatchesRun?'Snapshot matches tested Source.':'Source identity not yet verified.')}</p><ul>{a.files.map(f=><li key={f.path}>{f.path} · {t(f.approved?'approved':'not-run')}<code>{f.baseHash} → {f.resultHash}</code></li>)}</ul></div>)}</article>)}</>}
     {tab==='quality'&&<>
       <p>{t('Record actual evidence for each gate. Manual review stays distinct from automated Run results. New attempts require new evidence.')}</p>
       <label>{t('Work contract')}<CustomSelect value={chosen?.taskId??''} onChange={e=>setFactoryTask(e.target.value)}><option value="">{t('Select')}</option>{work.map(w=><option key={w.taskId} value={w.taskId}>{w.taskId} · {t(w.status)}</option>)}</CustomSelect></label>
@@ -42,6 +44,7 @@ export function TeamOperationsPanel({tab,current,intent,busy,mutate,onChoose}:{t
       <ul>{current.gates.filter(g=>g.intentId===intent.id).map(g=><li key={g.id}>{t(g.category)} · {t(g.result)} · {t(g.kind==='run'?'Actual Run':'Manual review')}<p>{g.note}</p><code>{g.executionId} · {g.sourceChecksum}</code></li>)}</ul>
     </>}
     {tab==='inbox'&&<>
+      <TeamDispatchPanel work={current} onChoose={onChoose}/>
       <p>{t('Project inbox is stored in Core. Sending a handoff does not execute work or contact external services.')}</p>
       <fieldset disabled={busy} className="orch-team-fields"><legend>{t('New team message')}</legend>
         <label>{t('Sender role')}<CustomSelect value={sender} onChange={e=>setSender(e.target.value as TeamRole)}>{roles}</CustomSelect></label>

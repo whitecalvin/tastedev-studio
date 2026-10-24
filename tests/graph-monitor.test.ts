@@ -44,3 +44,14 @@ test('missing connection and orphan activations have no node overlay',()=>{
   assert.equal(graphMonitor(graph,overview).nodes.has('missing'),false);
   assert.equal(graphMonitor(graph,overview).nodes.has('current-pc'),false);
 });
+
+
+test('monitor projects actual task activity through responsible role and declared device relationships',()=>{
+ const {graph,overview}=fixture();graph.edges.push({id:'performs',from:'role-implementation',to:graph.nodes[0].id,relation:'performs'});
+ const r=graphMonitor(graph,overview);assert.equal(r.activity.get('role-implementation')?.status,'running');assert.equal(r.activity.get('current-pc')?.status,'running');assert.equal(r.edges.get('performs'),'running');
+ const edited=structuredClone(graph);edited.nodes[0].label='unsaved';assert.equal(graphMonitor(edited,overview).activity.size,0);
+});
+test('completed task does not claim its whole device finished when assigned work has not started',()=>{
+ const {graph,overview}=fixture();overview.executions[0].activations.at(-1)!.status='passed';graph.nodes.push(newNode('task','next',2));graph.edges.push({id:'first',from:'role-implementation',to:graph.nodes[0].id,relation:'performs'},{id:'next',from:'role-implementation',to:'next',relation:'performs'});
+ assert.equal(graphMonitor(graph,overview).activity.get('current-pc')?.status,'ready');
+});

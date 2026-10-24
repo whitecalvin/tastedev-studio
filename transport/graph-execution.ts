@@ -5,7 +5,7 @@ import {validateArtifactReceipts} from '../src/features/orchestration/artifact-r
 import {graphArtifactPlans} from '../src/features/orchestration/artifact-plans.ts';
 import {verifiedGraphFix,failedGraphFix} from '../src/features/orchestration/graph-fix.ts';
 import type {FixAttempt} from '../src/features/ai/fix-service.ts';
-import {taskAIRequest} from '../src/features/orchestration/task-ai.ts';
+import {taskAIRequest,type TaskAIRequest} from '../src/features/orchestration/task-ai.ts';
 import {validateAIConfigurations,type AIConfigurationStore} from '../src/features/orchestration/ai-config.ts';
 import type {ManagedAIConnection} from '../src/features/ai/routing.ts';
 import type {AnalysisRecord} from '../src/features/ai/domain.ts';
@@ -24,7 +24,7 @@ import {graphSourcePlan,graphActivationPlan} from '../src/features/orchestration
 import {validateArtifactLineage,artifactProducerActivation} from '../src/features/orchestration/artifact-lineage.ts';
 import {validateBuildArtifact,type BuildArtifact,type BuildArtifactOrigin,type BuildArtifactDeclaration} from '../src/features/orchestration/build-artifact.ts';
 import {verifyProjectReference,type ProjectSnapshot} from '../src/features/ai/project-snapshot.ts';
-export interface GraphAIBridge {teamContext?:(project:string,intentId:string,nodeId:string)=>{intent:import('../src/features/orchestration/team-intent.ts').IntentReference;question:string};attempt?(project:string,id:string):FixAttempt|undefined;connections(project:string):ManagedAIConnection[];analysis(project:string,id:string):AnalysisRecord|undefined}
+export interface GraphAIBridge {authorizeAI?:(project:string,plan:TaskAIRequest,execution:GraphExecution,activationId:string,leaseId:string)=>void;teamContext?:(project:string,intentId:string,nodeId:string)=>{intent:import('../src/features/orchestration/team-intent.ts').IntentReference;question:string};attempt?(project:string,id:string):FixAttempt|undefined;connections(project:string):ManagedAIConnection[];analysis(project:string,id:string):AnalysisRecord|undefined}
 export interface GraphPersistence {load():unknown;save(state:unknown):void}
 interface State {version:1;definitions:GraphDefinition[];executions:GraphExecution[]}
 type Authority=(actor:string,projectId:string,action:'run'|'approve'|'cancel'|'history-write'|'read')=>void;
@@ -93,7 +93,8 @@ export class GraphExecutionService {
   if(action==='ai-start'){
    if(a.status!=='ai-review')fail('AI activation already claimed; no replay.');
    const current=this.ai?.connections(project).find(c=>c.id===plan.route.connectionId);if(!current||current.model!==plan.route.model||current.adapter!==plan.route.adapter)fail('Reviewed AI connection is unavailable.');
-   this.commit(s=>{const v=s.executions.find(v=>v.id===e.id)!.activations.find(v=>v.id===a.id)!;v.status='ai-running';v.leaseId=randomUUID();v.approvedBy=actor;v.approvedAt=new Date(this.now()).toISOString();v.aiDeadline=new Date(Math.min(Date.parse(e.deadline),this.now()+plan.budget.timeoutMs+15000)).toISOString();});return;
+   const leaseId=randomUUID();this.ai?.authorizeAI?.(project,plan,e,a.id,leaseId);
+   this.commit(s=>{const v=s.executions.find(v=>v.id===e.id)!.activations.find(v=>v.id===a.id)!;v.status='ai-running';v.leaseId=leaseId;v.approvedBy=actor;v.approvedAt=new Date(this.now()).toISOString();v.aiDeadline=new Date(Math.min(Date.parse(e.deadline),this.now()+plan.budget.timeoutMs+15000)).toISOString();});return;
   }
   if(a.status!=='ai-running'||!i.leaseId||i.leaseId!==a.leaseId||actor!==a.approvedBy||this.now()>Date.parse(a.aiDeadline!))fail('AI lease expired or does not belong to this approval.');
   if(action==='ai-complete'){
