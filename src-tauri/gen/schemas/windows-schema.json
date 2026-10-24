@@ -177,6 +177,18 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Enables the announcements_get command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-announcements-get",
+          "markdownDescription": "Enables the announcements_get command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the announcements_open command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-announcements-open",
+          "markdownDescription": "Enables the announcements_open command without any pre-configured scope."
+        },
+        {
           "description": "Enables the git_operation command without any pre-configured scope.",
           "type": "string",
           "const": "allow-git-operation",
@@ -259,6 +271,18 @@
           "type": "string",
           "const": "allow-workspace-select",
           "markdownDescription": "Enables the workspace_select command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the announcements_get command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-announcements-get",
+          "markdownDescription": "Denies the announcements_get command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the announcements_open command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-announcements-open",
+          "markdownDescription": "Denies the announcements_open command without any pre-configured scope."
         },
         {
           "description": "Denies the git_operation command without any pre-configured scope.",

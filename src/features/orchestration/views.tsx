@@ -1,4 +1,8 @@
 'use client';
+import {TeamWorkbench} from './team-workbench';
+import type {TeamIntent} from './team-intent';
+import {TeamSetup} from './team-setup-view';
+import {teamTemplate} from './team-template';
 import { CustomSelect } from '@/components/ui/custom-select';
 import {assignAgentDevice} from './device-membership';
 import {AgentDeviceSelector,DeviceAgentList} from './device-membership-view';
@@ -61,6 +65,7 @@ export function OrchestrationView() {
   const type=projectKinds.includes(core.project.projectType as ProjectKind)?core.project.projectType as ProjectKind:'custom';
   const aiConfigurations=useAIConfigurations(core.project.id),ai=useAI();
  const reviewLocation=ai.graphReview?.projectId===core.project.id?ai.graphReview:null;
+  const [teamIntent,setTeamIntent]=useState<{project:string;intent:TeamIntent}|null>(null);
   const [graph,setGraph]=useState(()=>initialGraph(core.project.id,type,core.project.initialRoles));
   const [edits,setEdits]=useState(()=>emptyEdits(core.project.id));
   const [selected,setSelected]=useState(reviewLocation?.nodeId??'current-pc'),[ready,setReady]=useState(false),[locked,setLocked]=useState(false),[dirty,setDirty]=useState(false),[message,setMessage]=useState('');
@@ -120,6 +125,9 @@ export function OrchestrationView() {
     requestAnimationFrame(()=>{if(scroll?.isConnected&&scroll.dataset.projectId===project)Array.from(scroll.querySelectorAll<HTMLElement>('.orch-node')).find(element=>element.dataset.nodeId===result.node.id)?.querySelector<HTMLButtonElement>('.orch-node-content')?.focus({preventScroll:true});});
    }catch{setMessage('Node could not be duplicated. Graph is unchanged.');}
   }
+  function addTeam(){try{const draft=teamTemplate(graph,aiConfigurations.store,crypto.randomUUID());change(draft.graph);aiConfigurations.change(draft.configurations);setMessage('Team draft added. Save AI profiles and graph before publishing.');}catch(error){setMessage(error instanceof Error?error.message:'Team draft unavailable.');}}
+  const initializedTeam=useRef('');
+  useEffect(()=>{if(!ready||locked||!aiConfigurations.ready||baseline.current!==null||core.project.initialTeam!=='role-team'||graph.projectId!==core.project.id||initializedTeam.current===core.project.id||graph.nodes.some(n=>n.teamRole))return;let active=true;queueMicrotask(()=>{if(active){initializedTeam.current=core.project.id;addTeam();}});return()=>{active=false;};});
   const node=graph.nodes.find(n=>n.id===selected);
   const connections=nodeConnections(graph,selected,core.project.id);
   const tracedEdges=new Set([...connections.incoming,...connections.outgoing].map(item=>item.edge.id));
@@ -160,7 +168,9 @@ export function OrchestrationView() {
     {searchOpen&&<NodeSearchDialog key={core.project.id} nodes={graph.projectId===core.project.id?graph.nodes:[]} onClose={()=>setSearchOpen(false)} onChoose={revealNode}/>}{canvasView.error&&<p className="orch-notice" role="status">{t(canvasView.error)}</p>}<AIConfigurationPanel state={aiConfigurations} nodes={graph.nodes}/>
     {ready&&graph.projectId===core.project.id&&<GraphReadiness issues={setupIssues} nodes={graph.nodes} disabled={dragging!==null} onChoose={id=>{revealNode(id);requestAnimationFrame(()=>focusNodeSettings(core.project.id,id));}}/>}
     {ready&&graph.projectId===core.project.id&&<DeviceOperationsBoard graph={graph} agents={core.snapshot.agents} connected={core.connection.connected} disabled={dragging!==null} onChoose={revealNode}/>}
-    {ready&&graph.projectId===core.project.id&&<FactoryBoard key={core.project.id} templateDisabled={locked||dragging!==null||!aiConfigurations.ready} onTemplate={()=>{try{const draft=factoryTemplate(core.project.id,graph,aiConfigurations.store);change(draft.graph);aiConfigurations.change(draft.configurations);setMessage('Factory draft added. Save AI profiles and graph, then publish the saved Source.');}catch(error){setMessage(error instanceof Error?error.message:'Factory draft unavailable.');}}} onChoose={(id,node)=>{setExecutionId(id);revealNode(node);}}/>}
+    {ready&&graph.projectId===core.project.id&&<TeamSetup graph={graph} configurations={aiConfigurations.store} disabled={locked||dragging!==null||!aiConfigurations.ready} onAdd={addTeam} onChoose={revealNode}/>}
+    {ready&&graph.projectId===core.project.id&&<TeamWorkbench onChoose={revealNode} key={'team-'+core.project.id} onUseIntent={intent=>setTeamIntent({project:core.project.id,intent})}/>}
+    {ready&&graph.projectId===core.project.id&&<FactoryBoard intent={teamIntent?.project===core.project.id?teamIntent.intent:undefined} key={core.project.id} templateDisabled={locked||dragging!==null||!aiConfigurations.ready} onTemplate={()=>{try{const draft=factoryTemplate(core.project.id,graph,aiConfigurations.store);change(draft.graph);aiConfigurations.change(draft.configurations);setMessage('Factory draft added. Save AI profiles and graph, then publish the saved Source.');}catch(error){setMessage(error instanceof Error?error.message:'Factory draft unavailable.');}}} onChoose={(id,node)=>{setExecutionId(id);revealNode(node);}}/>}
     <section className="orch-monitor" aria-label={t('Execution monitoring')}>
       <label>{t('Core graph execution')}<CustomSelect value={monitor.execution?.id??''} disabled={!liveOverview?.executions.length} onChange={e=>setExecutionId(e.target.value)}>
         {!liveOverview?.executions.length&&<option value="">{t('Not configured')}</option>}

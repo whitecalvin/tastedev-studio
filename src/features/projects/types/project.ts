@@ -11,6 +11,7 @@ export interface Project {
   packageManager: string | null;
   projectType: string | null;
   initialRoles?: import('../../orchestration/domain.ts').Role[];
+  initialTeam?: 'role-team';
   gitEnabled: boolean | null;
   createdAt: string;
   updatedAt: string;
@@ -23,6 +24,7 @@ export interface NewProjectInput {
   description: string;
   projectKind?: import('../../orchestration/domain.ts').ProjectKind;
   initialRoles?: import('../../orchestration/domain.ts').Role[];
+  initialTeam?: 'role-team';
 }
 
 export interface CloneInput {

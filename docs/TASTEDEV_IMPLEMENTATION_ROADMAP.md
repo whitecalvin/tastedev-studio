@@ -799,3 +799,8 @@ DEV 구현 완료: 연결 마법사, 명시적 장비·Agent·역할 운영판, 
 자동 검증: 전체 Node 981건 중 979 PASS, 발견된 2건 수정 후 관련 테스트 PASS, 추가 복구 테스트 1 PASS. 최종 목록 982건의 유효 결과를 합산하여 재사용하며 전체 982건을 다시 실행했다고 주장하지 않는다. ESLint 전체의 유일한 실패 파일을 수정 후 관련 정적 검사 PASS. 운영용 Desktop Web export 및 포함 TypeScript 검사 PASS. Rust/설치/실장비/GUI/패키징/배포 검증은 별도이며 실행하지 않았다.
 
 사용법: resources/guides/dev-01/tastestudio-operations-advancement-20261007/OPERATIONS.md. 검증과 입력 체크포인트: resources/verification/dev-01/tasks/tastedev-studio/operations-advancement-20261007. 출시/버전/commit/push 변경 없음.
+
+
+## 2026-10-24 역할 기반 팀 오케스트레이션
+
+역할 팀 초안, 판 관리 작업 의도/결정, 게시 그래프의 장비·Agent·책임·AI 배정, Core 권한 정책, 현재 시도별 품질 근거, 영속 수신함/중복 요청 복구, 승인된 프로젝트 규칙을 기존 Graph/Factory/Fix/AIService 위에 연결했다. 독립 검토와 실제 시험 요구를 유지하며 자동 실행·배포·외부 메시지 권한은 추가하지 않았다. 상세 계약과 제한: [팀 오케스트레이션](TASTEDEV_TEAM_ORCHESTRATION.md). 검증 현황은 `resources/verification/dev-01/role-team-orchestration-20261024/checkpoint.json`에서 구분한다. 기존 ChatGPT 인증의 `401 token_revoked`를 재로그인 경로 보강과 사용자 로그인으로 해결했다. 실제 `gpt-6.1-sol` 분석 7건, 두 수정 작업, 독립 검토, 실제 Rust Agent의 실패 재현·재시험·최종 통합 PASS, 설계/문서 역할의 읽기 전용 분석을 검증했다. 자동 검증용 범위는 사용자의 포괄 승인을 기록했으며 개별 diff의 사람 수동 검토로 주장하지 않는다. 1~8단계 구현 및 검증 결과는 동일 근거의 `RESULT.ko.md`를 따른다. 최종 대조에서 초안 카드의 기존 노드 겹침, 팀 검토 역할 선택, 수정된 작업 의도를 이전 계약으로 재시도하는 경계를 추가로 보호했다.

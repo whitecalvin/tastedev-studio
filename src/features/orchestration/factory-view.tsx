@@ -8,9 +8,10 @@ import {useAI} from '../ai/views';
 import {factoryPlanningQuestion,parseFactoryPlan} from './factory-plan';
 import {remoteCore} from '../core/remote-client';
 import {validateFactoryContract,validateFactoryDefinition,type FactoryContract,type FactoryOverview,type FactoryTask} from './factory';
+import {intentReference,type TeamIntent} from './team-intent';
 import type {GraphOverview} from './execution';
 
-export function FactoryBoard({onTemplate,onChoose,templateDisabled}:{onTemplate:()=>void;onChoose:(executionId:string,nodeId:string)=>void;templateDisabled:boolean}){
+export function FactoryBoard({onTemplate,onChoose,templateDisabled,intent}:{intent?:TeamIntent;onTemplate:()=>void;onChoose:(executionId:string,nodeId:string)=>void;templateDisabled:boolean}){
   const core=useCore(),ai=useAI(),{t}=useI18n(),project=core.project.id,session=remoteCore.generation,connected=core.remote&&core.connection.connected;
   const [data,setData]=useState<{project:string;session:number;factory:FactoryOverview;graph:GraphOverview}|null>(null);
   const [objective,setObjective]=useState(''),[acceptance,setAcceptance]=useState(''),[paths,setPaths]=useState('src'),[resources,setResources]=useState(''),[dependencies,setDependencies]=useState('');
@@ -20,12 +21,14 @@ export function FactoryBoard({onTemplate,onChoose,templateDisabled}:{onTemplate:
   const current=data?.project===project&&data.session===session&&connected?data:null;
   useEffect(()=>{let live=true,inflight=false;const generation=++epoch.current;async function refresh(){if(!connected||inflight)return;inflight=true;try{const [factory,graph]=await Promise.all([remoteCore.factoryRequest<FactoryOverview>('list'),remoteCore.graphRequest<GraphOverview>('list')]);if(live&&generation===epoch.current)setData({project,session,factory,graph});}catch(e){if(live)setError(e instanceof Error?e.message:'Factory unavailable.');}finally{inflight=false;}}void refresh();const timer=setInterval(()=>void refresh(),2000);return()=>{live=false;clearInterval(timer);};},[connected,project,session]);
   const definition=current?.graph.definition,aiNodes=definition?.graph.nodes.filter(n=>definition.aiTasks?.[n.id])??[],roots=definition?.graph.nodes.filter(n=>['task','approval'].includes(n.kind)&&!definition.graph.edges.some(e=>e.to===n.id&&e.relation==='success'))??[];
-  const implementationId=implementation||aiNodes.find(n=>definition?.aiTasks?.[n.id].completion==='verified-fix')?.id||'',reviewId=review||aiNodes.find(n=>n.id!==implementationId&&(definition?.aiTasks?.[n.id].completion??'analysis')==='analysis')?.id||'',entryId=entry||roots[0]?.id||'';
+  const implementationId=implementation||aiNodes.find(n=>definition?.aiTasks?.[n.id].completion==='verified-fix')?.id||'',reviewId=review||aiNodes.find(n=>n.id!==implementationId&&(definition?.aiTasks?.[n.id].completion??'analysis')==='analysis'&&(!intent||n.teamRole==='review'))?.id||'',entryId=entry||roots[0]?.id||'';
   async function action(action:string,input?:unknown){if(lock.current||!connected)return;lock.current=true;setBusy(true);setError('');const generation=epoch.current;try{const factory=await remoteCore.factoryRequest<FactoryOverview>(action,input);if(generation===epoch.current)setData(previous=>previous&&previous.project===project&&previous.session===session?{...previous,factory}:previous);return true;}catch(e){if(generation===epoch.current)setError(e instanceof Error?e.message:'Factory unavailable.');}finally{lock.current=false;setBusy(false);}}
+  const seededIntent=useRef('');
+  useEffect(()=>{if(!intent||seededIntent.current===intent.id+':'+intent.version)return;let live=true;queueMicrotask(()=>{if(live){seededIntent.current=intent.id+':'+intent.version;setObjective(intent.objective);setAcceptance(intent.acceptance.join('\n'));setPaths(intent.paths.join('\n'));setConsent(false);}});return()=>{live=false;};},[intent]);
   function buildContract(){
     if(!definition?.source)throw Error('Factory: publish a saved Source graph first.');
     const lines=(value:string)=>value.split('\n').map(v=>v.trim()).filter(Boolean);
-    const contract:FactoryContract=validateFactoryContract({taskId:crypto.randomUUID(),projectId:project,objective,acceptance:lines(acceptance),paths:lines(paths),resources:lines(resources||'project:'+project).map(v=>v.toLowerCase()),dependencies:lines(dependencies).map(v=>{const parts=v.split('/');return parts.length===1?{projectId:project,taskId:parts[0]}:{projectId:parts[0],taskId:parts[1]};}),entryNodeId:entryId,implementationNodeId:implementationId,reviewNodeId:reviewId,revision:definition.revision,checksum:definition.checksum,inputChecksum:definition.inputChecksum,sourceChecksum:definition.source.checksum,maxAttempts:attempts,timeoutMinutes:timeout},project);
+    const contract:FactoryContract=validateFactoryContract({taskId:crypto.randomUUID(),projectId:project,...(intent?{intent:intentReference(intent)}:{}),objective,acceptance:lines(acceptance),paths:lines(paths),resources:lines(resources||'project:'+project).map(v=>v.toLowerCase()),dependencies:lines(dependencies).map(v=>{const parts=v.split('/');return parts.length===1?{projectId:project,taskId:parts[0]}:{projectId:parts[0],taskId:parts[1]};}),entryNodeId:entryId,implementationNodeId:implementationId,reviewNodeId:reviewId,revision:definition.revision,checksum:definition.checksum,inputChecksum:definition.inputChecksum,sourceChecksum:definition.source.checksum,maxAttempts:attempts,timeoutMinutes:timeout},project);
     validateFactoryDefinition(contract,definition);return contract;
   }
   function create(){try{void action('create',{contract:buildContract()});}catch(e){setError(e instanceof Error?e.message:'Invalid contract.');}}
@@ -33,7 +36,7 @@ export function FactoryBoard({onTemplate,onChoose,templateDisabled}:{onTemplate:
     if(lock.current||ai.status==='generating'||!ai.historyReady)return;
     lock.current=true;setBusy(true);setError('');const generation=epoch.current;
     try{
-      const base=buildContract(),profile=definition!.aiTasks![implementationId],question=factoryPlanningQuestion(base);
+      const base=buildContract(),profile=(intent?Object.values(definition!.aiTasks!).find(p=>definition!.graph.nodes.some(n=>n.id===p.nodeId&&n.teamRole==='leader'&&(p.completion??'analysis')==='analysis')):undefined)??definition!.aiTasks![implementationId],question=factoryPlanningQuestion(base);
       if(question.length>4000)throw Error('Factory: shorten the planning request.');
       const record=await ai.send(question,false,false,{...profile,question,completion:'analysis',nodeId:'factory-planner',label:'Factory work planning',maximum:1});
       if(!record)throw Error('Factory: AI work planning did not produce a grounded result.');
@@ -43,7 +46,7 @@ export function FactoryBoard({onTemplate,onChoose,templateDisabled}:{onTemplate:
     finally{lock.current=false;setBusy(false);}
   }
   function taskAction(actionName:string,task:FactoryTask,accepted?:boolean){void action(actionName,{taskId:task.contract.taskId,version:task.version,...(accepted===undefined?{}:{accepted}),notes});}
-  return <details className="orch-factory"><summary><Factory size={16} aria-hidden="true"/>{t('Software factory')} · {current?.factory.tasks.length??0}</summary>
+  return <details className="orch-factory" open={intent?true:undefined}><summary><Factory size={16} aria-hidden="true"/>{t('Software factory')} · {current?.factory.tasks.length??0}</summary>
     <p>{t('Approve a work contract to queue implementation, real tests and independent review. Source patches retain their existing approval checks.')}</p>
     <button className="fs-button" disabled={templateDisabled||busy} onClick={onTemplate}>{t('Add factory workflow draft')}</button>
     {!connected&&<p>{t('Connect to Core in Agents.')}</p>}
@@ -56,7 +59,7 @@ export function FactoryBoard({onTemplate,onChoose,templateDisabled}:{onTemplate:
         <label>{t('Dependencies: task ID or project ID/task ID')}<textarea value={dependencies} maxLength={6000} onChange={e=>setDependencies(e.target.value)}/></label>
         <label>{t('Entry node')}<CustomSelect value={entryId} onChange={e=>setEntry(e.target.value)}>{roots.map(n=><option key={n.id} value={n.id}>{n.label}</option>)}</CustomSelect></label>
         <label>{t('Implementation')}<CustomSelect value={implementationId} onChange={e=>setImplementation(e.target.value)}>{aiNodes.filter(n=>definition?.aiTasks?.[n.id].completion==='verified-fix').map(n=><option key={n.id} value={n.id}>{n.label}</option>)}</CustomSelect></label>
-        <label>{t('Independent review')}<CustomSelect value={reviewId} onChange={e=>setReview(e.target.value)}>{aiNodes.filter(n=>n.id!==implementationId&&(definition?.aiTasks?.[n.id].completion??'analysis')==='analysis').map(n=><option key={n.id} value={n.id}>{n.label}</option>)}</CustomSelect></label>
+        <label>{t('Independent review')}<CustomSelect value={reviewId} onChange={e=>setReview(e.target.value)}>{aiNodes.filter(n=>n.id!==implementationId&&(definition?.aiTasks?.[n.id].completion??'analysis')==='analysis'&&(!intent||n.teamRole==='review')).map(n=><option key={n.id} value={n.id}>{n.label}</option>)}</CustomSelect></label>
         <label>{t('Maximum attempts')}<input type="number" min={1} max={3} value={attempts} onChange={e=>setAttempts(Number(e.target.value))}/></label>
         <label>{t('Work budget, minutes')}<input type="number" min={1} max={120} value={timeout} onChange={e=>setTimeoutMinutes(Number(e.target.value))}/></label>
       </div>

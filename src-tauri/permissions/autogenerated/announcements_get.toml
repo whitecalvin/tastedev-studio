@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-announcements-get"
+description = "Enables the announcements_get command without any pre-configured scope."
+commands.allow = ["announcements_get"]
+
+[[permission]]
+identifier = "deny-announcements-get"
+description = "Denies the announcements_get command without any pre-configured scope."
+commands.deny = ["announcements_get"]

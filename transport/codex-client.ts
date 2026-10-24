@@ -42,7 +42,7 @@ export class CodexClient {
    let i:number;while((i=this.buffer.indexOf('\n'))>=0){const line=this.buffer.slice(0,i);this.buffer=this.buffer.slice(i+1);if(!line.trim())continue;
     try{const p=JSON.parse(line) as Packet;
      if(p.method&&p.id!==undefined){this.write({id:p.id,error:{code:-32601,message:'Tool and approval requests are disabled in this client.'}});this.close(new AIError('tool-failure'));return;}
-     if(typeof p.id==='number'){const waiter=this.pending.get(p.id);if(waiter){this.pending.delete(p.id);if(p.error)waiter.reject(new AIError('unavailable'));else waiter.resolve(p.result);}}
+     if(typeof p.id==='number'){const waiter=this.pending.get(p.id);if(waiter){this.pending.delete(p.id);if(p.error){const error=p.error as {message?:unknown};const authentication=typeof error.message==='string'&&/(?:\b401\b|unauthorized|token_revoked|invalidated oauth token)/i.test(error.message);waiter.reject(new AIError(authentication?'authentication':'unavailable'));}else waiter.resolve(p.result);}}
      else if(p.method)for(const listener of this.listeners)listener(p);
     }catch{this.close(new AIError('malformed'));return;}
    }

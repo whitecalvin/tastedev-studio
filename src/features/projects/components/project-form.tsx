@@ -24,6 +24,7 @@ export function ProjectForm({ mode, onClose, onCreated }: { mode: "new" | "clone
   const [selectedFolder, setSelectedFolder] = useState<FolderConnection | null>(null);
   const [creation, setCreation] = useState<'register' | 'create'>('register');
   const [template, setTemplate] = useState<ProjectTemplate>('node-smoke');
+  const [teamSetup, setTeamSetup] = useState<'none' | 'role-team'>('none');
   const [projectKind, setProjectKind] = useState<ProjectKind>('custom');
   const [firstRoles, setFirstRoles] = useState<Role[]>(['implementation']);
   const [operation, setOperation] = useState<string | null>(null);
@@ -53,7 +54,7 @@ export function ProjectForm({ mode, onClose, onCreated }: { mode: "new" | "clone
           const repository = value('repositoryUrl');
           if (mode === 'clone') validateClone({ repositoryUrl: repository, workspacePath: value('workspacePath'), branch: value('branch') });
           const name = mode === 'clone' ? repository.split('/').filter(Boolean).pop()!.replace(/\.git$/, '') : value('name');
-          const input = validateNewProject({ name, workspacePath: value('workspacePath'), description: value('description'), projectKind, initialRoles:firstRoles });
+          const input = validateNewProject({ name, workspacePath: value('workspacePath'), description: value('description'), projectKind, initialRoles:firstRoles, ...(teamSetup === 'role-team' ? {initialTeam:teamSetup} : {}) });
           // Check metadata before creating any source files.
           const existing = await projectService.list();
           assertUniqueProject(existing, input);
@@ -64,13 +65,13 @@ export function ProjectForm({ mode, onClose, onCreated }: { mode: "new" | "clone
           await projectFileSystem.bind(project.id, folder.id);
           await onCreated(project.name); onClose();
         } else if (mode === "new") {
-          const input = { name: value("name"), workspacePath: value("workspacePath"), description: value("description"), projectKind, initialRoles:firstRoles };
+          const input = { name: value("name"), workspacePath: value("workspacePath"), description: value("description"), projectKind, initialRoles:firstRoles, ...(teamSetup === 'role-team' ? {initialTeam:teamSetup} : {}) };
           if (selectedFolder) for (const existing of await projectService.list()) {
             if (await projectFileSystem.sameDirectory(selectedFolder.id, existing.id)) throw Error('This workspace is already in Recent Projects. Open the existing project instead.');
           }
           const valid = validateNewProject({ ...input, workspacePath: selectedFolder && !selectedFolder.workspacePath ? '/' : input.workspacePath });
           const project = selectedFolder && !selectedFolder.workspacePath
-            ? await projectService.registerBrowserFolder(valid.name, valid.description, {projectKind, initialRoles:firstRoles})
+            ? await projectService.registerBrowserFolder(valid.name, valid.description, {projectKind, initialRoles:firstRoles, ...(teamSetup === 'role-team' ? {initialTeam:teamSetup} : {})})
             : await projectService.create(input);
           if (selectedFolder) await projectFileSystem.bind(project.id, selectedFolder.id);
           await onCreated(project.name);
@@ -80,6 +81,7 @@ export function ProjectForm({ mode, onClose, onCreated }: { mode: "new" | "clone
       finally { setBusy(false); setOperation(null); }
     }}>
       <div className="form-fields">
+        <label>{t('Team setup')}<CustomSelect value={teamSetup} onChange={e=>setTeamSetup(e.target.value as 'none'|'role-team')}><option value="none">{t('Device roles only')}</option><option value="role-team">{t('Role-based AI team')}</option></CustomSelect></label>
         <label>{t('Project kind')}<CustomSelect value={projectKind} onChange={e=>setProjectKind(e.target.value as ProjectKind)}>{projectKinds.map(kind=><option key={kind} value={kind}>{t(kind)}</option>)}</CustomSelect></label>
         <fieldset className="project-role-options"><legend>{t('Current PC roles')}</legend>{roles.map(role=><label key={role}><input type="checkbox" checked={firstRoles.includes(role)} onChange={e=>setFirstRoles(e.target.checked?[...firstRoles,role]:firstRoles.filter(r=>r!==role))}/>{t(role)}</label>)}<small>{t('One PC can have multiple roles. Agent connection is configured after creation.')}</small></fieldset>
         {mode === 'new' && <label>{t('Project setup')}<CustomSelect disabled={busy} value={creation} onChange={event => { setCreation(event.target.value as 'register' | 'create'); setSelectedFolder(null); setWorkspacePath(''); }}><option value="register">{t('Register existing folder')}</option><option value="create">{t('Create new folder')}</option></CustomSelect></label>}

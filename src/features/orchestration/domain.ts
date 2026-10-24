@@ -4,8 +4,10 @@ export const roles = ['implementation', 'deployment', 'testing'] as const;
 export type ProjectKind = typeof projectKinds[number];
 export type NodeKind = typeof nodeKinds[number];
 export type Role = typeof roles[number];
+export const teamRoles = ['leader', 'design', 'implementation', 'review', 'documentation'] as const;
+export type TeamRole = typeof teamRoles[number];
 export type Relation = 'hosts' | 'assigns' | 'performs' | 'success' | 'failure' | 'triggers';
-export interface GraphNode { id: string; kind: NodeKind; label: string; x: number; y: number; reference: string; role: Role; taskType: 'task' | 'test' }
+export interface GraphNode { id: string; kind: NodeKind; label: string; x: number; y: number; reference: string; role: Role; taskType: 'task' | 'test'; teamRole?: TeamRole }
 export interface GraphEdge { id: string; from: string; to: string; relation: Relation }
 export interface ProjectGraph { version: 1; projectId: string; projectKind: ProjectKind; retryLimit: number; nodes: GraphNode[]; edges: GraphEdge[] }
 export const graphKey = (id: string) => `tastedev.studio.orchestration.v1:${encodeURIComponent(id)}`;
@@ -25,6 +27,7 @@ export function validateGraph(value: unknown, projectId: string): ProjectGraph {
   for (const node of g.nodes) {
     if (!node || !identifier(node.id) || nodes.has(node.id) || !nodeKinds.includes(node.kind) || typeof node.label !== 'string' || !node.label.trim() || node.label.length > 120 || typeof node.reference !== 'string' || node.reference.length > 200 || /[\r\n\0]/.test(node.reference) || !roles.includes(node.role) || !['task', 'test'].includes(node.taskType) || !Number.isFinite(node.x) || !Number.isFinite(node.y) || node.x < 0 || node.x > 2800 || node.y < 0 || node.y > 1800) throw Error('Invalid node.');
     nodes.set(node.id, node);
+    if (node.teamRole !== undefined && (!teamRoles.includes(node.teamRole) || !['role', 'task'].includes(node.kind))) throw Error('Invalid team responsibility.');
   }
   const ids = new Set<string>(), links = new Set<string>();
   const boundAgents = new Set<string>(), hostedAgents = new Set<string>();
@@ -51,7 +54,7 @@ export function validateGraph(value: unknown, projectId: string): ProjectGraph {
   for (const id of nodes.keys()) walk(id);
   // Only model fields are persisted, never credentials or arbitrary imported properties.
   return { version: 1, projectId, projectKind: g.projectKind, retryLimit: g.retryLimit,
-    nodes: g.nodes.map(n => ({ id:n.id, kind:n.kind, label:n.label.trim(), x:n.x, y:n.y, reference:n.reference, role:n.role, taskType:n.taskType })),
+    nodes: g.nodes.map(n => ({ id:n.id, kind:n.kind, label:n.label.trim(), x:n.x, y:n.y, reference:n.reference, role:n.role, taskType:n.taskType, ...(n.teamRole ? {teamRole:n.teamRole} : {}) })),
     edges: g.edges.map(e => ({ id:e.id, from:e.from, to:e.to, relation:e.relation })) };
 }
 export function newNode(kind: NodeKind, id: string, index: number): GraphNode {

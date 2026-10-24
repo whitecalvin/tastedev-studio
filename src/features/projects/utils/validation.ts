@@ -43,8 +43,9 @@ export function validateNewProject(input: NewProjectInput): NewProjectInput {
   if (input.workspacePath.length > 4096) throw new ProjectError("Workspace path is too long.");
   if (input.description.length > 2000) throw new ProjectError("Description must be 2,000 characters or fewer.");
   if (input.projectKind !== undefined && !projectKinds.includes(input.projectKind)) throw new ProjectError('Invalid project kind.');
+  if (input.initialTeam !== undefined && input.initialTeam !== 'role-team') throw new ProjectError('Invalid project team template.');
   if (input.initialRoles !== undefined && (!Array.isArray(input.initialRoles) || input.initialRoles.length < 1 || input.initialRoles.length > 3 || input.initialRoles.some(role => !roles.includes(role)))) throw new ProjectError('Select at least one device role.');
-  return { name, workspacePath: normalizeWorkspacePath(input.workspacePath), description: input.description.trim(), ...(input.projectKind ? {projectKind:input.projectKind} : {}), ...(input.initialRoles ? {initialRoles:[...new Set(input.initialRoles)]} : {}) };
+  return { name, workspacePath: normalizeWorkspacePath(input.workspacePath), description: input.description.trim(), ...(input.projectKind ? {projectKind:input.projectKind} : {}), ...(input.initialRoles ? {initialRoles:[...new Set(input.initialRoles)]} : {}), ...(input.initialTeam ? {initialTeam:input.initialTeam} : {}) };
 }
 
 export function assertUniqueProject(projects: Project[], input: NewProjectInput): void {

@@ -24,6 +24,7 @@ function isProject(value: unknown): value is Project {
     && nullableFields.every((field) => p[field] === null || typeof p[field] === "string")
     && (p.gitEnabled === null || typeof p.gitEnabled === "boolean")
     && (p.initialRoles === undefined || (Array.isArray(p.initialRoles) && p.initialRoles.length >= 1 && p.initialRoles.length <= 3 && p.initialRoles.every(role => roles.includes(role))))
+    && (p.initialTeam === undefined || p.initialTeam === 'role-team')
     && isDate(p.createdAt) && isDate(p.updatedAt) && (p.lastOpenedAt === null || isDate(p.lastOpenedAt));
 }
 

@@ -35,3 +35,12 @@ test('changed completion policy, prompt or route invalidates published AI scope;
  for(const patch of [{completion:'verified-fix' as const},{prompt:'Different reviewed prompt'},{maxRequests:2}])assert.equal(graphAIConfigurationMatches({...store,profiles:[{...store.profiles[0],...patch}]},graph,published,[entry]),false);
  assert.equal(graphAIConfigurationMatches({...store,profiles:[{...store.profiles[0],completion:'analysis'}]},graph,published,[entry]),true);assert.equal(graphAIConfigurationMatches({...store,profiles:[...store.profiles,newAIConfiguration('unused')]},graph,published,[entry]),true);assert.equal(graphAIConfigurationMatches(store,graph,published,[]),false);assert.equal(graphAIConfigurationMatches({...store,bindings:{missing:'local'}},graph,published,[entry]),false);
 });
+
+ test('team responsibility controls completion policy on the Core path, not only in prompt text',()=>{
+  for(const role of ['leader','design','review','documentation'] as const){
+   const config={...store,profiles:[{...store.profiles[0],role:role==='review'?'review' as const:'analysis' as const,completion:'verified-fix' as 'analysis'|'verified-fix'}]};
+   assert.throws(()=>taskAIRequest(config,{...node,teamRole:role},[entry]),AIError);
+   config.profiles[0].completion='analysis';assert.equal(taskAIRequest(config,{...node,teamRole:role},[entry]).completion,'analysis');
+  }
+  assert.throws(()=>taskAIRequest(store,{...node,teamRole:'implementation'},[entry]),AIError);
+ });

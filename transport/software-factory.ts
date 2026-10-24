@@ -7,6 +7,8 @@ import type {AnalysisRecord} from '../src/features/ai/domain.ts';
 import type {FixAttempt} from '../src/features/ai/fix-service.ts';
 
 export interface FactoryBridge {
+  validateAcceptance?:(contract:FactoryContract,executionId:string)=>void;
+  validateContract?:(contract:FactoryContract)=>void;
   overview(project:string):GraphOverview;
   request(project:string,action:string,input:unknown,actor:string):Promise<GraphOverview>;
   analysis(project:string,id:string):AnalysisRecord|undefined;
@@ -24,6 +26,7 @@ export class SoftwareFactory {
   private authority:Authority;
   private now:()=>number;
   readonly maximumParallel=2;
+  private validateDefinition(c:FactoryContract){validateFactoryDefinition(c,this.bridge.overview(c.projectId).definition);this.bridge.validateContract?.(c);}
   constructor(bridge:FactoryBridge,persistence?:GraphPersistence,authority:Authority=()=>{},now=Date.now){
     this.bridge=bridge;this.persistence=persistence;this.authority=authority;this.now=now;
     const saved=persistence?.load() as {version:number;tasks:FactoryTask[]}|undefined;
@@ -51,14 +54,14 @@ export class SoftwareFactory {
       if(new Set(batch.map(c=>c.taskId)).size!==batch.length)fail('Duplicate task in plan.');
       const preceding=new Set<string>();
       for(const contract of batch){
-        validateFactoryDefinition(contract,this.bridge.overview(project).definition);
+        this.validateDefinition(contract);
         for(const dep of contract.dependencies){this.authority(actor,dep.projectId,'read');if(dep.projectId!==project||!preceding.has(dep.taskId))this.task(dep.projectId,dep.taskId);}
         const old=this.tasks.find(t=>t.contract.projectId===project&&t.contract.taskId===contract.taskId);
         if(old&&JSON.stringify(old.contract)!==JSON.stringify(contract))fail('Plan identity conflict.');preceding.add(contract.taskId);
       }
       this.commit(next=>{for(const contract of batch)if(!next.some(t=>t.contract.projectId===project&&t.contract.taskId===contract.taskId)){if(next.length>=500)fail('Task capacity reached.');next.push({contract,version:1,status:'draft',actor,createdAt:new Date(this.now()).toISOString(),attempts:[]});}});
     }else if(action==='create'){
-      const contract=validateFactoryContract(i?.contract,project);validateFactoryDefinition(contract,this.bridge.overview(project).definition);
+      const contract=validateFactoryContract(i?.contract,project);this.validateDefinition(contract);
       for(const dep of contract.dependencies){this.authority(actor,dep.projectId,'read');this.task(dep.projectId,dep.taskId);}
       const old=this.tasks.find(t=>t.contract.projectId===project&&t.contract.taskId===contract.taskId);
       if(old){if(JSON.stringify(old.contract)!==JSON.stringify(contract))fail('Task identity conflicts with a different contract.');return this.overview(project);}
@@ -67,15 +70,16 @@ export class SoftwareFactory {
       const task=this.task(project,i?.taskId);if(task.version!==i.version)fail('Task changed. Refresh before continuing.');
       if(action==='queue'){
         if(task.status!=='draft')fail('Only a draft can be approved for the queue.');
-        validateFactoryDefinition(task.contract,this.bridge.overview(project).definition);
+        this.validateDefinition(task.contract);
         this.update(task,t=>{t.status='queued';t.actor=actor;t.deadline=new Date(this.now()+t.contract.timeoutMinutes*60000).toISOString();delete t.reason;});
       }else if(action==='resume'){
         if(task.status!=='paused')fail('Task is not paused.');
-        validateFactoryDefinition(task.contract,this.bridge.overview(project).definition);
+        this.validateDefinition(task.contract);
         const executionId=task.attempts.at(-1)?.executionId,execution=this.bridge.overview(project).executions.find(e=>e.id===executionId);
         if(execution?.status==='paused')await this.bridge.request(project,'resume',{executionId},actor);
         this.update(task,t=>{t.actor=actor;t.status=executionId?'launching':'queued';delete t.reason;});
       }else if(action==='retry'){
+        this.bridge.validateContract?.(task.contract);
         if(task.status!=='failed'||task.attempts.length>=task.contract.maxAttempts||!i.notes?.trim()||i.notes.length>1000)fail('Retry needs a failure reason and remaining attempt budget.');
         const executionId=task.attempts.at(-1)?.executionId,execution=this.bridge.overview(project).executions.find(e=>e.id===executionId);
         if(!execution||execution.status!=='failed')fail('Failed graph unavailable.');
@@ -87,6 +91,7 @@ export class SoftwareFactory {
         this.authority(actor,project,'run');
         if(task.status!=='review'||typeof i.accepted!=='boolean'||!i.notes?.trim()||i.notes.length>1000)fail('Review needs an explicit disposition and notes.');
         this.reviewEvidence(task);
+        if(i.accepted)this.bridge.validateAcceptance?.(task.contract,task.attempts.at(-1)!.executionId);
         this.update(task,t=>{t.status=i.accepted?'completed':'failed';t.reason=i.notes;const a=t.attempts.at(-1)!;a.disposition=i.accepted?'accepted':'changes';a.notes=i.notes;a.reviewedBy=actor;a.finishedAt=new Date(this.now()).toISOString();});
       }else if(action==='cancel'){
         if(['completed','cancelled'].includes(task.status))fail('Task already finished.');
@@ -133,7 +138,7 @@ export class SoftwareFactory {
         else if(this.tasks.filter(holding).length>=this.maximumParallel||this.tasks.some(t=>holding(t)&&(t.contract.projectId===c.projectId||factoryConflicts(c,t.contract))))waiting='Waiting for a project slot or exclusive resource.';
         else if(this.bridge.overview(c.projectId).executions.some(e=>['running','paused','cancelling'].includes(e.status)))waiting='Waiting for the active project graph.';
         if(waiting){if(task.reason!==waiting)this.update(task,t=>{t.reason=waiting;});continue;}
-        try{validateFactoryDefinition(c,this.bridge.overview(c.projectId).definition);}catch(error){this.update(task,t=>{t.status='failed';t.reason=String(error);});continue;}
+        try{this.validateDefinition(c);}catch(error){this.update(task,t=>{t.status='failed';t.reason=String(error);});continue;}
         this.update(task,t=>{t.status='launching';delete t.reason;t.attempts.push({executionId:'factory-'+randomUUID(),startedAt:new Date(this.now()).toISOString()});});
       }
       const current=this.task(c.projectId,c.taskId);

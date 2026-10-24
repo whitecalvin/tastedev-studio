@@ -1,6 +1,8 @@
 import type {GraphDefinition} from './execution.ts';
+import {validateIntentReference,type IntentReference} from './team-intent.ts';
 
 export interface FactoryContext {
+  intent?:IntentReference;
   maxAttempts:number;
   timeoutMinutes:number;
   taskId:string;
@@ -35,7 +37,7 @@ export function factoryPath(value:string){
 export const pathContains=(parent:string,child:string)=>child===parent||child.startsWith(parent+'/');
 export function factoryContext(contract:FactoryContract):FactoryContext {
   const {taskId,objective,acceptance,paths,implementationNodeId,reviewNodeId,maxAttempts,timeoutMinutes}=contract;
-  return {taskId,objective,maxAttempts,timeoutMinutes,acceptance:[...acceptance],paths:[...paths],implementationNodeId,reviewNodeId};
+  return {taskId,objective,maxAttempts,timeoutMinutes,acceptance:[...acceptance],paths:[...paths],implementationNodeId,reviewNodeId,...(contract.intent?{intent:validateIntentReference(contract.intent)}:{})};
 }
 export function validateFactoryContract(value:unknown,project:string):FactoryContract {
   const c=value as FactoryContract;

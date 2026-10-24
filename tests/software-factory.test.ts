@@ -98,3 +98,17 @@ test('reviewed AI batch saves drafts atomically, remains idempotent and never la
   f.setFailure(true);await assert.rejects(submit([first,second]),/disk/);assert.equal(f.factory().overview('p').tasks.length,0);
   f.setFailure(false);await submit([first,second]);await submit([first,second]);assert.equal(f.factory().overview('p').tasks.length,2);assert.equal(f.calls.length,0);assert(f.factory().overview('p').tasks.every(t=>t.status==='draft'));
 });
+
+
+test('team quality policy blocks final acceptance without losing the independent review or releasing resources',async()=>{
+  const f=fixture();let accepted=false;f.bridge.validateAcceptance=()=>{if(!accepted)throw Error('Quality gates are incomplete');};
+  await f.queue();f.complete();await f.factory().tick();assert.equal(f.get().status,'review');
+  await assert.rejects(f.action('review',{accepted:true,notes:'Ready'}),/Quality gates/);assert.equal(f.get().status,'review');
+  accepted=true;await f.action('review',{accepted:true,notes:'Actual evidence reviewed'});assert.equal(f.get().status,'completed');
+});
+
+
+test('retry rechecks revised team policy before changing attempts or invoking Graph',async()=>{
+ const f=fixture();await f.queue();const e=f.overview('p').executions[0];e.status='failed';e.activations=[{id:'impl',nodeId:'factory-implementation',attempt:1,status:'passed'},{id:'review-failure',nodeId:'factory-review',attempt:1,status:'failed'}];await f.factory().tick();
+ f.bridge.validateContract=()=>{throw Error('Work intent changed');};const calls=f.calls.length;await assert.rejects(f.action('retry',{notes:'Retry stale intent'}),/Work intent changed/);assert.equal(f.calls.length,calls);assert.equal(f.get().attempts.length,1);assert.equal(e.activations[0].status,'passed');
+});

@@ -8,6 +8,7 @@ export interface GraphFailureContext {runId:string;originalRunId:string;attemptI
 export interface TaskAIRequest {failure?:GraphFailureContext;completion?:'analysis'|'verified-fix';graph?:GraphAIIdentity;projectId:string;nodeId:string;label:string;profileId:string;route:AIRoute;question:string;budget:AnalysisBudget;maximum:number}
 export function taskAIRequest(store:AIConfigurationStore,node:GraphNode,connections:ManagedAIConnection[]):TaskAIRequest{
  const checked=validateAIConfigurations(store,store.projectId),profile=checked.profiles.find(p=>p.id===checked.bindings[node.id]),route=configurationRoute(profile,connections);
+ if(node.teamRole&&profile&&((profile.completion==='verified-fix')!==(node.teamRole==='implementation')||node.teamRole==='review'&&profile.role!=='review'))throw new AIError('unavailable');
  if(node.kind!=='task'||!profile||!route||! /^[A-Za-z0-9_-]{1,120}$/.test(node.id)||typeof node.label!=='string'||!node.label.trim()||node.label.length>120)throw new AIError('unavailable');
  return {...(profile.completion?{completion:profile.completion}:{}),projectId:store.projectId,nodeId:node.id,label:mask(node.label),profileId:profile.id,route:aiRoute(route),question:configurationPrompt(profile,node.label),budget:{...defaultBudget,maxProviderRequests:profile.maxRequests,timeoutMs:profile.timeoutSeconds*1000},maximum:profile.maxAttempts};
 }

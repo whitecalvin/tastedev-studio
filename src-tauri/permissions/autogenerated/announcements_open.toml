@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-announcements-open"
+description = "Enables the announcements_open command without any pre-configured scope."
+commands.allow = ["announcements_open"]
+
+[[permission]]
+identifier = "deny-announcements-open"
+description = "Denies the announcements_open command without any pre-configured scope."
+commands.deny = ["announcements_open"]

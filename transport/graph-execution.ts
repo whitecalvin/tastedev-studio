@@ -24,7 +24,7 @@ import {graphSourcePlan,graphActivationPlan} from '../src/features/orchestration
 import {validateArtifactLineage,artifactProducerActivation} from '../src/features/orchestration/artifact-lineage.ts';
 import {validateBuildArtifact,type BuildArtifact,type BuildArtifactOrigin,type BuildArtifactDeclaration} from '../src/features/orchestration/build-artifact.ts';
 import {verifyProjectReference,type ProjectSnapshot} from '../src/features/ai/project-snapshot.ts';
-export interface GraphAIBridge {attempt?(project:string,id:string):FixAttempt|undefined;connections(project:string):ManagedAIConnection[];analysis(project:string,id:string):AnalysisRecord|undefined}
+export interface GraphAIBridge {teamContext?:(project:string,intentId:string,nodeId:string)=>{intent:import('../src/features/orchestration/team-intent.ts').IntentReference;question:string};attempt?(project:string,id:string):FixAttempt|undefined;connections(project:string):ManagedAIConnection[];analysis(project:string,id:string):AnalysisRecord|undefined}
 export interface GraphPersistence {load():unknown;save(state:unknown):void}
 interface State {version:1;definitions:GraphDefinition[];executions:GraphExecution[]}
 type Authority=(actor:string,projectId:string,action:'run'|'approve'|'cancel'|'history-write'|'read')=>void;
@@ -119,6 +119,7 @@ export class GraphExecutionService {
    if(!aiBound&&!n.reference)fail('Every task needs a Protocol reference.');
    if(!aiBound){const p=n.taskType==='test'?resolveTestPlan(protocol,project,n.reference):null;plans[n.id]=p?{name:'test: '+n.reference,requirements:p.requirements,payload:planPayload(p)}:resolveProtocol(protocol,'task',n.reference);}
    const roles=graph.edges.filter(e=>e.to===n.id&&e.relation==='performs');if(roles.length!==1)fail('Each task needs exactly one responsible role.');
+   if(n.teamRole&&graph.nodes.find(v=>v.id===roles[0].from)?.teamRole!==n.teamRole)fail('Team task responsibility must match its declared role.');
    if(graph.nodes.find(v=>v.id===roles[0].from)?.role==='deployment'){
     const incoming=graph.edges.filter(e=>e.to===n.id&&['success','failure'].includes(e.relation));if(incoming.length!==1||incoming[0].relation!=='success'||graph.nodes.find(v=>v.id===incoming[0].from)?.kind!=='approval')fail('Deployment requires an immediate approval predecessor, including retries.');deploymentNodes.push(n.id);
    }
@@ -137,16 +138,19 @@ export class GraphExecutionService {
   if(Object.values(plans).some(p=>p.payload.steps.some(s=>s.buildArtifacts))){if(!i.snapshot)fail('Build artifacts require a published workspace Snapshot.');if(!this.core.supportsBuildArtifacts())fail('Build artifact runtime is not enabled; publish did not execute or change the graph.');}
   this.commit(s=>{if(!previous&&s.definitions.length>=100)fail('Definition capacity reached.');s.definitions=s.definitions.filter(d=>d.projectId!==project).concat(definition);});
  }
- private start(project:string,input:unknown,actor:string){const i=input as {revision:number;checksum:string;entryNodeId:string;requestId:string;factory?:FactoryContext};const d=this.state.definitions.find(d=>d.projectId===project)??fail('Publish definition first.');
+ private start(project:string,input:unknown,actor:string){const i=input as {revision:number;checksum:string;entryNodeId:string;requestId:string;factory?:FactoryContext;teamIntentId?:string};const d=this.state.definitions.find(d=>d.projectId===project)??fail('Publish definition first.');
   if(d.revision!==i?.revision||d.checksum!==i.checksum)fail('Definition changed; review again.');if(typeof i.requestId!=='string'||!/^[-a-zA-Z0-9]{1,64}$/.test(i.requestId))fail('Invalid request identity.');
-  const existing=this.state.executions.find(e=>e.id===i.requestId);if(existing){if(JSON.stringify(existing.factory)!==JSON.stringify(i.factory)||existing.projectId!==project||existing.revision!==d.revision||existing.inputChecksum!==d.inputChecksum||existing.definition.source?.checksum!==d.source?.checksum||existing.checksum!==d.checksum||existing.activations[0]?.nodeId!==i.entryNodeId)fail('Request identity conflict.');return;}
+  const existing=this.state.executions.find(e=>e.id===i.requestId);if(existing){if(JSON.stringify(existing.factory)!==JSON.stringify(i.factory)||existing.team?.id!==i.teamIntentId||existing.projectId!==project||existing.revision!==d.revision||existing.inputChecksum!==d.inputChecksum||existing.definition.source?.checksum!==d.source?.checksum||existing.checksum!==d.checksum||existing.activations[0]?.nodeId!==i.entryNodeId)fail('Request identity conflict.');return;}
   const node=d.graph.nodes.find(n=>n.id===i.entryNodeId&&['task','approval'].includes(n.kind))??fail('Choose a task or approval entry.');
   if(d.graph.edges.some(e=>e.to===node.id&&e.relation==='success'))fail('Entry must be a root; approval cannot be bypassed.');
   if(this.state.executions.some(e=>e.projectId===project&&['running','paused','cancelling'].includes(e.status)))fail('Finish or cancel the active project execution first.');
   let context:FactoryContext|undefined;
+  const team=i.teamIntentId?this.ai?.teamContext?.(project,i.teamIntentId,i.entryNodeId):undefined;
+  if(i.teamIntentId&&(!team||i.factory))fail('Invalid team execution context.');
   if(i.factory){const contract=validateFactoryContract({...i.factory,projectId:project,entryNodeId:i.entryNodeId,revision:d.revision,checksum:d.checksum,inputChecksum:d.inputChecksum,sourceChecksum:d.source?.checksum,dependencies:[],resources:['graph'],maxAttempts:i.factory.maxAttempts,timeoutMinutes:i.factory.timeoutMinutes},project);validateFactoryDefinition(contract,d);context=factoryContext(contract);}
-  const e:GraphExecution={...(context?{factory:context}:{}),id:i.requestId,projectId:project,revision:d.revision,checksum:d.checksum,inputChecksum:d.inputChecksum,definition:structuredClone(d),status:'running',activations:[],actor,createdAt:new Date(this.now()).toISOString(),deadline:new Date(this.now()+(context?.timeoutMinutes??10)*60000).toISOString()};
+  const e:GraphExecution={...(team?{team:team.intent}:{}),...(context?{factory:context}:{}),id:i.requestId,projectId:project,revision:d.revision,checksum:d.checksum,inputChecksum:d.inputChecksum,definition:structuredClone(d),status:'running',activations:[],actor,createdAt:new Date(this.now()).toISOString(),deadline:new Date(this.now()+(context?.timeoutMinutes??10)*60000).toISOString()};
   if(context)for(const [id,role] of [[context.implementationNodeId,'implementation'],[context.reviewNodeId,'review']] as const){const plan=e.definition.aiTasks![id];plan.maximum=Math.min(plan.maximum,context.maxAttempts);plan.question+=factoryPrompt(context,role);if(plan.question.length>4000)fail('Factory prompt exceeds AI context limit.');}
+  if(team){const plan=e.definition.aiTasks?.[node.id];if(!plan||(plan.completion??'analysis')!=='analysis')fail('Read-only role AI plan required.');plan!.question+=team.question;if(plan!.question.length>4000)fail('Shorten the reviewed role context.');}
   this.activate(e,node.id);
   this.commit(s=>{if(s.executions.length>=500)fail('Execution history capacity reached.');s.executions.push(e);});
  }

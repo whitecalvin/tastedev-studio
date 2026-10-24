@@ -20,6 +20,8 @@
     "allow-process-write",
     "allow-process-resize",
     "allow-runtime-diagnostic",
-    "allow-update-action"
+    "allow-update-action",
+    "allow-announcements-get",
+    "allow-announcements-open"
   ]
 }
