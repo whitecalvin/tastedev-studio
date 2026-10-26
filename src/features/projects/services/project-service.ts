@@ -50,6 +50,17 @@ export class ProjectService {
       return updated;
     });
   }
+  async registerTaskWorkspace(parent:Project,task:{taskId:string;projectId:string;baseRevision:string;state:string;path?:string}):Promise<Project>{
+    if(task.projectId!==parent.id||task.state!=='ready'||!task.path||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(task.taskId)||!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(task.baseRevision))throw new ProjectError('Invalid task workspace registration.');
+    const workspacePath=task.path;
+    return this.exclusive(async()=>{
+      const projects=await this.repository.list(),existing=projects.find(p=>p.taskWorkspace?.parentProjectId===parent.id&&p.taskWorkspace.taskId===task.taskId);
+      if(existing){if(existing.workspacePath!==task.path||existing.taskWorkspace!.baseRevision!==task.baseRevision)throw new ProjectError('Task workspace identity changed. Existing project was preserved.');return existing;}
+      const valid=validateNewProject({name:parent.name+' · '+task.taskId.slice(0,8),description:'Isolated task workspace',workspacePath,initialTeam:'role-team'});assertUniqueProject(projects,valid);
+      const now=this.options.now?.()??new Date().toISOString(),project:Project={...valid,id:this.options.id?.()??crypto.randomUUID(),repositoryUrl:null,defaultBranch:null,framework:parent.framework,runtime:parent.runtime,packageManager:parent.packageManager,projectType:parent.projectType,gitEnabled:true,createdAt:now,updatedAt:now,lastOpenedAt:null,taskWorkspace:{parentProjectId:parent.id,taskId:task.taskId,baseRevision:task.baseRevision}};
+      await this.repository.save(project);return project;
+    });
+  }
   async setRepository(id: string, repositoryUrl: string, defaultBranch: string | null) {
     return this.exclusive(async () => {
       const project = await this.get(id); if (!project || !project.workspacePath) throw new ProjectError('Project not found.');

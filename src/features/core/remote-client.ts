@@ -88,6 +88,7 @@ export class RemoteCoreClient {
   cancelJob(_projectId:string,id:string){return this.call<CoreSnapshot['jobs'][number]>('cancelJob',[id]);}
   retryJob(_projectId:string,id:string){return this.call<CoreSnapshot['jobs'][number]>('retryJob',[id]);}
   operationsRequest<T>(action:string,input?:unknown){return this.call<T>('operations',[action,input]);}
+  integrationRequest<T>(action:string,input?:unknown){return this.call<T>('integration',[action,input]);}
   teamReportRequest<T>(intentId:string){return this.call<T>('team-report',[intentId]);}
   teamPolicyRequest<T>(action:string,input?:unknown){return this.call<T>('team-policy',[action,input]);}
   teamDispatchRequest<T>(action:string,input?:unknown){return this.call<T>('team-dispatch',[action,input]);}

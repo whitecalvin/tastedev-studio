@@ -1,21 +1,38 @@
 # The installer result and the restart result are independent. Never reinstall
 # or launch a second copy merely because startup verification failed.
 function Restart-App {
-    param([string]$Executable, [int]$ObserveMilliseconds = 5000, [switch]$Recovery, [int]$StartupTimeoutMilliseconds = 30000)
+    param([string]$Executable, [switch]$Recovery, [int]$StartupTimeoutMilliseconds = 30000)
     $child = $null
+    $request = $null
+    $reply = $null
     try {
         if (-not (Test-Path -LiteralPath $Executable -PathType Leaf)) {
             throw "restart executable is missing: $Executable"
         }
         $workingDirectory = Split-Path -Parent $Executable
+        $token = [Guid]::NewGuid().ToString('N')
+        $work = Split-Path -Parent $progressState
+        $request = Join-Path $work ('progress-restart-' + $token + '.request.json')
+        $expectedVersion = if ($Recovery) { '' } else { $updateVersion }
+        $expires = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() + 60
+        [IO.File]::WriteAllText($request, (@{token=$token;exe=$Executable;version=$expectedVersion;expires=$expires}|ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
         Write-Log "restart requested: executable=$Executable; workingDirectory=$workingDirectory"
         # The updater itself is hidden. Explicitly request a normal app window
         # and do not inherit an installer/cache directory as the app's cwd.
-        $child = Start-Process -FilePath $Executable -WorkingDirectory $workingDirectory -WindowStyle Normal -PassThru -ErrorAction Stop
+        $previousToken = $env:TASTEDEV_UPDATE_RESTART_TOKEN
+        try {
+            $env:TASTEDEV_UPDATE_RESTART_TOKEN = $token
+            $child = Start-Process -FilePath $Executable -WorkingDirectory $workingDirectory -WindowStyle Normal -PassThru -ErrorAction Stop
+        } finally {
+            if ($null -eq $previousToken) { Remove-Item Env:TASTEDEV_UPDATE_RESTART_TOKEN -ErrorAction SilentlyContinue }
+            else { $env:TASTEDEV_UPDATE_RESTART_TOKEN = $previousToken }
+        }
         if (-not $child) { throw 'restart returned no process' }
+        $reply = Join-Path $work ('progress-restart-' + $token + '.' + $child.Id + '.ready.json')
         Write-Log ('restart process created: pid=' + $child.Id)
         $clock = [Diagnostics.Stopwatch]::StartNew()
-        $windowSince = $null
+        $windowDetected = $false
+        $appReady = $false
         $windowHandle = [IntPtr]::Zero
         do {
             $child.Refresh()
@@ -24,16 +41,26 @@ function Restart-App {
             }
             $windowHandle = $child.MainWindowHandle
             if ($windowHandle -ne [IntPtr]::Zero -and $child.Responding) {
-                if ($null -eq $windowSince) {
-                    $windowSince = $clock.ElapsedMilliseconds
+                if (-not $windowDetected) {
+                    $windowDetected = $true
                     Write-Log ('restart window detected: pid=' + $child.Id + '; hwnd=' + $windowHandle)
                 }
-                if ($clock.ElapsedMilliseconds - $windowSince -ge $ObserveMilliseconds) { break }
-            } else { $windowSince = $null }
-            if ($clock.ElapsedMilliseconds -ge $StartupTimeoutMilliseconds) {
-                throw ('restart window was not ready before timeout: pid=' + $child.Id + '; hwnd=' + $windowHandle + '; responding=' + $child.Responding)
+                # A window alone may be a splash screen. Require the new app's
+                # UI-loop response for this nonce/PID/path/version, without a dwell.
+                if ([IO.File]::Exists($reply)) {
+                    try {
+                        $ready = [IO.File]::ReadAllText($reply) | ConvertFrom-Json
+                        $appReady = $ready.token -ceq $token -and [string]$ready.pid -ceq [string]$child.Id -and
+                            [string]::Equals($ready.exe, $Executable, [StringComparison]::OrdinalIgnoreCase) -and
+                            ($Recovery -or $ready.version -ceq $expectedVersion)
+                    } catch { $appReady = $false }
+                }
+                if ($appReady) { Write-Log ('restart app ready: pid=' + $child.Id + '; elapsedMs=' + $clock.ElapsedMilliseconds); break }
             }
-            Start-Sleep -Milliseconds 250
+            if ($clock.ElapsedMilliseconds -ge $StartupTimeoutMilliseconds) {
+                throw ('restart window was not ready before timeout: pid=' + $child.Id + '; hwnd=' + $windowHandle + '; responding=' + $child.Responding + '; appReady=' + $appReady)
+            }
+            Start-Sleep -Milliseconds 100
         } while ($true)
         $child.Refresh()
         if ($child.HasExited) {
@@ -57,6 +84,9 @@ function Restart-App {
         if (-not $Recovery -and (Get-Command Set-UpdatePhase -ErrorAction SilentlyContinue)) { Set-UpdatePhase 'failed' $_.Exception.Message }
         return $false
     } finally {
+        foreach ($file in @($request, $reply)) {
+            if ($file -and [IO.File]::Exists($file)) { Remove-Item -LiteralPath $file -Force -ErrorAction SilentlyContinue }
+        }
         if ($child -is [IDisposable]) { $child.Dispose() }
     }
 }

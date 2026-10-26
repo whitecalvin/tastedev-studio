@@ -32,6 +32,7 @@ mod handoff;
 mod install_notice;
 mod plan;
 pub mod release_sig;
+mod restart_ready;
 mod session;
 pub mod sha256;
 #[doc(hidden)]
@@ -1092,7 +1093,11 @@ pub fn clean_work_dir(work_dir: &Path) {
         if e.file_name() == ".update-install.lock" || e.file_name() == ".update-progress.lock" {
             continue;
         }
-        if progress_active && e.file_name().to_string_lossy().starts_with("progress-") {
+        if e.file_name()
+            .to_string_lossy()
+            .starts_with("progress-restart-")
+            || (progress_active && e.file_name().to_string_lossy().starts_with("progress-"))
+        {
             continue;
         }
         if e.file_name() == RESULT_FILE {

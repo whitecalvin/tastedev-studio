@@ -822,3 +822,19 @@ DEV 구현 완료: 연결 마법사, 명시적 장비·Agent·역할 운영판, 
 ## 2026-10-24 팀 실행·운영 고도화
 
 실행 전 점검, 실제 Graph/Factory 인계, 검토한 계획의 일괄 Queue 승인, 계약별 Source/재테스트 추적, 역할·Agent·장비 관계 상태, 인계 복구, Core의 팀 AI 정책 및 현재 근거 기반 완료 보고를 연결했다. 같은 프로젝트 쓰기는 기존 잠금으로 직렬화하고 Agent 재테스트 작업 공간은 Snapshot별로 분리한다. 동일 프로젝트 병렬 Git worktree 수정/자동 병합을 구현했다고 주장하지 않는다. 설계·문서 분석과 구현·실제 테스트 완료를 구분하며 설치 패키지·배포는 사용자 담당이다. 계약·한계·사용법은 [팀 실행·운영](TASTEDEV_TEAM_EXECUTION.md), 최종 근거는 `resources/verification/dev-01/team-execution-advancement-20261024/RESULT.ko.md`를 따른다.
+
+
+## 2026-10-26 — 작업별 Git 격리와 검토 통합
+
+작업별 detached worktree, 독립 프로젝트 창, 기준/원본/사본 비교, 승인 기반 통합, 충돌 해결, 기존 Fix journal/되돌리기, 통합 원본 Snapshot의 기존 Core/Rust Agent 재테스트, 비파괴 보관·복원과 Source identity 기반 관계 표시를 추가했다. 통합안은 실제 모델 분석으로 위장하지 않는 별도 immutable FixAttempt lineage를 사용한다. 모델·Agent·화면·설치 검증은 구분한다.
+
+구조·사용법·파일 생성/삭제 등의 현재 제한은 [작업 공간 격리와 통합](TASTEDEV_PARALLEL_WORKSPACES.md), 실행 결과는 `resources/verification/dev-01/parallel-worktree-20261026/RESULT.ko.md`를 따른다. 실제 Provider → 승인된 사본 Patch → 원본 통합 → 실제 Rust Agent PASS와 별도 해결되지 않는 통합 FAIL/복원은 검증했다. 전체 Rust Debug/Release에서는 현재 작업과 무관한 기존 업데이트 테스트 2개 실패가 남아 전체 green으로 표시하지 않는다. 패키징·설치·배포는 실행하지 않았다.
+
+
+## 2026-10-26 — 업데이트 회귀 마감 및 원본 작업 통합 완료
+
+이전 기록의 업데이트 테스트 2개 실패는 현재 공용 Flow와 다른 테스트 기대값이었다. 제한 환경 밖에서는 preference 저장이 통과했고, 최종 실패는 두 테스트 모두 `workspace-busy` 기대였다. 다운로드 허용과 준비 후 종료/설치 보호, 협력 종료 commit 정책을 유지하면서 해당 테스트를 보강했다. 관련 Debug/Release는 통과했으며 production updater 동작을 바꾸지 않았다. 이전 실패 로그는 보존했다.
+
+사본의 성공한 Source를 원본의 Core 통합 요청으로 제출하고, scoped proposal review·원본 실제 재테스트·독립 AI 검토·명시적 수락을 원본 Factory completed와 연결했다. 완료 proof와 completion intent는 복원되며, 실행하지 않은 Graph 상태를 위조하지 않는다. 같은 프로젝트 후속 작업이 통합 전 Source를 실행하는 것도 content checksum으로 차단한다.
+
+구조·사용법·제한은 [통합 요청과 원본 완료](TASTEDEV_INTEGRATION_HANDOFF.md), 최신 근거와 결과는 `resources/verification/dev-01/integration-handoff-20261026/RESULT.ko.md`를 따른다. 패키징·설치 시험·배포·commit/push는 이 작업에 포함하지 않았다.

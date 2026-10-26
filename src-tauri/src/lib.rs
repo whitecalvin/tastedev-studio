@@ -3,6 +3,7 @@ mod diagnostics;
 mod git_collaboration;
 mod git_hunks;
 mod language;
+mod task_worktree;
 use diagnostics::runtime_diagnostic;
 mod announcements;
 mod bootstrap;
@@ -221,6 +222,65 @@ async fn workspace_file(
     .map_err(|_| error("internal"))?
 }
 #[tauri::command]
+async fn task_worktree_action(
+    app: tauri::AppHandle,
+    request: task_worktree::Request,
+) -> Result<serde_json::Value> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<task_worktree::TaskWorktrees>()
+            .execute(&app.state::<Workspaces>(), request)
+    })
+    .await
+    .map_err(|_| error("internal"))?
+}
+#[tauri::command]
+async fn task_worktree_open(
+    app: tauri::AppHandle,
+    request: task_worktree::Request,
+    child_project_id: String,
+) -> Result<()> {
+    if request.operation != "inspect" || uuid::Uuid::parse_str(&child_project_id).is_err() {
+        return Err(error("worktree-identity"));
+    }
+    let check = app.clone();
+    let value = tauri::async_runtime::spawn_blocking(move || {
+        check
+            .state::<task_worktree::TaskWorktrees>()
+            .execute(&check.state::<Workspaces>(), request)
+    })
+    .await
+    .map_err(|_| error("internal"))??;
+    let source = value
+        .get("path")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| error("worktree-state"))?;
+    let path = std::path::PathBuf::from(source).canonicalize()?;
+    if app
+        .state::<Workspaces>()
+        .projects
+        .lock()
+        .map_err(|_| error("internal"))?
+        .get(&child_project_id)
+        != Some(&path)
+    {
+        return Err(error("access"));
+    }
+    let label = format!("task-{child_project_id}");
+    if let Some(window) = app.get_webview_window(&label) {
+        return window.set_focus().map_err(|_| error("window"));
+    }
+    tauri::WebviewWindowBuilder::new(
+        &app,
+        label,
+        tauri::WebviewUrl::App(format!("workspace/?project={child_project_id}").into()),
+    )
+    .title("TASTESTUDIO · Task")
+    .inner_size(1280.0, 900.0)
+    .build()
+    .map_err(|_| error("window"))?;
+    Ok(())
+}
+#[tauri::command]
 async fn git_collaboration(
     app: tauri::AppHandle,
     request: git_collaboration::Request,
@@ -371,6 +431,9 @@ pub fn run() {
         .manage(git_collaboration::Collaboration::default())
         .setup(|app| {
             diagnostics::initialize(&app.path().app_data_dir()?)?;
+            app.manage(task_worktree::TaskWorktrees::new(
+                &app.path().app_data_dir()?,
+            ));
             app.manage(update::Updates::new(
                 &app.path().app_data_dir()?,
                 &app.path().app_cache_dir()?,
@@ -401,6 +464,8 @@ pub fn run() {
             workspace_file,
             git_operation,
             git_collaboration,
+            task_worktree_action,
+            task_worktree_open,
             language_start,
             language_call,
             language_stop,

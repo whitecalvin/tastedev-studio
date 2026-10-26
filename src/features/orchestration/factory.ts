@@ -26,7 +26,8 @@ export interface FactoryContract extends FactoryContext {
 }
 export type FactoryStatus='draft'|'queued'|'launching'|'running'|'review'|'completed'|'failed'|'paused'|'cancelling'|'cancelled';
 export interface FactoryAttempt {executionId:string;startedAt:string;finishedAt?:string;disposition?:'accepted'|'changes';reviewedBy?:string;notes?:string}
-export interface FactoryTask {contract:FactoryContract;version:number;status:FactoryStatus;actor:string;createdAt:string;deadline?:string;reason?:string;attempts:FactoryAttempt[]}
+export interface IntegrationCompletion {kind:'workspace-integration';requestId:string;attemptId:string;proposalId:string;runId:string;checksum:string;contentChecksum:string;reviewAnalysisId:string;graphRevision:number;graphChecksum:string;acceptedAt:string}
+export interface FactoryTask {integrationCompletion?:IntegrationCompletion;contract:FactoryContract;version:number;status:FactoryStatus;actor:string;createdAt:string;deadline?:string;reason?:string;attempts:FactoryAttempt[]}
 export interface FactoryOverview {tasks:FactoryTask[];durable:boolean;maximumParallel:number}
 const id=(v:unknown):v is string=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,120}$/.test(v);
 const text=(v:unknown,max:number):v is string=>typeof v==='string'&&!!v.trim()&&v.length<=max&&!/[\0\x01-\x08]/.test(v);

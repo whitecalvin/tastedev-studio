@@ -1,4 +1,6 @@
 'use client';
+import type {IntegrationAPI} from './integration-requests-view';
+import {TaskWorkspacePanel} from './task-workspace-view';
 import {TeamDispatchPanel} from './team-dispatch-view';
 import {remoteCore} from '../core/remote-client';
 import {useState} from 'react';
@@ -9,12 +11,12 @@ import {teamRoleLabels} from './team-template';
 import {gateCategories,type GateCategory,type GateResult,type TeamIntent,type TeamWorkOverview} from './team-intent';
 
 type Mutate=(action:string,input:Record<string,unknown>)=>Promise<TeamWorkOverview|undefined>;
-export function TeamOperationsPanel({tab,current,intent,busy,mutate,onChoose}:{tab:string;current:TeamWorkOverview;intent?:TeamIntent;busy:boolean;mutate:Mutate;onChoose:(node:string)=>void}){
+export function TeamOperationsPanel({tab,current,intent,busy,mutate,onChoose,integrations}:{integrations:IntegrationAPI;tab:string;current:TeamWorkOverview;intent?:TeamIntent;busy:boolean;mutate:Mutate;onChoose:(node:string)=>void}){
   const {t}=useI18n();const [launchError,setLaunchError]=useState(''),[launching,setLaunching]=useState(false);
   const [roleNode,setRoleNode]=useState(''),[factoryTask,setFactoryTask]=useState(''),[category,setCategory]=useState<GateCategory>('tests'),[result,setResult]=useState<GateResult>('not-run'),[kind,setKind]=useState<'run'|'manual'>('run'),[runId,setRunId]=useState(''),[note,setNote]=useState('');
   const [recipient,setRecipient]=useState<TeamRole>('review'),[sender,setSender]=useState<TeamRole>('implementation'),[messageKind,setMessageKind]=useState('handoff'),[body,setBody]=useState(''),[inboxRole,setInboxRole]=useState('all');
   const [ruleText,setRuleText]=useState(''),[ruleScope,setRuleScope]=useState<TeamRole|'project'>('project'),[feedback,setFeedback]=useState('');
-  if(!intent)return <p>{t('Create a work intent first.')}</p>;
+  if(!intent)return tab==='isolation'?<TaskWorkspacePanel work={current} requests={integrations} onChoose={onChoose}/>:<p>{t('Create a work intent first.')}</p>;
   const identity={intentId:intent.id,intentVersion:intent.version},assignment=current.assignments.find(a=>a.intentId===intent.id),work=current.work.filter(w=>w.intentId===intent.id),chosen=work.find(w=>w.taskId===factoryTask)??work.at(-1);
   async function startRole(){if(!intent||!assignment||launching)return;setLaunching(true);setLaunchError('');try{const graph=await remoteCore.graphRequest<import('./execution').GraphOverview>('list');if(!graph.definition||graph.definition.revision!==assignment.graphRevision)throw Error('Review the current role assignment.');await remoteCore.graphRequest('start',{revision:graph.definition.revision,checksum:graph.definition.checksum,entryNodeId:assignment.taskNodeId,requestId:crypto.randomUUID(),teamIntentId:intent.id});onChoose(assignment.taskNodeId);}catch(e){setLaunchError(e instanceof Error?e.message:'Role execution failed.');}finally{setLaunching(false);}}
   const roles=teamRoles.map(r=><option key={r} value={r}>{t(teamRoleLabels[r])}</option>);
@@ -28,7 +30,7 @@ export function TeamOperationsPanel({tab,current,intent,busy,mutate,onChoose}:{t
       {assignment&&intent.responsibility!=='implementation'&&<button className="fs-button" disabled={busy||launching||!intent.ready||!!current.waiting.find(w=>w.intentId===intent.id)?.reasons.length} onClick={()=>void startRole()}>{t('Prepare read-only role execution')}</button>}{launchError&&<p role="alert">{t(launchError)}</p>}
       <ul>{work.map(w=><li key={w.taskId}><code>{w.taskId}</code>{t(w.status)} · {w.reason&&t(w.reason)}{w.executionId&&<code>{w.executionId}</code>}</li>)}</ul>
     </>}
-    {tab==='isolation'&&<><h3>{t('Workspace isolation')}</h3><p>{t('Source writes are serialized per project. Each Agent retest uses its own Snapshot workspace. Patch integration keeps existing approval, dirty-editor and base-hash checks.')}</p>{current.isolations?.filter(w=>w.taskId&&work.some(t=>t.taskId===w.taskId)).map(w=><article key={w.taskId}><strong>{w.taskId}</strong><code>{w.baselineChecksum}</code><p>{w.paths.join(' · ')}</p>{w.issues.map(i=><p role="alert" key={i}>{t(i)}</p>)}{w.attempts.map(a=><div key={a.id}><p>{t('Attempt')} {a.id} · {t(a.status)}</p><code>{a.snapshotId} · {a.snapshotChecksum}</code><p>{t('Run')} {a.runId??'—'} · {t(a.runStatus??'not-run')} · {t(a.sourceMatchesRun?'Snapshot matches tested Source.':'Source identity not yet verified.')}</p><ul>{a.files.map(f=><li key={f.path}>{f.path} · {t(f.approved?'approved':'not-run')}<code>{f.baseHash} → {f.resultHash}</code></li>)}</ul></div>)}</article>)}</>}
+    {tab==='isolation'&&<><TaskWorkspacePanel work={current} requests={integrations} onChoose={onChoose}/><h3>{t('Workspace isolation')}</h3><p>{t('Source writes are serialized per project. Each Agent retest uses its own Snapshot workspace. Patch integration keeps existing approval, dirty-editor and base-hash checks.')}</p>{current.isolations?.filter(w=>w.taskId&&work.some(t=>t.taskId===w.taskId)).map(w=><article key={w.taskId}><strong>{w.taskId}</strong><code>{w.baselineChecksum}</code><p>{w.paths.join(' · ')}</p>{w.issues.map(i=><p role="alert" key={i}>{t(i)}</p>)}{w.attempts.map(a=><div key={a.id}><p>{t('Attempt')} {a.id} · {t(a.status)}</p><code>{a.snapshotId} · {a.snapshotChecksum}</code><p>{t('Run')} {a.runId??'—'} · {t(a.runStatus??'not-run')} · {t(a.sourceMatchesRun?'Snapshot matches tested Source.':'Source identity not yet verified.')}</p><ul>{a.files.map(f=><li key={f.path}>{f.path} · {t(f.approved?'approved':'not-run')}<code>{f.baseHash} → {f.resultHash}</code></li>)}</ul></div>)}</article>)}</>}
     {tab==='quality'&&<>
       <p>{t('Record actual evidence for each gate. Manual review stays distinct from automated Run results. New attempts require new evidence.')}</p>
       <label>{t('Work contract')}<CustomSelect value={chosen?.taskId??''} onChange={e=>setFactoryTask(e.target.value)}><option value="">{t('Select')}</option>{work.map(w=><option key={w.taskId} value={w.taskId}>{w.taskId} · {t(w.status)}</option>)}</CustomSelect></label>

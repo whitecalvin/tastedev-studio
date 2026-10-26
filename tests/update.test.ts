@@ -35,7 +35,7 @@ test('all supported languages have update messages', () => {
 
 test('native update bridge has generated permission and a local main-window capability',()=>{
  const build=readFileSync(new URL('../src-tauri/build.rs',import.meta.url),'utf8'),capability=JSON.parse(readFileSync(new URL('../src-tauri/capabilities/main.json',import.meta.url),'utf8'));
- assert.match(build,/"update_action"/);assert.deepEqual(capability.windows,['main']);assert(capability.permissions.includes('allow-update-action'));assert(!capability.remote);
+ assert.match(build,/"update_action"/);assert.deepEqual(capability.windows,['main','task-*']);assert(capability.permissions.includes('allow-update-action'));assert(!capability.remote);
 });
 test('initial native failure can recover on reopening without leaving controls permanently busy',async()=>{
  let fail=true;const service=new UpdateService(true,async()=>{if(fail)throw 'update_action not allowed';return initial;});await service.start();assert.equal(service.snapshot().status,null);assert.equal(service.snapshot().pending,false);assert.match(service.snapshot().error,/Reinstall/);fail=false;service.show();await new Promise(resolve=>setImmediate(resolve));assert.equal(service.snapshot().status?.currentVersion,initial.currentVersion);assert.equal(service.snapshot().error,'');assert.equal(service.snapshot().pending,false);

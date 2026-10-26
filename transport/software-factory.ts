@@ -1,12 +1,15 @@
-import {randomUUID} from 'node:crypto';
+import {uuid} from '../src/features/ai/security.ts';
+import {createHash,randomUUID} from 'node:crypto';
 import {CoreError} from '../src/features/core/domain.ts';
-import {factoryConflicts,factoryContext,pathContains,validateFactoryContract,validateFactoryDefinition,type FactoryContract,type FactoryOverview,type FactoryTask} from '../src/features/orchestration/factory.ts';
+import {factoryConflicts,factoryContext,pathContains,validateFactoryContract,validateFactoryDefinition,type IntegrationCompletion,type FactoryContract,type FactoryOverview,type FactoryTask} from '../src/features/orchestration/factory.ts';
 import type {GraphOverview} from '../src/features/orchestration/execution.ts';
 import type {GraphPersistence} from './graph-execution.ts';
 import type {AnalysisRecord} from '../src/features/ai/domain.ts';
 import type {FixAttempt} from '../src/features/ai/fix-service.ts';
 
 export interface FactoryBridge {
+  sourceContent?:(project:string,snapshotChecksum:string)=>string|undefined;
+  validateIntegration?:(contract:FactoryContract,proof:IntegrationCompletion)=>void;
   validateAcceptance?:(contract:FactoryContract,executionId:string)=>void;
   validateContract?:(contract:FactoryContract)=>void;
   overview(project:string):GraphOverview;
@@ -33,7 +36,7 @@ export class SoftwareFactory {
     if(saved){
       if(saved.version!==1||!Array.isArray(saved.tasks)||saved.tasks.length>500)fail('Invalid durable state; preserved.');
       const keys=new Set<string>();
-      for(const task of saved.tasks){const c=validateFactoryContract(task.contract,task.contract.projectId),key=c.projectId+'/'+c.taskId;if(keys.has(key)||!Number.isSafeInteger(task.version)||task.version<1||!['draft','queued','launching','running','review','completed','failed','paused','cancelling','cancelled'].includes(task.status)||typeof task.actor!=='string'||!Array.isArray(task.attempts)||task.attempts.length>c.maxAttempts||!Number.isFinite(Date.parse(task.createdAt))||task.deadline!==undefined&&!Number.isFinite(Date.parse(task.deadline))||task.attempts.some(a=>!/^factory-[a-f0-9-]{36}$/.test(a.executionId)||!Number.isFinite(Date.parse(a.startedAt))))fail('Invalid durable task; preserved.');keys.add(key);}
+      for(const task of saved.tasks){const c=validateFactoryContract(task.contract,task.contract.projectId),key=c.projectId+'/'+c.taskId;if(keys.has(key)||!Number.isSafeInteger(task.version)||task.version<1||!['draft','queued','launching','running','review','completed','failed','paused','cancelling','cancelled'].includes(task.status)||typeof task.actor!=='string'||!Array.isArray(task.attempts)||task.attempts.length>c.maxAttempts||!Number.isFinite(Date.parse(task.createdAt))||task.deadline!==undefined&&!Number.isFinite(Date.parse(task.deadline))||task.attempts.some(a=>!/^factory-[a-f0-9-]{36}$/.test(a.executionId)||!Number.isFinite(Date.parse(a.startedAt))))fail('Invalid durable task; preserved.');if(task.integrationCompletion){const p=task.integrationCompletion;[p.requestId,p.attemptId,p.proposalId,p.runId,p.reviewAnalysisId].forEach(uuid);if(task.status!=='completed'||p.kind!=='workspace-integration'||! /^[a-f0-9]{64}$/.test(p.checksum)||! /^[a-f0-9]{64}$/.test(p.contentChecksum)||p.graphRevision!==c.revision||p.graphChecksum!==c.checksum||!Number.isFinite(Date.parse(p.acceptedAt)))fail('Invalid integration completion receipt; preserved.');}keys.add(key);}
       this.tasks=structuredClone(saved.tasks);
       this.commit(next=>{for(const task of next)if(['queued','launching','running'].includes(task.status)){task.status='paused';task.reason='Core restarted. Review and resume; no work was replayed.';task.version++;}});
     }
@@ -42,6 +45,13 @@ export class SoftwareFactory {
   private commit(change:(next:FactoryTask[])=>void){const next=structuredClone(this.tasks);change(next);if(JSON.stringify(next)===JSON.stringify(this.tasks))return;this.persistence?.save({version:1,tasks:next});this.tasks=next;}
   private task(project:string,id:string){return this.tasks.find(t=>t.contract.projectId===project&&t.contract.taskId===id)??fail('Task not found in project.');}
   private update(task:FactoryTask,change:(target:FactoryTask)=>void){this.commit(next=>{const target=next.find(t=>t.contract.projectId===task.contract.projectId&&t.contract.taskId===task.contract.taskId)!;change(target);target.version++;});}
+  completeIntegration(project:string,taskId:string,proof:IntegrationCompletion,actor:string){
+    this.authority(actor,project,'approve');const task=this.task(project,taskId);
+    if(task.integrationCompletion){if(JSON.stringify(task.integrationCompletion)!==JSON.stringify(proof))fail('Integration completion identity changed.');return;}
+    if(!this.bridge.validateIntegration||!(task.status==='draft'||task.status==='paused'&&!task.attempts.length))fail('Only idle isolated work may complete through integration.');
+    this.validateDefinition(task.contract);this.bridge.validateIntegration!(task.contract,proof);
+    this.update(task,t=>{t.status='completed';t.integrationCompletion=structuredClone(proof);t.reason='Accepted integrated Source after actual retest and independent review.';});
+  }
   overview(project:string):FactoryOverview{return {tasks:structuredClone(this.tasks.filter(t=>t.contract.projectId===project).map(t=>({...t,actor:'',attempts:t.attempts.map(a=>({...a,reviewedBy:undefined}))}))),durable:!!this.persistence,maximumParallel:this.maximumParallel};}
   request(project:string,action:string,input:unknown,actor:string){return this.locked(async()=>{
     const permission=action==='list'?'read':['create','create-plan'].includes(action)?'history-write':action==='cancel'?'cancel':action==='review'?'approve':'run';this.authority(actor,project,permission);
@@ -142,6 +152,7 @@ export class SoftwareFactory {
         const dependencies=c.dependencies.map(d=>this.task(d.projectId,d.taskId));
         let waiting:string|undefined;
         if(dependencies.some(d=>d.status!=='completed'))waiting='Waiting for accepted dependencies.';
+        else if(dependencies.some(d=>d.contract.projectId===c.projectId&&d.integrationCompletion&&(()=>{const source=this.bridge.overview(c.projectId).definition?.source;if(!source)return true;const verified=this.bridge.sourceContent?.(c.projectId,source.checksum);if(verified)return verified!==d.integrationCompletion!.contentChecksum;if(!source.files?.length)return true;const rows=source.files.map(f=>[f.path,f.checksum,f.size??new TextEncoder().encode(f.content).length]).sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);return createHash('sha256').update(JSON.stringify(['source-content-v1',...rows])).digest('hex')!==d.integrationCompletion!.contentChecksum;})()))waiting='Publish the accepted integrated Source and review a new dependent contract.';
         else if(this.tasks.filter(holding).length>=this.maximumParallel||this.tasks.some(t=>holding(t)&&(t.contract.projectId===c.projectId||factoryConflicts(c,t.contract))))waiting='Waiting for a project slot or exclusive resource.';
         else if(this.bridge.overview(c.projectId).executions.some(e=>['running','paused','cancelling'].includes(e.status)))waiting='Waiting for the active project graph.';
         if(waiting){if(task.reason!==waiting)this.update(task,t=>{t.reason=waiting;});continue;}

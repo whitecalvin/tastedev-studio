@@ -1,0 +1,4 @@
+export type IntegrationPhase='submitted'|'reviewed'|'applied'|'retesting'|'verified'|'failed'|'reverted'|'conflict'|'completed'|'rejected'|'cancelled'|'access-required';
+export interface IntegrationReview {attemptId:string;proposalId:string;patchHash:string;fingerprint:string;at:string}
+export interface IntegrationRequest {id:string;parentProjectId:string;childProjectId:string;taskId:string;nodeId:string;graphRevision:number;graphChecksum:string;baseRevision:string;childRunId:string;childChecksum:string;files:{path:string;checksum:string}[];createdAt:string;reviews:IntegrationReview[];disposition?:'completed'|'rejected'|'cancelled';finishedAt?:string;completionRunId?:string;completionChecksum?:string;completionIntent?:import('./factory.ts').IntegrationCompletion;phase:IntegrationPhase;runId?:string}
+export interface IntegrationOverview {revision:number;durable:boolean;requests:IntegrationRequest[]}

@@ -7,7 +7,7 @@ test('announcement commands have explicit native permissions for the local main 
   const build = read('../src-tauri/build.rs');
   const runtime = read('../src-tauri/src/lib.rs');
   const capability = JSON.parse(read('../src-tauri/capabilities/main.json'));
-  assert.deepEqual(capability.windows, ['main']);
+  assert.deepEqual(capability.windows, ['main','task-*']);
   assert.equal(capability.remote, undefined);
   assert.notEqual(capability.local, false);
   for (const command of ['announcements_get', 'announcements_open']) {

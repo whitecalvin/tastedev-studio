@@ -99,7 +99,6 @@ $close.Add_Click({
     $window.Close()
 })
 $watch = [Diagnostics.Stopwatch]::StartNew()
-$script:doneAt = $null
 $script:lastState = $null
 $timer = [Windows.Threading.DispatcherTimer]::new()
 $viewerLease = [IO.File]::Open((Join-Path (Split-Path -Parent $StatePath) '.update-progress.lock'), [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::ReadWrite)
@@ -156,8 +155,8 @@ $updateView = {
         $bar.Value=if($phase -in @('complete','awaiting_restart')){100}else{0}
         $elapsed.Text=$watch.Elapsed.ToString('hh\:mm\:ss')
         if ($phase -eq 'complete') {
-            if ($null -eq $script:doneAt) { $script:doneAt=$watch.ElapsedMilliseconds }
-            if ($watch.ElapsedMilliseconds - $script:doneAt -ge 5000) { $window.Close() }
+            $timer.Stop()
+            $window.Close()
         }
     } catch {
         # Never silently leave a stale Waiting screen. Retry on the next tick,

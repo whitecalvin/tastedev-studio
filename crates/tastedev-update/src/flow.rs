@@ -256,6 +256,7 @@ pub struct Flow {
     peer: Option<crate::handoff::Request>,
     seen_request: Option<String>,
     consented: bool,
+    restart_ready: bool,
 }
 
 impl Flow {
@@ -294,6 +295,7 @@ impl Flow {
             peer: None,
             seen_request: None,
             consented: false,
+            restart_ready: false,
         };
         if auto {
             flow.begin(Why::Auto, &wake, now);
@@ -554,6 +556,13 @@ impl Flow {
 
     /// [`Flow::poll`] — 때를 받는다(시험).
     pub fn poll_at(&mut self, now: Instant, wake: &Waker) -> Option<Checked> {
+        // Desktop: main-frame poll. Studio: frontend status RPC after mount.
+        // The helper also requires a responding native window for this PID.
+        if cfg!(windows) && !self.restart_ready {
+            self.restart_ready = self
+                .ensure_session()
+                .is_some_and(|s| s.confirm_restart_ready());
+        }
         if cfg!(windows) && self.poll_exit_request() {
             return None;
         }

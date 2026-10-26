@@ -423,21 +423,39 @@ mod tests {
     #[test]
     fn shared_install_waits_preserves_payload_and_reports_postponement() {
         let (updates, _fx, h) = fixture_updates();
-        assert_eq!(
-            updates.action("install", None, true).err().as_deref(),
-            Some("workspace-busy")
-        );
+        // Dirty work may download and verify an update, but cannot approve exit/install.
         assert!(h.runner.lines().is_empty());
         assert!(
             updates.action("download", None, false).is_err(),
-            "no separate download/install pipeline"
+            "no separate download pipeline"
         );
-        let (status, quit) = updates.action("install", None, false).unwrap();
+        let (status, quit) = updates.action("install", None, true).unwrap();
         assert_eq!(status.stage, "downloading");
         assert!(!quit);
         assert!(updates.action("install", None, false).is_err());
         assert!(updates.action("check", None, false).is_err());
-        pump(&updates, "installing");
+        pump(&updates, "ready");
+        assert!(
+            h.runner.lines().is_empty(),
+            "download must not launch an installer"
+        );
+        let payload = h.work.0.join("tastestudio_0.2.0_windows_x64.zip");
+        let before = fs::read(&payload).unwrap();
+        assert_eq!(
+            updates.action("install", None, true).err().as_deref(),
+            Some("workspace-busy")
+        );
+        let (status, quit) = updates.action("status", None, true).unwrap();
+        assert_eq!(status.stage, "ready");
+        assert!(!quit);
+        assert_eq!(fs::read(&payload).unwrap(), before);
+        assert!(h.runner.lines().is_empty());
+        let (status, quit) = updates.action("install", None, false).unwrap();
+        assert_eq!(status.stage, "installing");
+        assert!(
+            !quit,
+            "the helper must coordinate all live instances before exit"
+        );
         assert_eq!(h.runner.lines().len(), 1);
         assert!(updates.action("install", None, false).is_err());
         assert!(updates.action("check", None, false).is_err());
@@ -514,7 +532,7 @@ mod tests {
         );
         assert_eq!(
             updates.action("install", None, true).err().as_deref(),
-            Some("workspace-busy")
+            Some("invalid")
         );
         fs::write(dir.path().join("auto-update.json"), b"broken").unwrap();
         assert!(

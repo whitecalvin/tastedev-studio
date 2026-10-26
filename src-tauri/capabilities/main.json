@@ -1,8 +1,9 @@
 {
   "identifier": "main",
-  "description": "Local Studio window only; native workspace commands authorize every operation.",
+  "description": "Local Studio main and managed task windows only; native workspace commands authorize every operation.",
   "windows": [
-    "main"
+    "main",
+    "task-*"
   ],
   "permissions": [
     "core:event:allow-listen",
@@ -15,6 +16,8 @@
     "allow-workspace-disconnect",
     "allow-workspace-file",
     "allow-git-operation",
+    "allow-task-worktree-action",
+    "allow-task-worktree-open",
     "allow-process-start",
     "allow-process-stop",
     "allow-process-write",

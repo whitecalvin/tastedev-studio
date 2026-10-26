@@ -9,6 +9,8 @@ fn main() {
             "workspace_disconnect",
             "workspace_file",
             "git_operation",
+            "task_worktree_action",
+            "task_worktree_open",
             "process_start",
             "process_stop",
             "process_write",

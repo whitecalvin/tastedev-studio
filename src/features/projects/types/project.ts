@@ -1,4 +1,5 @@
 export interface Project {
+  taskWorkspace?: {parentProjectId:string;taskId:string;baseRevision:string};
   id: string;
   name: string;
   description: string;

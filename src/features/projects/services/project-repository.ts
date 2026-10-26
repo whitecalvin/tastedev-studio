@@ -25,6 +25,7 @@ function isProject(value: unknown): value is Project {
     && (p.gitEnabled === null || typeof p.gitEnabled === "boolean")
     && (p.initialRoles === undefined || (Array.isArray(p.initialRoles) && p.initialRoles.length >= 1 && p.initialRoles.length <= 3 && p.initialRoles.every(role => roles.includes(role))))
     && (p.initialTeam === undefined || p.initialTeam === 'role-team')
+    && (p.taskWorkspace === undefined || (typeof p.taskWorkspace==='object'&&p.taskWorkspace!==null&&'parentProjectId' in p.taskWorkspace&&typeof p.taskWorkspace.parentProjectId==='string'&&p.taskWorkspace.parentProjectId!==p.id&&'taskId' in p.taskWorkspace&&typeof p.taskWorkspace.taskId==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(p.taskWorkspace.taskId)&&'baseRevision' in p.taskWorkspace&&typeof p.taskWorkspace.baseRevision==='string'&&/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(p.taskWorkspace.baseRevision)&&typeof p.workspacePath==='string'))
     && isDate(p.createdAt) && isDate(p.updatedAt) && (p.lastOpenedAt === null || isDate(p.lastOpenedAt));
 }
 

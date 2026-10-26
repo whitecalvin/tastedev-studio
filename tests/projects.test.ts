@@ -142,3 +142,5 @@ test('selected browser folder preserves user project name and description withou
   assert.equal((await service.get(project.id))?.description, 'User description');
 });
 
+
+test('task workspaces register independent projects and cannot silently relocate existing identities',async()=>{const f=setup(),parent=await f.service.create(input),task={taskId:crypto.randomUUID(),projectId:parent.id,baseRevision:'a'.repeat(40),state:'ready',path:'C:/Isolated/task'};const child=await f.service.registerTaskWorkspace(parent,task);assert.notEqual(child.id,parent.id);assert.equal(child.taskWorkspace?.parentProjectId,parent.id);assert.equal(child.initialTeam,'role-team');assert.equal((await f.service.registerTaskWorkspace(parent,task)).id,child.id);assert.equal((await f.service.get(parent.id))?.workspacePath,parent.workspacePath);await assert.rejects(f.service.registerTaskWorkspace(parent,{...task,path:'C:/Elsewhere'}),/identity changed/);await assert.rejects(f.service.registerTaskWorkspace(parent,{...task,projectId:'foreign'}),/Invalid/);});

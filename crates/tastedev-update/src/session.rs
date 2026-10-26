@@ -228,6 +228,11 @@ pub struct Session {
 }
 
 impl Session {
+    /// Called by the UI's poll, including when automatic network checks are off.
+    pub(crate) fn confirm_restart_ready(&self) -> bool {
+        crate::restart_ready::publish(&self.work_dir, &self.exe, self.product.version)
+    }
+
     /// 이 PC 로 만든다. `work_dir` 는 받은 설치 파일 · 스크립트 · 결과를 둘 곳(제품 캐시 폴더의 `updates`).
     /// `local_only` 면(시험 빌드 · 캡처 모드) 로컬 주소만 읽는다.
     pub fn new(
