@@ -2,6 +2,8 @@
 
 ## 이번 판에서 달라진 것
 
+- 기존 Windows·Linux 배포를 유지하면서 macOS 패키지만 추가하는 출시 명령을 추가했습니다.
+
 - macOS Apple Silicon용 DMG 설치 패키지와 Homebrew 배포 경로를 추가했습니다.
 
 
@@ -15,6 +17,8 @@
 
 ## What's new [en]
 
+- Added a release command to add macOS packages while preserving existing Windows and Linux releases.
+
 - Added DMG packaging and Homebrew distribution for macOS Apple Silicon.
 
 
@@ -24,6 +28,8 @@
 - Submit tested task changes to the original work and complete it after integration retests, independent review and acceptance.
 
 ## What's new [ja]
+
+- 既存のWindows・Linux配布を維持してmacOSパッケージのみ追加するリリースコマンドを追加しました。
 
 - macOS Apple Silicon 向けの DMG パッケージと Homebrew 配布経路を追加しました。
 
@@ -35,6 +41,8 @@
 
 ## What's new [zh]
 
+- 新增仅添加macOS软件包的发布命令，保留现有Windows和Linux发布。
+
 - 新增 macOS Apple Silicon 的 DMG 打包和 Homebrew 分发支持。
 
 
@@ -44,6 +52,8 @@
 - 可向原始工作提交已测试的任务更改，并在集成重测、独立审核和接受后完成原始工作。
 
 ## What's new [zh-hant]
+
+- 新增僅加入macOS套件的發布指令，保留現有Windows與Linux發布。
 
 - 新增 macOS Apple Silicon 的 DMG 打包與 Homebrew 發佈支援。
 
@@ -55,6 +65,8 @@
 
 ## What's new [de]
 
+- Neuer Release-Befehl zum Ergänzen von macOS-Paketen unter Beibehaltung vorhandener Windows- und Linux-Veröffentlichungen.
+
 - DMG-Paketierung und Homebrew-Verteilung für macOS Apple Silicon hinzugefügt.
 
 
@@ -64,6 +76,8 @@
 - Getestete Änderungen beim Originalauftrag einreichen und ihn nach Integrationstests, unabhängiger Prüfung und Annahme abschließen.
 
 ## What's new [es]
+
+- Añadido un comando para agregar paquetes de macOS conservando las versiones publicadas de Windows y Linux.
 
 - Se añadieron paquetes DMG y distribución mediante Homebrew para macOS Apple Silicon.
 
@@ -75,6 +89,8 @@
 
 ## What's new [fr]
 
+- Ajout d’une commande de publication pour ajouter les paquets macOS en conservant les versions Windows et Linux existantes.
+
 - Ajout des paquets DMG et de la distribution Homebrew pour macOS Apple Silicon.
 
 
@@ -84,6 +100,8 @@
 - Soumettez les modifications testées au travail original et terminez-le après retests, examen indépendant et acceptation.
 
 ## What's new [it]
+
+- Aggiunto un comando di rilascio per aggiungere pacchetti macOS mantenendo le versioni Windows e Linux esistenti.
 
 - Aggiunti pacchetti DMG e distribuzione tramite Homebrew per macOS Apple Silicon.
 
@@ -95,6 +113,8 @@
 
 ## What's new [pt]
 
+- Adicionado comando de publicação para incluir pacotes macOS preservando as versões Windows e Linux existentes.
+
 - Adicionados pacotes DMG e distribuição pelo Homebrew para macOS Apple Silicon.
 
 
@@ -104,6 +124,8 @@
 - Envie alterações testadas ao trabalho original e conclua após retestes, revisão independente e aceitação.
 
 ## What's new [ru]
+
+- Добавлена команда выпуска пакетов macOS с сохранением существующих выпусков Windows и Linux.
 
 - Добавлены пакеты DMG и распространение через Homebrew для macOS Apple Silicon.
 
@@ -115,6 +137,8 @@
 
 ## What's new [nl]
 
+- Een releaseopdracht toegevoegd om macOS-pakketten toe te voegen met behoud van bestaande Windows- en Linux-releases.
+
 - DMG-pakketten en Homebrew-distributie voor macOS Apple Silicon toegevoegd.
 
 
@@ -124,6 +148,8 @@
 - Dien geteste wijzigingen in bij het oorspronkelijke werk en rond het af na hertests, onafhankelijke beoordeling en acceptatie.
 
 ## What's new [pl]
+
+- Dodano polecenie wydania pakietów macOS z zachowaniem istniejących wydań Windows i Linux.
 
 - Dodano pakiety DMG i dystrybucję przez Homebrew dla macOS Apple Silicon.
 
@@ -135,6 +161,8 @@
 
 ## What's new [uk]
 
+- Додано команду випуску пакетів macOS зі збереженням наявних випусків Windows і Linux.
+
 - Додано пакети DMG і розповсюдження через Homebrew для macOS Apple Silicon.
 
 
@@ -144,6 +172,8 @@
 - Перевірені зміни можна подати до вихідного завдання й завершити його після повторних тестів, незалежного огляду та прийняття.
 
 ## What's new [tr]
+
+- Mevcut Windows ve Linux sürümlerini koruyarak macOS paketleri ekleyen yayın komutu eklendi.
 
 - macOS Apple Silicon için DMG paketleme ve Homebrew dağıtımı eklendi.
 
@@ -155,6 +185,8 @@
 
 ## What's new [cs]
 
+- Přidán příkaz pro doplnění balíčků macOS se zachováním stávajících vydání Windows a Linux.
+
 - Přidány balíčky DMG a distribuce přes Homebrew pro macOS Apple Silicon.
 
 
@@ -164,6 +196,8 @@
 - Odešlete otestované změny původní úloze a dokončete ji po opakovaných testech, nezávislé kontrole a přijetí.
 
 ## What's new [sv]
+
+- Lade till ett publiceringskommando för macOS-paket som bevarar befintliga Windows- och Linux-versioner.
 
 - Lagt till DMG-paket och Homebrew-distribution för macOS Apple Silicon.
 
@@ -175,6 +209,8 @@
 
 ## What's new [da]
 
+- Tilføjet en udgivelseskommando til macOS-pakker, som bevarer eksisterende Windows- og Linux-udgivelser.
+
 - Tilføjet DMG-pakker og Homebrew-distribution til macOS Apple Silicon.
 
 
@@ -184,6 +220,8 @@
 - Indsend testede ændringer til det oprindelige arbejde, og afslut efter gentest, uafhængig gennemgang og accept.
 
 ## What's new [nb]
+
+- Lagt til en utgivelseskommando for macOS-pakker som bevarer eksisterende Windows- og Linux-utgivelser.
 
 - Lagt til DMG-pakker og Homebrew-distribusjon for macOS Apple Silicon.
 
@@ -195,6 +233,8 @@
 
 ## What's new [fi]
 
+- Lisätty julkaisukomento macOS-pakettien lisäämiseen säilyttäen nykyiset Windows- ja Linux-julkaisut.
+
 - Lisätty DMG-paketointi ja Homebrew-jakelu macOS Apple Siliconille.
 
 
@@ -204,6 +244,8 @@
 - Lähetä testatut muutokset alkuperäiseen tehtävään ja viimeistele se uusintatestien, riippumattoman tarkistuksen ja hyväksynnän jälkeen.
 
 ## What's new [hu]
+
+- Új kiadási parancs macOS-csomagok hozzáadásához a meglévő Windows- és Linux-kiadások megőrzésével.
 
 - DMG-csomagolás és Homebrew-terjesztés hozzáadva macOS Apple Siliconhoz.
 
@@ -215,6 +257,8 @@
 
 ## What's new [ro]
 
+- Comandă nouă de publicare pentru adăugarea pachetelor macOS, păstrând versiunile Windows și Linux existente.
+
 - Au fost adăugate pachete DMG și distribuția prin Homebrew pentru macOS Apple Silicon.
 
 
@@ -224,6 +268,8 @@
 - Trimiteți modificările testate lucrării originale și finalizați după retestare, verificare independentă și acceptare.
 
 ## What's new [el]
+
+- Προστέθηκε εντολή έκδοσης για προσθήκη πακέτων macOS με διατήρηση των υπαρχουσών εκδόσεων Windows και Linux.
 
 - Προστέθηκαν πακέτα DMG και διανομή μέσω Homebrew για macOS Apple Silicon.
 
@@ -235,6 +281,8 @@
 
 ## What's new [vi]
 
+- Thêm lệnh phát hành để bổ sung gói macOS và giữ nguyên các bản phát hành Windows và Linux hiện có.
+
 - Đã bổ sung gói DMG và phân phối qua Homebrew cho macOS Apple Silicon.
 
 
@@ -244,6 +292,8 @@
 - Gửi thay đổi đã kiểm thử về công việc gốc và hoàn tất sau khi kiểm thử lại, đánh giá độc lập và chấp thuận.
 
 ## What's new [id]
+
+- Menambahkan perintah rilis untuk menambah paket macOS sambil mempertahankan rilis Windows dan Linux yang ada.
 
 - Menambahkan paket DMG dan distribusi Homebrew untuk macOS Apple Silicon.
 

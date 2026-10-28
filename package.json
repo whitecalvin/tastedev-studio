@@ -8,6 +8,9 @@
     "node": ">=24.11.1 <25"
   },
   "scripts": {
+    "release:macos:check": "pwsh.exe -NoProfile -NoLogo -File ../tools/cross-platform-release/Invoke-MacosReleaseAddition.ps1 -Config release.desktop.json -Plan",
+    "release:macos:publish": "pwsh.exe -NoProfile -NoLogo -File ../tools/cross-platform-release/Invoke-MacosReleaseAddition.ps1 -Config release.desktop.json -Publish",
+    "release:macos:resume": "pwsh.exe -NoProfile -NoLogo -File ../tools/cross-platform-release/Invoke-MacosReleaseAddition.ps1 -Config release.desktop.json -Publish -Resume",
     "dev": "node scripts/prepare-monaco.mjs && next dev",
     "build": "node scripts/prepare-monaco.mjs && next build",
     "start": "next start",
