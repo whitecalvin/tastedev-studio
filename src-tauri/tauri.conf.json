@@ -16,6 +16,7 @@
         "title": "TASTESTUDIO",
         "width": 1440,
         "height": 900,
+        "center": true,
         "minWidth": 1000,
         "minHeight": 650
       }

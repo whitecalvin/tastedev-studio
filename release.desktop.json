@@ -79,6 +79,50 @@
     ],
     "prepareScript": "scripts/prepare-linux-release.sh"
   },
+  "macos": {
+    "host": "192.168.0.182",
+    "user": "whitecalvin",
+    "packageFormats": [
+      "dmg"
+    ],
+    "minimumSystemVersion": "14.0",
+    "category": "public.app-category.developer-tools",
+    "binaries": [
+      {
+        "name": "tastestudio",
+        "bin": "tastedev-studio",
+        "package": "tastedev-studio"
+      },
+      {
+        "name": "tastestudio-agent",
+        "bin": "tastedev-agent",
+        "package": "tastedev-agent"
+      }
+    ],
+    "launchMode": "desktop",
+    "frontend": {
+        "nodeVersion": "24.22.2",
+        "nodeSha256": "1f5ac075be50bed4780ea3be19a007fda95ea4d527d28d76d0b91de47d915115",
+      "inputs": [
+          ".npmrc",
+        "src",
+        "app",
+        "components",
+        "public",
+        "scripts",
+        "transport",
+        "browser-runner",
+        "package.json",
+        "pnpm-lock.yaml",
+        "next.config.ts",
+        "next.config.mjs",
+        "tsconfig.json"
+      ],
+      "root": ".",
+      "installRoot": ".",
+      "kind": "studio-desktop"
+    }
+  },
   "ssh": {
     "identityFileFromUserProfile": ".ssh/id_ed25519",
     "principal": "release@tastedev.net",
