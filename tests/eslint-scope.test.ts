@@ -1,15 +1,21 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { ESLint } from 'eslint';
 
-const eslint = new ESLint();
+const root = fileURLToPath(new URL('../', import.meta.url));
+const eslint = new ESLint({ cwd: root });
 
 test('bundled Python JavaScript is excluded from product lint', async () => {
-  const paths = execFileSync('git', ['ls-files', '-z', '--', 'Python'], { encoding: 'utf8' })
-    .split('\0').filter((path) => /\.(?:[cm]?js|tsx?)$/.test(path));
-  assert.ok(paths.length > 0, 'exercise the actual tracked external runtime');
+  // Release archives contain actual runtime files but no Git metadata. Inspect
+  // those files directly; an absent/empty runtime must still fail this contract.
+  const paths = readdirSync(join(root, 'Python'), { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile() && /\.(?:[cm]?js|tsx?)$/.test(entry.name))
+    .map((entry) => relative(root, join(entry.parentPath, entry.name)).split(sep).join('/'))
+    .sort();
+  assert.ok(paths.length > 0, 'exercise the actual bundled external runtime');
   for (const path of paths) assert.equal(await eslint.isPathIgnored(path), true, path);
 });
 
