@@ -5,7 +5,7 @@ import {uuid} from './security.ts';
 import {FixError,contentHash} from './fix-service.ts';
 import {base64Decode,base64Encode,binaryText,bytesHash,projectSnapshotLimits as limits} from './snapshot-bytes.ts';
 export interface ProjectSnapshot extends WorkspaceSnapshot {schemaVersion:2}
-export function projectSnapshotPath(path:string){snapshotPath(path);if(new TextEncoder().encode(path).length>240||path.split('/').some(p=>/[. ]$/.test(p)||/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(p)))throw new FixError('SNAPSHOT_PATH');return path;}
+export function projectSnapshotPath(path:string){snapshotPath(path,true);if(new TextEncoder().encode(path).length>240||path.split('/').some(p=>/[. ]$/.test(p)||/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(p)))throw new FixError('SNAPSHOT_PATH');return path;}
 export function snapshotBytes(file:SnapshotFile){if(file.encoding==='base64'){try{return base64Decode(file.content);}catch{throw new FixError('SNAPSHOT_INTEGRITY');}}if(file.encoding!=='utf8')throw new FixError('SNAPSHOT_ENCODING');return new TextEncoder().encode(file.content);}
 export function projectManifest(snapshot:ProjectSnapshot){return JSON.stringify([2,snapshot.snapshotId,snapshot.projectId,snapshot.proposalId,snapshot.attempt,snapshot.baseRevision,snapshot.changedFiles,...snapshot.files.map(f=>[f.path,f.checksum,f.encoding,f.size])]);}
 export function projectManifestRecord(snapshot:ProjectSnapshot){return {...snapshot,files:snapshot.files.map(f=>({...f,content:''})),transfer:undefined};}

@@ -1,3 +1,4 @@
+import {validateBinding,type TemplateBinding} from '../../frameworks/domain.ts';
 import { ProjectError, type NewProjectInput, type Project } from "../types/project.ts";
 import { assertUniqueProject, validateNewProject } from "../utils/validation.ts";
 import type { ProjectRepository } from "./project-repository.ts";
@@ -40,6 +41,10 @@ export class ProjectService {
       return project;
     });
   }
+  async bindTemplate(id:string,binding:TemplateBinding):Promise<Project>{
+    const valid=validateBinding(binding);
+    return this.exclusive(async()=>{const project=await this.get(id);if(!project)throw new ProjectError('Project not found.');const next={...project,templateBinding:valid,updatedAt:this.options.now?.()??new Date().toISOString()};await this.repository.save(next);return next;});
+  }
   async open(id: string): Promise<Project> {
     return this.exclusive(async () => {
       const project = await this.get(id);
@@ -76,11 +81,11 @@ export class ProjectService {
       assertUniqueProject((await this.repository.list()).filter(item => item.id !== id), valid);
       await this.repository.save({ ...project, workspacePath: valid.workspacePath, browserFolder: false, updatedAt: this.options.now?.() ?? new Date().toISOString() });
     });
-  }  async registerBrowserFolder(name: string, description = '', setup?: Pick<NewProjectInput, 'projectKind' | 'initialRoles' | 'initialTeam'>): Promise<Project> {
+  }  async registerBrowserFolder(name: string, description = '', setup?: Pick<NewProjectInput, 'projectKind' | 'initialRoles' | 'initialTeam' | 'templateBinding'>): Promise<Project> {
     return this.exclusive(async () => {
       const now = this.options.now?.() ?? new Date().toISOString();
       const project: Project = { id: this.options.id?.() ?? crypto.randomUUID(), name, description, workspacePath: null, browserFolder: true, repositoryUrl: null, defaultBranch: null, framework: null, runtime: null, packageManager: null, projectType: null, gitEnabled: null, createdAt: now, updatedAt: now, lastOpenedAt: null };
-      if (setup) { const valid = validateNewProject({name, description, workspacePath:'/', ...setup}); project.projectType=valid.projectKind??null; project.initialRoles=valid.initialRoles; project.initialTeam=valid.initialTeam; }
+      if (setup) { const valid = validateNewProject({name, description, workspacePath:'/', ...setup}); project.projectType=valid.projectKind??null; project.initialRoles=valid.initialRoles; project.initialTeam=valid.initialTeam; project.templateBinding=valid.templateBinding; }
       await this.repository.save(project); return project;
     });
   }

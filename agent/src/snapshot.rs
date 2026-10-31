@@ -48,6 +48,12 @@ fn hash(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 pub(crate) fn safe(path: &str) -> Result<()> {
+    safe_path(path, false)
+}
+pub(crate) fn safe_project(path: &str) -> Result<()> {
+    safe_path(path, true)
+}
+fn safe_path(path: &str, project_source: bool) -> Result<()> {
     if path.is_empty()
         || path.len() > 240
         || path.contains(['\\', ':', '\0', '%'])
@@ -77,10 +83,10 @@ pub(crate) fn safe(path: &str) -> Result<()> {
                 ".next",
                 ".cache",
                 "artifacts",
-                "vendor",
                 "obj",
             ]
             .contains(&p.as_str())
+            || (p == "vendor" && !project_source)
             || (p == "resources"
                 && !(index + 1 == parts.len() || parts[index + 1].eq_ignore_ascii_case("branding")))
             || (p == "bin" && !(index > 0 && parts[index - 1].eq_ignore_ascii_case("src")))
@@ -564,5 +570,24 @@ mod tests {
         assert_eq!(fs::read_to_string(&target).unwrap(), "console.log(1);");
         fs::write(target, "user modification").unwrap();
         assert!(prepare(&request, root.path(), Arc::new(AtomicBool::new(false))).is_err());
+    }
+}
+
+#[cfg(test)]
+mod vendored_project_source_tests {
+    use super::{safe, safe_project};
+    #[test]
+    fn vendored_source_keeps_v1_exclusion_and_nested_security() {
+        assert!(safe_project("vendor/winit/src/lib.rs").is_ok());
+        assert!(safe("vendor/winit/src/lib.rs").is_err());
+        for p in [
+            "vendor/winit/target/cache",
+            "vendor/winit/.env",
+            "vendor/../escape",
+            "vendor/winit/node_modules/cache",
+            "vendor/private.key",
+        ] {
+            assert!(safe_project(p).is_err());
+        }
     }
 }

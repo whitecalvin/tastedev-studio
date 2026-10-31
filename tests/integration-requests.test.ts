@@ -19,3 +19,23 @@ test('missing independent review cannot complete accepted Source work',async()=>
 
 test('submitting the same successful candidate with a new request id does not duplicate it',async()=>{const f=await fixture(),first=f.submit();const next=f.send('submit',{id:crypto.randomUUID(),parentProjectId:f.parent,taskId:f.taskId,childRunId:f.childRun.id,files:first.requests[0].files},f.child);assert.equal(next.requests.length,1);assert.equal(next.requests[0].id,first.requests[0].id);});
 test('the originating child can cancel an unapplied request but needs cancel authority',async()=>{const f=await fixture();f.submit();f.deny(f.child+':cancel');assert.throws(()=>f.send('cancel',{},f.child),/DENIED/);f.deny('');assert.equal(f.send('cancel',{},f.child).requests[0].phase,'cancelled');assert.equal(f.disk.get('src/a.ts'),'user base');});
+
+test('deletion submission must be absent from the verified child Source',async()=>{
+ const f=await fixture();assert.throws(()=>f.send('submit',{parentProjectId:f.parent,taskId:f.taskId,childRunId:f.childRun.id,files:[{path:'src/a.ts',checksum:'absent'}]},f.child),/outside/);
+ f.childSnapshot.files=[];f.childSnapshot.changedFiles=[];
+ const row=f.send('submit',{parentProjectId:f.parent,taskId:f.taskId,childRunId:f.childRun.id,files:[{path:'src/a.ts',checksum:'absent'}]},f.child).requests[0];
+ assert.equal(row.files[0].checksum,'absent');assert.equal(row.phase,'submitted');
+});
+test('overlapping integrations wait in order and cannot acquire a second review lock',async()=>{
+ const f=await fixture();const first=f.submit();const run={...f.childRun,id:crypto.randomUUID()};f.snapshots.get(f.child)!.runs.push(run);
+ const id=crypto.randomUUID();f.send('submit',{id,parentProjectId:f.parent,taskId:f.taskId,childRunId:run.id,files:first.requests[0].files},f.child);
+ let rows=f.send('list').requests;assert.equal(rows.find(r=>r.id===id)!.phase,'waiting');
+ const a=await f.propose();assert.throws(()=>f.send('review',{id,attemptId:a.id}),/Waiting/);
+ f.send('review',{attemptId:a.id});assert.throws(()=>f.send('review',{id,attemptId:a.id}),/Waiting/);
+ f.send('reject');rows=f.send('review',{id,attemptId:a.id}).requests;assert.equal(rows.find(r=>r.id===id)!.phase,'reviewed');
+});
+test('queue reordering is explicit, revisioned and cannot move an applied integration',async()=>{
+ const f=await fixture();const first=f.submit();const run={...f.childRun,id:crypto.randomUUID()};f.snapshots.get(f.child)!.runs.push(run);const id=crypto.randomUUID();f.send('submit',{id,parentProjectId:f.parent,taskId:f.taskId,childRunId:run.id,files:first.requests[0].files},f.child);
+ f.send('reorder',{id,beforeId:f.requestId});const rows=f.send('list').requests;assert.equal(rows.find(r=>r.id===id)!.phase,'submitted');assert.equal(rows.find(r=>r.id===f.requestId)!.phase,'waiting');
+ const a=await f.propose();f.send('review',{id,attemptId:a.id});assert.throws(()=>f.send('reorder',{id}),/unreviewed/);
+});

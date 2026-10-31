@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {ContextTools} from '../src/features/ai/tools.ts';
 import {randomUUID} from 'node:crypto';
 import {immutableRunSource} from '../src/features/ai/run-source.ts';
 import {projectManifest,projectManifestRecord,type ProjectSnapshot} from '../src/features/ai/project-snapshot.ts';
@@ -11,3 +12,11 @@ test('corrupt manifest, foreign project and file content mismatch fail closed',a
 test('snapshot pin survives caller mutation; abort stops cached and new reads',async()=>{const f=await fixture(),abort=new AbortController(),s=await immutableRunSource(f.project,f.runId,f.request,abort.signal);f.snapshot.files[0].path='another.ts';assert.equal((await s.files.list('src',true))[0].path,'src/service.ts');await s.files.read('src/service.ts');abort.abort();await assert.rejects(s.files.read('src/service.ts'));await assert.rejects(s.files.list('',true));});
 
 test('identical bytes at two manifest paths remain readable by checksum',async()=>{const f=await fixture();f.snapshot.files.push({...f.snapshot.files[0],path:'src/copy.ts'});f.snapshot.checksum=await contentHash(projectManifest(f.snapshot));const s=await immutableRunSource(f.project,f.runId,f.request,new AbortController().signal);assert.equal((await s.files.read('src/copy.ts')).content,f.snapshot.files[0].content);});
+
+test('absence evidence is available only from the verified immutable manifest',async()=>{
+ const f=await fixture(),resolved=await immutableRunSource(f.project,f.runId,f.request,new AbortController().signal);
+ assert.equal(resolved.hasPath('src/missing.ts'),false);
+ const tools=new ContextTools({projectId:f.project,name:'test',files:resolved.files,sourceIdentity:resolved.identity,hasPath:resolved.hasPath,snapshot:()=>({}) as never,logs:()=>[],artifact:async()=>new Blob()});
+ const result=await tools.execute('read_file',{path:'src/missing.ts'},new AbortController().signal);
+ assert.equal(result.kind,'source-absence');assert.equal(result.path,'src/missing.ts');assert.equal(tools.originals['src/missing.ts'],undefined);
+});

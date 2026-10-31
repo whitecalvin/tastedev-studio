@@ -838,3 +838,40 @@ DEV 구현 완료: 연결 마법사, 명시적 장비·Agent·역할 운영판, 
 사본의 성공한 Source를 원본의 Core 통합 요청으로 제출하고, scoped proposal review·원본 실제 재테스트·독립 AI 검토·명시적 수락을 원본 Factory completed와 연결했다. 완료 proof와 completion intent는 복원되며, 실행하지 않은 Graph 상태를 위조하지 않는다. 같은 프로젝트 후속 작업이 통합 전 Source를 실행하는 것도 content checksum으로 차단한다.
 
 구조·사용법·제한은 [통합 요청과 원본 완료](TASTEDEV_INTEGRATION_HANDOFF.md), 최신 근거와 결과는 `resources/verification/dev-01/integration-handoff-20261026/RESULT.ko.md`를 따른다. 패키징·설치 시험·배포·commit/push는 이 작업에 포함하지 않았다.
+
+
+## 2026-10-31 — 통합 검토함과 후속 작업 소스 검토
+
+통합 검토함의 상태 필터/검색, 보수적 3-way 충돌 합치기, 승인된 UTF-8 파일 생성/삭제/이름 변경(삭제·생성 쌍), idle 후속 계약의 새 Source 검토/기록과 재승인 흐름을 구현했다. 기존 Fix journal·Snapshot·Core·Factory를 재사용하며 자동 적용·실행 승인은 추가하지 않는다. 구조 변경은 Native만 지원하고 새 디렉터리·바이너리·submodule은 지원하지 않는다. 독립 검토는 원본 immutable Run Snapshot과 삭제 부재 citation에 근거한다.
+
+전체 Node 1095 PASS(Node24.22.1), Native Debug 유효49 PASS/5ignored(실패10개만 환경 분리 재검증), Native Release49 PASS/5ignored, lint/typecheck/fmt/Clippy 및 웹/native optimized build PASS. 웹은 기존 STUDIO_DISABLE_BUILD_CACHE=1 옵션으로 잘못 재생된 Turbopack worker 실패를 분리했다. GUI는 실제 Core DB 사본+synthetic IPC의 검토함 검색/필터/충돌 합치기/밝게·어둡게만 확인했으며 새 실제 Provider/Agent E2E·설치본·Linux 합격을 주장하지 않는다. 상세 제한과 재현: TASTEDEV_INTEGRATION_HANDOFF.md 및 resources/verification/dev-01/integration-review-20261031/RESULT.ko.md. 패키징/서명/게시/설치/commit/push 없음.
+
+## 오케스트레이션 운영 5단계 — 2026-10-31 DEV_VERIFIED
+
+실제 AI/Agent 구조 통합, 겹치는 통합 대기열·명시적 우선순위, 장비 역할/OS/동시성/시간 정책, 선행 성공 스케줄, 실행 단계·이력·대기 재배정을 기존 Core/Factory/Graph/Scheduler 경로에 연결했다. 실전 검증에서 같은 관계도의 새 Source 재검토가 막히던 비교 오류를 수정했다. 승인·권한·프로젝트·불변 Source·stale 상태 경계를 유지하며 실행 중인 Run은 이동하지 않는다.
+
+Node 전체1109 PASS 후 변경된 Factory/통합33 PASS(신규1), 역할/Graph25 PASS(신규1)로 재확인했다. 최종 유효 테스트는1111개이며 단일 전체1111 실행으로 표현하지 않는다. lint/typecheck, Web production export, Native Release 컴파일 PASS. 변경 없는 Rust Debug/Release 각49 PASS/5ignored는21개 Native 입력 해시를 확인해 재사용했다.
+
+실제 gpt-6.1-sol 분석·수정안, 실제 Rust Agent 원본 재시험 PASS, 독립 실제 모델 검토·통합 완료, 후속 Source 재검토·별도 queue·Graph 시작을 확인했다. 후속 작업 완료·새 Native GUI 쓰기·설치/Linux 운영/패키징 검증과 구분한다. 사용 안내: `docs/TASTEDEV_ORCHESTRATION_OPERATIONS.md`. 결과와 정확한 재개/검증 경계: `resources/verification/dev-01/orchestration-operations-20261031/RESULT.ko.md` 및 Evidence Index.
+
+## 제품 오케스트레이션 6단계 — 2026-10-31 DEV_VERIFIED
+
+후속 실제 AI 작업 완료/GUI, 명시적 장비 준비 진단, Source가 고정된 실제 산출물 흐름, missed/Protocol bounded retry, Source까지 확인하는 재시작 복구·수동 실패 재시도, TASTEFILES Protocol/전달 초안을 구현했다. 실제 gpt-6.1-sol4회와 Rust Agent 후속 Test를 완료했다. 실제 Core 재시작에서 producer Run을 보존해 duplicate Job0으로 consumer를 완료했다.
+
+실제 TASTEFILES0.2.34 CLI Snapshot758개를3개 로컬 Rust Agent로 컴파일·실제 copy Test·전달·승인된 private staging까지 검증했다.5분 고정 artifact grant 만료 결함을 승인 step/Graph 기한으로 수정했고, 완료된 컴파일은 hash/recipe/Source를 확인해 전송부터 재사용했다. Snapshot758×3 파일과 산출물 checksum이 일치했다. 원본 ui-kit/settings.rs의 별도 변경1건은 보존했으므로 결과는 고정 Snapshot에만 유효하다. Desktop GUI/여러 물리 PC/운영 설치를 검증했다고 표현하지 않는다.
+
+Node 유효1,134 PASS(전체1,132 실행에서 번역1실패를 수정하고 i18n9·Factory23·artifact15로 재확인; 단일 전체1,134 녹색 실행 아님), Agent Debug61 유효 PASS/Release61 PASS, lint/typecheck/fmt/Clippy, 최종 Web production/Native Release 컴파일 PASS. Native 기존 Debug/Release49 PASS/5ignored는 Source21개와 Cargo/toolchain hash가 같아 재사용했다. 실제 DB 사본·synthetic IPC GUI의 밝게/어둡게, 영수증·장비 진단·스케줄 저장·32px 폼 정렬을 확인했다. 설치본 GUI·패키징·서명·출시·102 배포·commit/push 없음.
+
+자세한 사용법: `docs/TASTEDEV_PRODUCT_ORCHESTRATION.md`. 결과/실패 원인/정확한 재개 경계/제한: `resources/verification/dev-01/product-orchestration-20261031/RESULT.ko.md`, `EVIDENCE-INDEX.md`, `checkpoint.json`.
+
+
+## 2026-11-01 — Claude-Code-Game-Studios / Godot 연동 검증
+
+고정 commit `05ad7c8a5b8aa2aa86bbd3439ae7cf7295cac418`의 파일439개·역할49개·스킬74개를 원문/checksum과 함께 보존했다. 프로젝트의 플랫폼/엔진 분리, 선택 팀 노드, 전체 프롬프트, 원본 설정 출처·파생 값·rigor/automation 편집을 연결했다. `frameworkRuntime:1` opt-in Agent, 공식 SDK0.3.316/Claude2.1.296의 고정 실행기와 영속 FrameworkSession을 기존 Core/Queue/Protocol 경로에 통합했다.
+
+실제 Claude `/dev-story` → Godot4.7.2 조작·렌더링 → 별도 원본 Diff 승인/반영 → 실제 Rust Agent 재시험 → 새 Snapshot 승인 → 후속 테스트 PASS를 확인했다. 실제 Core 재시작 후 같은 native session/격리 폴더 재개와 잘못된 ID 거부도 통과했다. 별도 Studio Provider(gpt-6.1-sol)의 기획·수정 제안·독립 검토를 확인했고, 원본 변경0과 기존 사용자 변경 보존·실제 rollback을 검증했다. GUI는 production 웹과 실제 DB 사본/IPC 모사로 밝게·어둡게 확인했다.
+
+지원 완료 범위는 제한된 Godot 원본 실행과 Studio 역할 연동이다. 전체74스킬·무제한 원본 Shell 호환을 주장하지 않는다. Unity/Unreal은 정의/설정 준비까지이며 실제 Linux/설치본 GUI/설치·업데이트 시험과 패키징·배포는 수행하지 않았다. 버전0.2.8 유지. 사용법·지원 경계: `docs/TASTEDEV_GAME_STUDIOS.md`; 정본 결과/근거: `resources/verification/dev-01/ccgs-20261031/{RESULT.ko.md,EVIDENCE-INDEX.md,checkpoint.json}`.
+
+
+CCGS 후속 보안 경계: 모델 완료 후 실제 Diff·봉인 Source checksum·Godot 버전·고정 Protocol 인자에 대한 별도 검증 승인을 요구한다. 원본 Apply 승인과 분리하며, 거절·취소·만료·stale Source는 실행을 차단한다. 이 실행기는 OS sandbox가 아니며 Agent 계정 권한으로 승인된 게임 코드를 실행한다.

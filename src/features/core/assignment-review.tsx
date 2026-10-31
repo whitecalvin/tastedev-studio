@@ -1,0 +1,15 @@
+'use client';
+import {useEffect,useRef,useState} from 'react';
+import {CustomSelect} from '@/components/ui/custom-select';
+import {useI18n} from '@/i18n/react';
+import {useFiles} from '../editor/session';
+import {useCore} from './context';
+import type {Job} from './domain';
+interface Match {agentId:string;matches:boolean;reasons:string[]}
+export function AssignmentReview({job}:{job:Job}){
+ const core=useCore(),files=useFiles(),{t}=useI18n(),key=JSON.stringify([core.project.id,core.connection.generation,job.id,job.updatedAt]);
+ const [saved,setSaved]=useState<{key:string;matches:Match[]}|null>(null),[agentId,setAgent]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false);const epoch=useRef(0),lock=useRef(false);const matches=saved?.key===key?saved.matches:[];
+ useEffect(()=>{const lifecycle=epoch,token=++lifecycle.current;let active=true,inflight=false;const load=async()=>{if(inflight||!core.connection.connected)return;inflight=true;try{const value=await core.connection.assignmentReview<Match[]>(job.id);if(active&&token===epoch.current)setSaved({key,matches:value});}catch{if(active)setError('Assignment review unavailable.');}finally{inflight=false;}};void load();const timer=setInterval(()=>void load(),2000);return()=>{active=false;lifecycle.current++;clearInterval(timer);};},[key,core.connection,job.id]);
+ async function reassign(){if(lock.current)return;lock.current=true;setBusy(true);setError('');const token=epoch.current;try{const answer=await files.ask({title:'Review queued assignment',message:job.name+'\n'+(job.pinnedAgentId??'Auto')+' → '+(agentId||'Auto'),choices:[{value:'assign',label:'Confirm'},{value:'cancel',label:'Cancel'}]});if(answer==='assign'&&token===epoch.current)await core.connection.reassignJob(job,agentId||null);}catch(e){if(token===epoch.current)setError(e instanceof Error?e.message:'Assignment review unavailable.');}finally{lock.current=false;setBusy(false);}}
+ return <section aria-label={t('Core assignment review')}><p>{t('Core policy and live capabilities determine eligibility. Reassignment never moves an active Run.')}</p><ul className="core-match-list">{matches.map(m=><li key={m.agentId}><strong>{core.snapshot.agents.find(a=>a.id===m.agentId)?.name??m.agentId}</strong><span>{m.matches?t('Match'):m.reasons.map(r=>t(r)).join(' · ')}</span></li>)}</ul>{job.status==='queued'&&<><label>{t('Agent')}<CustomSelect value={agentId} onChange={e=>setAgent(e.target.value)}><option value="">{t('Automatic assignment')}</option>{matches.filter(m=>m.matches).map(m=><option key={m.agentId} value={m.agentId}>{core.snapshot.agents.find(a=>a.id===m.agentId)?.name??m.agentId}</option>)}</CustomSelect></label><button className="fs-button" disabled={busy||saved?.key!==key||!!agentId&&!matches.some(m=>m.agentId===agentId&&m.matches)} onClick={()=>void reassign()}>{t('Review queued assignment')}</button></>}{!!job.assignmentHistory?.length&&<details><summary>{t('Assignment history')}</summary>{job.assignmentHistory.map((h,i)=><p key={i}>{h.at} · {h.from??t('Automatic assignment')} → {h.to??t('Automatic assignment')}</p>)}</details>}{error&&<p role="alert">{t(error)}</p>}</section>;
+}

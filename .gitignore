@@ -393,3 +393,9 @@ agent/target/
 
 # Unified product build and publication outputs
 /artifacts/
+
+# Pinned public CCGS definition bundle consumed by application imports.
+!/resources/integrations/
+!/resources/integrations/ccgs/
+!/resources/integrations/ccgs/05ad7c8a5b8aa2aa86bbd3439ae7cf7295cac418/
+!/resources/integrations/ccgs/05ad7c8a5b8aa2aa86bbd3439ae7cf7295cac418/**

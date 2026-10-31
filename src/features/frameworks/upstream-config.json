@@ -1,0 +1,56 @@
+{
+  "enums": [
+    "modes.review_mode::full|lean|solo",
+    "modes.rigor::minimal|standard|full",
+    "modes.workflow::minimal|standard|full",
+    "modes.automation::collaborative|guided|autonomous",
+    "modes.story_granularity::coarse|balanced|fine",
+    "docs.density::terse|balanced|thorough",
+    "qa.level::minimal|standard|full",
+    "team.size::individual|small|studio",
+    "performance.enforce::warn|block|off",
+    "platform.cert_tier::none|itch|steam|console",
+    "accessibility.target::none|standard|aaa",
+    "engine.name::Godot|Unity|Unreal",
+    "project.stage::Concept|Systems Design|Technical Setup|Pre-Production|Production|Polish|Release",
+    "testing.strict.logic::true|false",
+    "testing.strict.integration::true|false",
+    "testing.strict.visual::true|false",
+    "testing.strict.ui::true|false",
+    "testing.strict.config::true|false",
+    "features.session_state::on|off",
+    "features.read_guard::on|off|true|false",
+    "platform.online::true|false",
+    "workflow_overrides.edge_cases::true|false",
+    "workflow_overrides.tuning_knobs::true|false",
+    "workflow_overrides.art_bible_strict::true|false",
+    "updates.check::true|false"
+  ],
+  "locally_overridable": [
+    "modes.review_mode",
+    "modes.automation",
+    "modes.automation_always_ask",
+    "team.size",
+    "testing.strict.logic",
+    "testing.strict.integration",
+    "testing.strict.visual",
+    "testing.strict.ui",
+    "testing.strict.config",
+    "performance.enforce",
+    "features.session_state",
+    "features.token_budget_warn_at",
+    "features.read_guard",
+    "features.read_guard_kb",
+    "updates.check"
+  ],
+  "defaults": [
+    "modes.automation::collaborative",
+    "modes.rigor::minimal",
+    "performance.enforce::warn"
+  ],
+  "rigor_expansion": [
+    "minimal::modes.workflow=minimal,docs.density=terse,qa.level=minimal,modes.story_granularity=coarse,modes.review_mode=solo,team.size=individual",
+    "standard::modes.workflow=standard,docs.density=balanced,qa.level=standard,modes.story_granularity=balanced,modes.review_mode=lean,team.size=individual",
+    "full::modes.workflow=full,docs.density=thorough,qa.level=full,modes.story_granularity=fine,modes.review_mode=full,team.size=studio"
+  ]
+}

@@ -18,9 +18,11 @@ export interface FileSystemHost {
   readFile(connectionId: string, path: string): Promise<FileSnapshot>;
   readBytes?(connectionId:string,path:string):Promise<Uint8Array>;
   writeFile(connectionId: string, path: string, content: string, expected: string): Promise<void>;
+  transitionFile?(connectionId:string,path:string,expected:string|null,content:string|null):Promise<void>;
   createFile(connectionId: string, path: string): Promise<void>;
   createDirectory(connectionId: string, path: string): Promise<void>;
   rename(connectionId: string, path: string, destination: string): Promise<void>;
+  removeEmptyDirectory?(connectionId:string,path:string):Promise<void>;
   delete(connectionId: string, path: string): Promise<void>;
   exists(connectionId: string, path: string): Promise<boolean>;
 }

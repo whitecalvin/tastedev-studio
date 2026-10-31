@@ -1,3 +1,4 @@
+import {validateBinding} from '../../frameworks/domain.ts';
 import { ProjectError, type Project } from "../types/project.ts";
 import { workspaceKey } from "../utils/validation.ts";
 import { roles } from '../../orchestration/domain.ts';
@@ -19,6 +20,7 @@ const isDate = (value: unknown): value is string => typeof value === "string" &&
 function isProject(value: unknown): value is Project {
   if (!value || typeof value !== "object") return false;
   const p = value as Record<string, unknown>;
+  if(p.templateBinding!==undefined)try{validateBinding(p.templateBinding);}catch{return false;}
   return typeof p.id === "string" && !!p.id && typeof p.name === "string" && !!p.name.trim()
     && typeof p.description === "string" && ((typeof p.workspacePath === "string" && !!p.workspacePath) || (p.workspacePath === null && p.browserFolder === true))
     && nullableFields.every((field) => p[field] === null || typeof p[field] === "string")

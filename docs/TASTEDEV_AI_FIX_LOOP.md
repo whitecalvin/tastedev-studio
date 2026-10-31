@@ -185,3 +185,32 @@ Implemented right-click selection, portal menu, existing node settings and four 
 사본의 성공한 Source를 원본의 Core 통합 요청으로 제출하고, scoped proposal review·원본 실제 재테스트·독립 AI 검토·명시적 수락을 원본 Factory completed와 연결했다. 완료 proof와 completion intent는 복원되며, 실행하지 않은 Graph 상태를 위조하지 않는다. 같은 프로젝트 후속 작업이 통합 전 Source를 실행하는 것도 content checksum으로 차단한다.
 
 구조·사용법·제한은 [통합 요청과 원본 완료](TASTEDEV_INTEGRATION_HANDOFF.md), 최신 근거와 결과는 `resources/verification/dev-01/integration-handoff-20261026/RESULT.ko.md`를 따른다. 패키징·설치 시험·배포·commit/push는 이 작업에 포함하지 않았다.
+
+
+## 2026-10-31 — 통합 검토함과 후속 작업 소스 검토
+
+통합 검토함의 상태 필터/검색, 보수적 3-way 충돌 합치기, 승인된 UTF-8 파일 생성/삭제/이름 변경(삭제·생성 쌍), idle 후속 계약의 새 Source 검토/기록과 재승인 흐름을 구현했다. 기존 Fix journal·Snapshot·Core·Factory를 재사용하며 자동 적용·실행 승인은 추가하지 않는다. 구조 변경은 Native만 지원하고 새 디렉터리·바이너리·submodule은 지원하지 않는다. 독립 검토는 원본 immutable Run Snapshot과 삭제 부재 citation에 근거한다.
+
+전체 Node 1095 PASS(Node24.22.1), Native Debug 유효49 PASS/5ignored(실패10개만 환경 분리 재검증), Native Release49 PASS/5ignored, lint/typecheck/fmt/Clippy 및 웹/native optimized build PASS. 웹은 기존 STUDIO_DISABLE_BUILD_CACHE=1 옵션으로 잘못 재생된 Turbopack worker 실패를 분리했다. GUI는 실제 Core DB 사본+synthetic IPC의 검토함 검색/필터/충돌 합치기/밝게·어둡게만 확인했으며 새 실제 Provider/Agent E2E·설치본·Linux 합격을 주장하지 않는다. 상세 제한과 재현: TASTEDEV_INTEGRATION_HANDOFF.md 및 resources/verification/dev-01/integration-review-20261031/RESULT.ko.md. 패키징/서명/게시/설치/commit/push 없음.
+
+## 오케스트레이션 운영 5단계 — 2026-10-31 DEV_VERIFIED
+
+실제 AI/Agent 구조 통합, 겹치는 통합 대기열·명시적 우선순위, 장비 역할/OS/동시성/시간 정책, 선행 성공 스케줄, 실행 단계·이력·대기 재배정을 기존 Core/Factory/Graph/Scheduler 경로에 연결했다. 실전 검증에서 같은 관계도의 새 Source 재검토가 막히던 비교 오류를 수정했다. 승인·권한·프로젝트·불변 Source·stale 상태 경계를 유지하며 실행 중인 Run은 이동하지 않는다.
+
+Node 전체1109 PASS 후 변경된 Factory/통합33 PASS(신규1), 역할/Graph25 PASS(신규1)로 재확인했다. 최종 유효 테스트는1111개이며 단일 전체1111 실행으로 표현하지 않는다. lint/typecheck, Web production export, Native Release 컴파일 PASS. 변경 없는 Rust Debug/Release 각49 PASS/5ignored는21개 Native 입력 해시를 확인해 재사용했다.
+
+실제 gpt-6.1-sol 분석·수정안, 실제 Rust Agent 원본 재시험 PASS, 독립 실제 모델 검토·통합 완료, 후속 Source 재검토·별도 queue·Graph 시작을 확인했다. 후속 작업 완료·새 Native GUI 쓰기·설치/Linux 운영/패키징 검증과 구분한다. 사용 안내: `docs/TASTEDEV_ORCHESTRATION_OPERATIONS.md`. 결과와 정확한 재개/검증 경계: `resources/verification/dev-01/orchestration-operations-20261031/RESULT.ko.md` 및 Evidence Index.
+
+## 제품 오케스트레이션 연계 — 2026-10-31
+
+Factory 선행·후속 계약은 현재 Graph/input/Source 신원으로 재검토하고 각 queue/AI/Patch/결과 검토 권한을 유지한다. 실제 모델 구현·독립 검토4회와 후속 실제 Agent Test 완료를 확인했다. 수락된 수정본을 새 Snapshot으로 게시한 뒤 빌드/산출물 Test/전달 승인을 별도 실행한다. 아직 반영되지 않은 AI 변경을 이전 Snapshot으로 빌드하지 않는다. 기존 AI Read/Propose/scoped Write를 재사용하며 새 unrestricted shell·자동 commit/push는 없다.
+
+Scheduler 추가 retry는 Protocol Test0–2회에 한정한다. Graph/AI/배포 승인은 재생하지 않는다. Core 재시작은 paused로 남기고 동일 Graph/input/Source 및 남은 기한을 검토해 성공 Run을 유지한다. 수동 실패 재시도는 최신 실패 activation에 새 Attempt를 만들며 배포는 새 승인으로 돌아간다. v2 vendored Source 전송은 로컬 Core/Agent용이며 전체 프로젝트를 외부 모델에 보내는 권한이 아니다. artifact grant는 승인된 step/실행 기한 내에서만 유효하다.
+
+실제 TASTEFILES 검증은 고정된 CLI Snapshot/물리PC1대·논리Agent3개이다. 컴파일 성공 바이트 재사용·실제 copy Test·동일 checksum private staging을 확인했다. 원본 ui-kit의 별도 변경을 보존했고 desktop GUI·운영 설치·원격 장비 검증은 주장하지 않는다. 사용법과 보안/복구/정확한 근거는 `TASTEDEV_PRODUCT_ORCHESTRATION.md` 및 `resources/verification/dev-01/product-orchestration-20261031/RESULT.ko.md`를 따른다.
+
+## Claude-Code-Game-Studios 원본 반영
+
+원본 Claude 작업은 저장된 Working Tree Snapshot과 고정 공개 bundle에서 격리 실행한다. 실제 Godot 검증이 통과한 Source diff만 기존 proposeIntegration/approve/apply_patch로 연결한다. 새 디렉터리 경로도 승인 hash에 포함하며 write-ahead journal로 소유권을 기록한다. Revert는 hash precondition과 빈 디렉터리의 비재귀 제거로 기존 사용자 파일·폴더를 보존한다. 바이너리는 수동 검토다.
+
+반영된 원본은 frameworkGameSnapshot으로 재시험한다. Graph의 framework-review는 실제 원본 재시험 Run/Protocol Test/Proposal/Snapshot과 일치하는 승인 기록을 요구한다. 새 Source는 별도 승인 후 후속 노드에 전달한다. 모델의 completed나 초기 Git SHA만으로 변경된 Working Tree의 성공을 판정하지 않는다. 상세 사용법과 실제 E2E: `TASTEDEV_GAME_STUDIOS.md`.

@@ -5,12 +5,12 @@ export type Browser = 'chromium' | 'firefox' | 'webkit';
 export type AgentStatus = 'offline' | 'online' | 'idle' | 'busy' | 'error';
 /** 구성 화면과 Core 배정이 같은 Agent 상태 기준을 사용한다. capability 검증은 별도다. */
 export const availableAgentStatus = (status: AgentStatus) => status === 'online' || status === 'idle';
-export interface AgentCapability { buildArtifacts?:1|2; sourceSnapshot?:2; cpuCores: number; memoryMiB: number; docker: boolean; gpu: boolean; pty: boolean; runtimes: Partial<Record<Runtime, string>>; browsers: Browser[] }
+export interface AgentCapability {frameworkRuntime?:1; buildArtifacts?:1|2; sourceSnapshot?:2; cpuCores: number; memoryMiB: number; docker: boolean; gpu: boolean; pty: boolean; runtimes: Partial<Record<Runtime, string>>; browsers: Browser[] }
 export interface Agent { id: string; name: string; status: AgentStatus; platform: Platform; architecture: Architecture; capabilities: AgentCapability; lastSeenAt: string | null; createdAt: string; updatedAt: string }
-export interface JobRequirement { buildArtifacts?:1|2; sourceSnapshot?:2; platform?: Platform; architecture?: Architecture; cpuCores?: number; memoryMiB?: number; docker?: 'required'; gpu?: 'required' | 'optional'; pty?: 'required'; runtimes?: Partial<Record<Runtime, string>>; browser?: Browser }
+export interface JobRequirement {frameworkRuntime?:1; buildArtifacts?:1|2; sourceSnapshot?:2; platform?: Platform; architecture?: Architecture; cpuCores?: number; memoryMiB?: number; docker?: 'required'; gpu?: 'required' | 'optional'; pty?: 'required'; runtimes?: Partial<Record<Runtime, string>>; browser?: Browser }
 export interface JobPayload { task: string; steps: import('./test-plan.ts').ExecutionStep[]; testPlan?: import('./test-plan.ts').TestPlan }
 export type JobStatus = 'queued' | 'assigned' | 'running' | 'succeeded' | 'failed' | 'cancelled';
-export interface Job { pinnedAgentId?:string; id: string; projectId: string; createdBy?:string; type: 'task'; name: string; status: JobStatus; requirements: JobRequirement; payload: JobPayload; priority: number; queuedAt: string; createdAt: string; updatedAt: string; agentId: string | null; sourceJobId: string | null; attempt: number; maxAttempts: number; cancellationRequestedAt: string | null; idempotencyKey?:string }
+export interface Job { assignmentHistory?:{at:string;from:string|null;to:string|null}[]; pinnedAgentId?:string; id: string; projectId: string; createdBy?:string; type: 'task'; name: string; status: JobStatus; requirements: JobRequirement; payload: JobPayload; priority: number; queuedAt: string; createdAt: string; updatedAt: string; agentId: string | null; sourceJobId: string | null; attempt: number; maxAttempts: number; cancellationRequestedAt: string | null; idempotencyKey?:string }
 export type RunStatus = 'pending' | 'running' | 'passed' | 'failed' | 'cancelled' | 'timeout';
 export type StepStatus = 'pending' | 'running' | 'passed' | 'failed' | 'skipped' | 'cancelled' | 'timeout';
 export type ExecutionClassification = 'PASSED' | 'TEST_FAILED' | 'EXECUTION_ERROR' | 'TIMEOUT' | 'CANCELLED' | 'CONNECTION_LOST' | 'AGENT_SHUTDOWN' | 'AGENT_RESTARTED' | 'CAPABILITY_MISMATCH';

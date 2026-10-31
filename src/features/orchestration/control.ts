@@ -1,12 +1,12 @@
-import {recoveryPlan} from './recovery.ts';
+import {recoveryPlan,retryPlan} from './recovery.ts';
 import type {ProjectGraph} from './domain.ts';
 import type {GraphOverview} from './execution.ts';
 import {graphMonitor} from './monitor.ts';
 
-export type GraphControlAction='approve'|'resume'|'cancel';
+export type GraphControlAction='approve'|'resume'|'cancel'|'retry-failed';
 export function graphControlRequest(graph:ProjectGraph,overview:GraphOverview|null,input:{executionId:string;nodeId:string;action:GraphControlAction;connected:boolean;dirty:boolean;reviewed:boolean}) {
   if(!input.connected)throw Error('Connect to Core in Agents.');
-  if(!input.executionId||!['approve','resume','cancel'].includes(input.action))throw Error('Graph execution is unavailable.');
+  if(!input.executionId||!['approve','resume','cancel','retry-failed'].includes(input.action))throw Error('Graph execution is unavailable.');
   const monitor=graphMonitor(graph,overview,input.executionId),execution=monitor.execution;
   if(!execution)throw Error('Graph execution is unavailable.');
   if(input.action==='cancel') {
@@ -20,6 +20,10 @@ export function graphControlRequest(graph:ProjectGraph,overview:GraphOverview|nu
     return {action:'resume' as const,input:{executionId:execution.id}};
   }
   const activation=monitor.nodes.get(input.nodeId);
+  if(input.action==='retry-failed'){
+    const retry=retryPlan(execution,overview?.definition??null,input.nodeId);if(retry.blocked)throw Error(retry.blocked);
+    return {action:'retry-failed' as const,input:{executionId:execution.id,activationId:activation!.id,revision:execution.revision,checksum:execution.checksum}};
+  }
   if(execution.status!=='running'||activation?.status!=='approval')throw Error('Approval activation not waiting.');
   return {action:'approve' as const,input:{executionId:execution.id,activationId:activation.id,revision:execution.revision,checksum:execution.checksum}};
 }

@@ -71,6 +71,7 @@ fn capability_recheck_rejects_a_stale_advertised_runtime_before_execution() {
     let mut request = request();
     request.requirements.runtimes = Some([("node".into(), ">=999".into())].into());
     let advertised = Capabilities {
+        framework_runtime: None,
         source_snapshot: Some(2),
         build_artifacts: None,
         cpu_cores: 2,
@@ -88,6 +89,7 @@ fn capability_recheck_rejects_a_stale_advertised_runtime_before_execution() {
 fn execution_observation_omits_unrequested_stale_runtime_inventory() {
     let request = request();
     let advertised = Capabilities {
+        framework_runtime: None,
         source_snapshot: Some(2),
         build_artifacts: None,
         cpu_cores: 2,
@@ -108,6 +110,7 @@ fn capability_check_observes_cancellation_before_starting_a_tool_probe() {
     let mut request = request();
     request.requirements.runtimes = Some([("node".into(), ">=24".into())].into());
     let advertised = Capabilities {
+        framework_runtime: None,
         source_snapshot: Some(2),
         build_artifacts: None,
         cpu_cores: 2,
@@ -144,6 +147,7 @@ fn capability_probe_respects_task_path_instead_of_agent_path() {
         .insert("PATH".into(), empty.path().to_string_lossy().into());
     request.requirements.runtimes = Some([("git".into(), ">=1".into())].into());
     let advertised = Capabilities {
+        framework_runtime: None,
         source_snapshot: Some(2),
         build_artifacts: None,
         cpu_cores: 2,
@@ -366,6 +370,7 @@ fn workspace_boundary_and_duplicate() {
 fn capability_matching() {
     let r = request();
     let c = Capabilities {
+        framework_runtime: None,
         source_snapshot: Some(2),
         build_artifacts: None,
         cpu_cores: 2,

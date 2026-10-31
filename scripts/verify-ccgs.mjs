@@ -1,0 +1,13 @@
+import {readFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import path from 'node:path';
+const root=path.resolve('resources/integrations/ccgs/05ad7c8a5b8aa2aa86bbd3439ae7cf7295cac418');
+const manifest=JSON.parse(await readFile(path.join(root,'manifest.json'),'utf8'));
+const sha=data=>createHash('sha256').update(data).digest('hex');
+if(manifest.commit!=='05ad7c8a5b8aa2aa86bbd3439ae7cf7295cac418'||manifest.repository!=='https://github.com/Donchitos/Claude-Code-Game-Studios.git'||manifest.identity!=='b1f58c40e2d5d01f1871af574849853f908301afc57242da0251881b6988a12f'||sha(JSON.stringify(manifest.files))!==manifest.identity)throw Error('Manifest identity mismatch.');
+const normalization=JSON.parse(await readFile(path.join(root,'display-normalization.json'),'utf8'));if(normalization.identity!==manifest.identity)throw Error('Display normalization identity mismatch.');for(const f of manifest.files){if(f.path.split('/').includes('..')||path.isAbsolute(f.path))throw Error('Unsafe manifest path.');const bytes=await readFile(path.join(root,'original',f.path));const display=normalization.files.find(n=>n.path===f.path);if(display&&display.sourceChecksum!==f.sha256)throw Error('Raw/display checksum mismatch.');if(bytes.length!==(display?.displayBytes??f.bytes)||sha(bytes)!==(display?.displayChecksum??f.sha256))throw Error('Bundle integrity mismatch: '+f.path);}
+const runtime=JSON.parse(await readFile(path.join(root,'runtime-bundle.json'),'utf8'));if(runtime.identity!==manifest.identity||runtime.files.length!==manifest.files.length||new Set(runtime.files.map(f=>f.path)).size!==manifest.files.length)throw Error('Runtime bundle identity mismatch.');for(const f of runtime.files)if(sha(Buffer.from(f.content,'base64'))!==manifest.files.find(m=>m.path===f.path)?.sha256)throw Error('Runtime bundle checksum mismatch.');
+for(const item of normalization.files){const raw=Buffer.from(runtime.files.find(f=>f.path===item.path)?.content??'','base64'),text=raw.toString('utf8'),display=Buffer.from(text.replace(/[ \t]+(?=\r?$)/gm,'').replace(/(?:\r?\n)+$/,'\n'));if(sha(raw)!==item.sourceChecksum||sha(display)!==item.displayChecksum)throw Error('Display transform mismatch.');}
+const catalog=JSON.parse(await readFile(path.join(root,'catalog.json'),'utf8'));
+const ids=new Set(),paths=new Set();for(const e of catalog.entries){if(ids.has(e.id)||paths.has(e.path))throw Error('Duplicate definition.');ids.add(e.id);paths.add(e.path);if(sha(e.raw)!==e.sha256||manifest.files.find(f=>f.path===e.path)?.sha256!==e.sha256)throw Error('Catalog integrity mismatch.');}
+console.log(JSON.stringify({result:'PASS',files:manifest.files.length,definitions:ids.size,commit:manifest.commit,identity:manifest.identity}));

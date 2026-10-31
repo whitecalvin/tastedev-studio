@@ -50,7 +50,7 @@ export function buildArtifactGateway(core:CoreService,graph:GraphExecutionServic
   const transfer:BuildArtifactTransfer={version:artifactProtocolVersion(context.declaration),outputs:[],inputs:[]},pending:[string,Grant][]=[];
   for(const g of [...grants])if(g[1].expires<=now())grants.delete(g[0]);
   if(grants.size+context.declaration.outputs.length+context.declaration.inputs.length>512)throw Error('Build grant capacity.');
-  const make=(g:Omit<Grant,'expires'>)=>{const token=randomBytes(32).toString('hex'),value={...g,expires:now()+300000};check(value);pending.push([token,value]);const endpoint=new URL(url);endpoint.pathname=`/build-artifacts/${g.kind}/${g.id}`;return{token,url:endpoint.href};};
+  const make=(g:Omit<Grant,'expires'>)=>{const token=randomBytes(32).toString('hex'),value={...g,expires:context.deadline};check(value);pending.push([token,value]);const endpoint=new URL(url);endpoint.pathname=`/build-artifacts/${g.kind}/${g.id}`;return{token,url:endpoint.href};};
   for(const output of context.declaration.outputs){const id=buildArtifactId(context.origin,output.name);transfer.outputs.push({...output,id,...make({kind:'upload',jobId:run.jobId,runId,stepId,agentId:run.agentId,projectId:run.projectId,...output,origin:context.origin,id})});}
   for(const input of context.declaration.inputs){const origin=graph.buildArtifactProducer(run.jobId,stepId,input.fromTask,input.name),id=buildArtifactId(origin,input.name),saved=await store.get(run.projectId,id);
    if(!same(saved.artifact,origin)||saved.artifact.name!==input.name||saved.artifact.executable!==input.executable)throw Error('Stored build artifact producer mismatch.');

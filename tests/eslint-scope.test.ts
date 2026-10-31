@@ -20,6 +20,7 @@ test('bundled Python JavaScript is excluded from product lint', async () => {
 });
 
 test('product source, transport, tests and scripts retain lint rules', async () => {
+  assert.equal(await eslint.isPathIgnored('artifacts/checkpoints/source/src/app.ts'),true);
   for (const path of ['src/features/orchestration/views.tsx', 'transport/server.ts',
     'tests/eslint-scope.test.ts', 'scripts/prepare-monaco.mjs', 'browser-runner/index.cjs']) {
     assert.equal(await eslint.isPathIgnored(path), false, path);

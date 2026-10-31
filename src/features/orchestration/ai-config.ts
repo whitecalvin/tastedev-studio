@@ -1,3 +1,4 @@
+import {validInstructionRef,type InstructionRef} from '../frameworks/domain.ts';
 import {mask} from '../ai/security.ts';
 import type {ManagedAIConnection,AIRoute} from '../ai/routing.ts';
 
@@ -6,6 +7,7 @@ export const aiConnections=['core','api','account','local'] as const;
 export const aiTools=['service','codex','claude-code','custom'] as const;
 export const aiRoles=['implementation','review','analysis','design'] as const;
 export interface AIConfiguration {
+ instructionRef?:InstructionRef;
  id:string;name:string;provider:typeof aiProviders[number];model:string;
  connection:typeof aiConnections[number];tool:typeof aiTools[number];role:typeof aiRoles[number];
  location:'core'|'device'|'external';connectionRef:string;
@@ -22,11 +24,12 @@ export function validateAIConfigurations(value:unknown,projectId:string):AIConfi
  const profiles=s.profiles.map(p=>{
   if(!p||typeof p.id!=='string'||! /^[A-Za-z0-9_-]{1,120}$/.test(p.id)||ids.has(p.id)||!aiProviders.includes(p.provider)||!aiConnections.includes(p.connection)||!aiTools.includes(p.tool)||!aiRoles.includes(p.role)||!['core','device','external'].includes(p.location))throw Error('Invalid AI configuration.');
   if(p.completion!==undefined&&!['analysis','verified-fix'].includes(p.completion))throw Error('Invalid AI completion policy.');
+  if(p.instructionRef!==undefined&&!validInstructionRef(p.instructionRef))throw Error('Invalid framework instruction.');
   ids.add(p.id);
   for(const [text,max]of [[p.name,120],[p.model,120],[p.connectionRef,200],[p.prompt,3000]] as const)if(typeof text!=='string'||text.length>max||/[\0]/.test(text))throw Error('Invalid AI configuration.');
   if(!p.name.trim()||!p.prompt.trim()||!Number.isInteger(p.maxRequests)||p.maxRequests<1||p.maxRequests>12||!Number.isInteger(p.timeoutSeconds)||p.timeoutSeconds<1||p.timeoutSeconds>120||!Number.isInteger(p.maxAttempts)||p.maxAttempts<1||p.maxAttempts>3)throw Error('Invalid AI configuration.');
   // 인증값은 저장하지 않는다. 표시 문자열과 프롬프트도 기존 마스킹 규칙 적용.
-  return{...(p.completion?{completion:p.completion}:{}),id:p.id,name:mask(p.name.trim()),provider:p.provider,model:mask(p.model.trim()),connection:p.connection,tool:p.tool,role:p.role,location:p.location,connectionRef:mask(p.connectionRef.trim()),maxRequests:p.maxRequests,timeoutSeconds:p.timeoutSeconds,maxAttempts:p.maxAttempts,prompt:mask(p.prompt)};
+  return{...(p.instructionRef?{instructionRef:{commit:p.instructionRef.commit,path:p.instructionRef.path,sha256:p.instructionRef.sha256}}:{}),...(p.completion?{completion:p.completion}:{}),id:p.id,name:mask(p.name.trim()),provider:p.provider,model:mask(p.model.trim()),connection:p.connection,tool:p.tool,role:p.role,location:p.location,connectionRef:mask(p.connectionRef.trim()),maxRequests:p.maxRequests,timeoutSeconds:p.timeoutSeconds,maxAttempts:p.maxAttempts,prompt:mask(p.prompt)};
  });
  const bindings:Record<string,string>={};
  for(const [nodeId,profileId]of Object.entries(s.bindings)){

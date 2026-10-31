@@ -38,9 +38,11 @@ export class TauriFileSystemHost implements FileSystemHost {
   readFile(id: string, path: string) { return this.file<FileSnapshot>('read', id, path); }
   async readBytes(id:string,path:string){const {base64}=await this.file<{base64:string}>('readBytes',id,path);return Uint8Array.from(atob(base64),c=>c.charCodeAt(0));}
   writeFile(id: string, path: string, content: string, expected: string) { return this.file<void>('write', id, path, { content, expected }); }
+  transitionFile(id:string,path:string,expected:string|null,content:string|null) { return this.file<void>(expected===null?'createText':'deleteText',id,path,{expected,content}); }
   createFile(id: string, path: string) { return this.file<void>('createFile', id, path); }
   createDirectory(id: string, path: string) { return this.file<void>('createDirectory', id, path); }
   rename(id: string, path: string, destination: string) { return this.file<void>('rename', id, path, { destination }); }
+  removeEmptyDirectory(id:string,path:string){return this.file<void>('removeEmptyDirectory',id,path);}
   delete(id: string, path: string) { return this.file<void>('delete', id, path); }
   exists(id: string, path: string) { return this.file<boolean>('exists', id, path); }
 }

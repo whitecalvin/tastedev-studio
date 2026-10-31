@@ -166,7 +166,7 @@ pub fn execute(
     command(request, root, cancel, events, None)
 }
 pub fn command(
-    request: Request,
+    mut request: Request,
     root: &Path,
     cancel: Arc<AtomicBool>,
     events: SyncSender<Value>,
@@ -182,6 +182,7 @@ pub fn command(
         } else {
             workspace(root, &request.run_id, &request.cwd)?
         };
+        crate::framework::configure(&mut request, &cwd)?;
         let mut command = Command::new(&request.executable);
         command
             .args(&request.args)
@@ -523,6 +524,7 @@ pub fn detect() -> Capabilities {
         runtimes.insert("playwright".into(), version.into());
     }
     Capabilities {
+        framework_runtime: crate::framework::available().then_some(1),
         source_snapshot: Some(2),
         build_artifacts: Some(2),
         cpu_cores: thread::available_parallelism().map_or(0, |n| n.get() as u64),

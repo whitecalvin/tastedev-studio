@@ -49,3 +49,12 @@ test('cancel stops the explicit active execution even if the editor has changed'
  overview.executions[0].status='passed';
  assert.throws(()=>graphControlRequest(graph,overview,{...input,action:'cancel'}),/finished/);
 });
+
+test('deployment retry returns to fresh approval and rejects changed source or exhausted retry budget',async()=>{
+ const {retryPlan}=await import('../src/features/orchestration/recovery.ts');const {graph,overview,input}=fixture(),e=overview.executions[0],d=overview.definition!;
+ graph.nodes.push({...newNode('task','deploy',2),role:'deployment'});graph.edges.push({id:'release',from:'gate',to:'deploy',relation:'success'});d.deploymentNodes=['deploy'];e.status='failed';e.activations[0].status='passed';e.activations[0].approvedAt='now';e.activations.push({id:'failed',nodeId:'deploy',status:'failed',attempt:1});
+ assert.deepEqual(retryPlan(e,d,'deploy'),{blocked:null,target:'gate'});
+ assert.equal(graphControlRequest(graph,overview,{...input,nodeId:'deploy',action:'retry-failed'}).action,'retry-failed');
+ d.source={snapshotId:'new',checksum:'new'} as NonNullable<typeof d.source>;assert.match(retryPlan(e,d,'deploy').blocked!,/saved graph/);delete d.source;
+ e.activations.push({id:'old-gate',nodeId:'gate',status:'passed',attempt:2},{id:'old-gate-3',nodeId:'gate',status:'passed',attempt:3});assert.match(retryPlan(e,d,'deploy').blocked!,/Retry limit/);
+});

@@ -90,6 +90,7 @@ export class WebFileSystemHost implements FileSystemHost {
   private async destination(id: string, path: string) { const normalized = nonRoot(path); if (await this.exists(id, normalized)) throw new FileError('duplicate', 'A file or folder with this name already exists.'); return { parent: await this.directory(id, parentPath(normalized)), name: normalized.split('/').pop()! }; }
   async createFile(id: string, path: string) { const { parent, name } = await this.destination(id, path); await parent.getFileHandle(name, { create: true }); }
   async createDirectory(id: string, path: string) { const { parent, name } = await this.destination(id, path); await parent.getDirectoryHandle(name, { create: true }); }
+  async removeEmptyDirectory(id:string,path:string){const normalized=nonRoot(path),parent=await this.directory(id,parentPath(normalized));await parent.getDirectoryHandle(normalized.split('/').pop()!);await parent.removeEntry(normalized.split('/').pop()!,{recursive:false});}
   async delete(id: string, path: string) { const normalized = nonRoot(path); await (await this.directory(id, parentPath(normalized))).removeEntry(normalized.split('/').pop()!, { recursive: true }); }
   async rename(id: string, path: string, destination: string) {
     const source = nonRoot(path), target = nonRoot(destination);

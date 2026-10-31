@@ -1,0 +1,2644 @@
+{
+  "version": 1,
+  "repository": "https://github.com/Donchitos/Claude-Code-Game-Studios.git",
+  "commit": "05ad7c8a5b8aa2aa86bbd3439ae7cf7295cac418",
+  "identity": "b1f58c40e2d5d01f1871af574849853f908301afc57242da0251881b6988a12f",
+  "license": "MIT",
+  "licensePath": "LICENSE",
+  "files": [
+    {
+      "path": ".claude/agents/accessibility-specialist.md",
+      "sha256": "a177c5e0a837f293c73c5615128735255117517e37e20282ca5b84cb647fb5bb",
+      "bytes": 8851,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/ai-programmer.md",
+      "sha256": "d2b459057da8d13757f617d9a6e11d71e1859223d24d7fb9b1dec821798f4096",
+      "bytes": 5436,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/analytics-engineer.md",
+      "sha256": "04dde33d8c84b3c5d7189fcb663e0cb538c8d772139df28a4eec8d0046817a61",
+      "bytes": 5267,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/art-director.md",
+      "sha256": "36fecf445d9bfac1af6702ca9ef229013f101bcf0626dcb273886397c975e1dd",
+      "bytes": 7593,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/audio-director.md",
+      "sha256": "d04bd4129db4670df9c4241b900aff691478d5241278f350e812a414a540dda0",
+      "bytes": 5710,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/community-manager.md",
+      "sha256": "b9f73f133c93e9b4556206b81e3d02e8db3dc17df5884f24bfd1fc6b0da92b06",
+      "bytes": 8623,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/creative-director.md",
+      "sha256": "cb19bd1d93745f7b648fc9eff8aaaadd33d704aa9014819afdeeca963fc89804",
+      "bytes": 18165,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/devops-engineer.md",
+      "sha256": "5c554b26e1e9fb7ef44b6ba8044ab1406b5c90021d9524d12ecadb1727cfc511",
+      "bytes": 6155,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/economy-designer.md",
+      "sha256": "845090b44f2a85c8515ce65e00102ca89a241192fdf096351c327af5f40fc164",
+      "bytes": 7968,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/engine-programmer.md",
+      "sha256": "2ab8db5c67d80a133293812ebf3c45184ec3f1cf173246544dfe2c4ba9e66978",
+      "bytes": 6692,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/game-designer.md",
+      "sha256": "757a7bee8608fbd1fa741c83ac2621f78322f6141736527c73205a81075ce11b",
+      "bytes": 13726,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/gameplay-programmer.md",
+      "sha256": "a2d3e81dc8b3d1251f3ee0fa4bdb2e9b39589578659326fddb0031360430099f",
+      "bytes": 8098,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/godot-csharp-specialist.md",
+      "sha256": "7ea413488703457e07d95c1e3b0c02f0ef828d6b8e09b410b653fb37627fc6e1",
+      "bytes": 18829,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/godot-gdextension-specialist.md",
+      "sha256": "d6fa1f00fb09d4b24e13556e55b55ae593107f7828a2c7d92066b575681d6981",
+      "bytes": 16295,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/godot-gdscript-specialist.md",
+      "sha256": "8a13f3674f6c113e4340e779737d7938009091944fc72443bc1359405bfaa569",
+      "bytes": 14962,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/godot-shader-specialist.md",
+      "sha256": "c40b89d6ff749f1310c4a583faad31b07fa6849e13b0e5c5afda84a97b6b2ec1",
+      "bytes": 13138,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/godot-specialist.md",
+      "sha256": "d7fb09e07a02b22a2709f80174eaa832dd00011f42c1fb39a43a537d75992e4a",
+      "bytes": 12314,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/lead-programmer.md",
+      "sha256": "040cd3f0f4d310a0490a67bf75835d21dd589050cb1c6c5fa2837df9eb7a0c43",
+      "bytes": 6676,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/level-designer.md",
+      "sha256": "8cd41d5b2ffa4c1ba5243c10379602a8155481e7e35605fe1e063a45517ca8d0",
+      "bytes": 6310,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/live-ops-designer.md",
+      "sha256": "8d5bafde506cd9270f1af7da7a2046a929c1f82ba1de39c6addc73bd60eb3caf",
+      "bytes": 10189,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/localization-lead.md",
+      "sha256": "1fe9b6840dec1992104f2268d773543c523ce0c0cf8d6b0fb6d23f57707fd36a",
+      "bytes": 9531,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/narrative-director.md",
+      "sha256": "4f67fc41741b6bc24c468edeb2209703f910fe56e780f3537eb90529cff06cfa",
+      "bytes": 7136,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/network-programmer.md",
+      "sha256": "8060320bb115241806b7287540ccee94722c1b47879a9324f562f13d2591bc74",
+      "bytes": 6488,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/performance-analyst.md",
+      "sha256": "6de37cd348ec29eb2ee30a7bcf3429841ee80969c9d9aa4e03e2d3b4eca8ef3f",
+      "bytes": 5335,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/producer.md",
+      "sha256": "da0f24cc4255ef7ad64439c855fbe24c7a0bb4d602974579132b6c34e90d4e7f",
+      "bytes": 7890,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/prototyper.md",
+      "sha256": "9d7c4c78097e85eb05737e71e1cd17106e1610a94a56d4b34efa4e8221363789",
+      "bytes": 14937,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/qa-lead.md",
+      "sha256": "c47e5b8e6c1c815c1e47be70a3f91ba83352eee0d3470907dfa8537cfdbf2d4e",
+      "bytes": 8541,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/qa-tester.md",
+      "sha256": "7c06298528a011630846ab29e8a63d2068c820c7db5d827bfcfaf13b3c2ded54",
+      "bytes": 11763,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/release-manager.md",
+      "sha256": "a22fcf8fbbca3cfcf9393343be2d9f76a3656ed301236e6172a5d816a3417fa3",
+      "bytes": 8474,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/security-engineer.md",
+      "sha256": "87441f7cf64ec79b27bdb1f213b9601edeae8d1e9a9ebcf67007986a8bb3f248",
+      "bytes": 8857,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/sound-designer.md",
+      "sha256": "1ab0a440d38f6a61561eda0da073acdea325c194abc1d4c0e58d637f05291744",
+      "bytes": 4527,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/systems-designer.md",
+      "sha256": "ca4658d0ccfc277fbe15c888ba9d78a84ea7f6341fc235e5afc5773af50f3f2b",
+      "bytes": 8163,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/technical-artist.md",
+      "sha256": "fa0659ab3524a521c4296fbacffe5baec47fdb25e0abd2dbaeed4ab2d915afb5",
+      "bytes": 6574,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/technical-director.md",
+      "sha256": "38a497947bd398f87acacbdc2a042ba54fa836722db589f6bbcdfa80a6f2773c",
+      "bytes": 8292,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/tools-programmer.md",
+      "sha256": "2ffd83c3d619988995b1df1426c4fd77bfa312fa5bd55ac9e910503ccb53d0b6",
+      "bytes": 6284,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/ue-blueprint-specialist.md",
+      "sha256": "31b370beeefe1ba6357c5c0b48f54885329d9b2edb0dbf1e57070847a8824b83",
+      "bytes": 10120,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/ue-gas-specialist.md",
+      "sha256": "1c671ff2e5866f6d45813ac929d63aa2df1e98b0d09be3e159015ae74ddd9358",
+      "bytes": 9646,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/ue-replication-specialist.md",
+      "sha256": "df64bfd77cdd549f68cf661963d6cb6654065df7e5d35fab47d1acee7623cab2",
+      "bytes": 9415,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/ue-umg-specialist.md",
+      "sha256": "a2e03041fec587bc5404ce67eeec11f84bf5bc07ec39ed3a79f7267c38a8b352",
+      "bytes": 9872,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/ui-programmer.md",
+      "sha256": "864b6dc1b3034cd136d67751d503ca80ffb8141823296f077cf58b5786707a74",
+      "bytes": 6568,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/unity-addressables-specialist.md",
+      "sha256": "18ad921c6204741b268c0c328a1148e170fdfd73144833eda912fa8e43cd1118",
+      "bytes": 11309,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/unity-dots-specialist.md",
+      "sha256": "449a1b8d59a844525495d07f6e89a9e9fea7827b07178007ae179c6a2cbb378d",
+      "bytes": 10307,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/unity-shader-specialist.md",
+      "sha256": "03fd2d2a0a99bdd1671af4084e28b8fff6fb086baeab8e339d451811b71b4704",
+      "bytes": 11103,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/unity-specialist.md",
+      "sha256": "bbf06de405979a9ea44fa2beb466ae267e9d6485326b6f721b26b233244cf172",
+      "bytes": 12823,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/unity-ui-specialist.md",
+      "sha256": "bf53caed9c761f2f52ef50961fa96d3154b872517d199c9d3bd0e1480922d85a",
+      "bytes": 12081,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/unreal-specialist.md",
+      "sha256": "700e18a491fb0a82262e630e495de03547054d5616471649aa4ddc5316ba3820",
+      "bytes": 11930,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/ux-designer.md",
+      "sha256": "90d079a8d336c9f477b6d4e9ebf7479da9573ceb5f2390854163357c2714530d",
+      "bytes": 5627,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/world-builder.md",
+      "sha256": "564a7d7faadae5bc8cf02f3a32b97685df80e7e5299839e23252aa07a3fbf809",
+      "bytes": 6595,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/agents/writer.md",
+      "sha256": "cc27537381614ccf09177ffd38a40a73229528e5353a95662e6f904700506531",
+      "bytes": 6628,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/CLAUDE-local-template.md",
+      "sha256": "18158b03f609cafb3abdef3f70f21f3ee4aefc2c8d5c7df623d9f46c7f9db435",
+      "bytes": 1104,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/agent-roster.md",
+      "sha256": "d1625dbd35a2d57936cc818d31989bbf6bd22398bfd8b43993181fd18cf75a2d",
+      "bytes": 6098,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/agent-teams.md",
+      "sha256": "a47a929581e22b9e45d131df21055ee1aebc40854d55f5f66b783b7331682638",
+      "bytes": 1129,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/automation-modes.md",
+      "sha256": "dee6d368627c081dd0c224acca21d9e1a6bc76575451e69e5f25aba52040d9e8",
+      "bytes": 12183,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/code-root-resolution.md",
+      "sha256": "c992bb8e40822dbdb638b000c79a9313dca07d492c248072cac967b73351d4fc",
+      "bytes": 3356,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/coding-standards.md",
+      "sha256": "d481dcd85afa98d4c19d4af18c5bb296d56e6677612a68da4ef2077d72eaaf90",
+      "bytes": 5794,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/config-resolution.md",
+      "sha256": "2881c5db839c5b65acea8378d3810a1a80d8883226cb3e830b2199877faba3a1",
+      "bytes": 19385,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/context-management.md",
+      "sha256": "5ee14ebc9aeb7b130bab5607e70e1dd9520e86827778635e09f94a2e57206f22",
+      "bytes": 7692,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/coordination-rules.md",
+      "sha256": "188ff1e8b93355af4a578253e637dd7926b804919c68eeae9c9f47a987d73792",
+      "bytes": 3273,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates.md",
+      "sha256": "a7af3491f86db4c9a2430512f56aa0073d32db5ed759b3a7c4213527caf93745",
+      "bytes": 11305,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/ad-art-bible.md",
+      "sha256": "443ef0fd490c50db0ffc9ffb6f1c6e8632fb7426b9cb93c8d8f0ed1b8c78e3f3",
+      "bytes": 1598,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/ad-concept-visual.md",
+      "sha256": "cc27b36bf0b0d4592c39873f18d04bfe8ca92fabc0c2642887bbfe8389e6ec2c",
+      "bytes": 1564,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/ad-phase-gate.md",
+      "sha256": "8427a273639a1b732821706fcbeba2d0206bbd791304720551344313c3b61919",
+      "bytes": 2033,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/ad-visual.md",
+      "sha256": "09801e2ed6b23576fb7aa4f256ee30abf922386011a40ddaf61171a796e43205",
+      "bytes": 1088,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/cd-gdd-align.md",
+      "sha256": "04dca340d431770dcafa3849f5a4acf0852de70aa462d6b52780614ca9aff3f0",
+      "bytes": 1116,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/cd-narrative.md",
+      "sha256": "2b3653b0dad85f750547be363bd7f04b48041cd6e52918be7603c559662791c7",
+      "bytes": 1115,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/cd-phase-gate.md",
+      "sha256": "e5643d6838cb0169b38dfafdfbdd025ca7f87723b03c1922daa1c1e5b993d345",
+      "bytes": 1530,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/cd-pillars.md",
+      "sha256": "c3d89c7639b51d947845d202fb73f2a6d5d9dc0b1f2494c8a59e479d9167d7d4",
+      "bytes": 1103,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/cd-playtest.md",
+      "sha256": "c06460005440c2659dc7615bb9b408f240ec80d4415e0f6e90631d532d548cdc",
+      "bytes": 1167,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/cd-systems.md",
+      "sha256": "6ffe572cf8269854e9cdc13c3154107eaa05fe0f2b6b89c08f5ebb5b0a33c89a",
+      "bytes": 1551,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/lp-code-review.md",
+      "sha256": "015e05c374db311f4c97d1bf9c5745aa09e7cb66bb3da076ec975f7444a0c3bb",
+      "bytes": 955,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/lp-feasibility.md",
+      "sha256": "a4d67c7e79087eceed0375e7c4c3fc8794515da0acbc6faf45305238c3f78684",
+      "bytes": 1146,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/nd-consistency.md",
+      "sha256": "b2fcbfbf66a392d3c8fc2d89391b0f00e8ed02830a5e80a37c706d2739cb8bf7",
+      "bytes": 1045,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/pr-epic.md",
+      "sha256": "250bf9fb1d22c119c9f90716ffee6774d1a1f97c9128239448c438213686a02f",
+      "bytes": 1690,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/pr-milestone.md",
+      "sha256": "6951266c747f8991ab053dd083ed8bceb4ae759d5ecb5c8451d37d69d6754dc6",
+      "bytes": 1045,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/pr-phase-gate.md",
+      "sha256": "799ad36dcc4e37eb230f82ec8ae38468da8116737c12783322d823b7a36deb7a",
+      "bytes": 1994,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/pr-scope.md",
+      "sha256": "8c48f9903804ef1a1eba266aa68da69804752045c2d3b1b60525a07db5ee2a5a",
+      "bytes": 1162,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/pr-sprint.md",
+      "sha256": "855c719828f92d3788a22761b5cd2a9b2d008ffd0645e81b64fd78da6e374bf1",
+      "bytes": 1072,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/ql-story-ready.md",
+      "sha256": "80d9b1c0de13915c4107beb32bb2cf21357bda01fefbf43f8ddbde9622846f11",
+      "bytes": 1436,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/ql-test-coverage.md",
+      "sha256": "70f04f2cccfb96d698b5f9e94c855ed08dd4a28e978ced3d26a901a5d9afe75f",
+      "bytes": 1079,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/td-adr.md",
+      "sha256": "a793f3b29a82e3ac7c11254456125f66c181161b762c18e80bc6c793597ebc34",
+      "bytes": 1033,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/td-architecture.md",
+      "sha256": "059bdb845813471e397e65d95722a848628339870fe5e7174ece44b530918da8",
+      "bytes": 1176,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/td-change-impact.md",
+      "sha256": "f5cd7a8bc3c03dd024a8e2480347f78f3d7947ab9083e8c1cc095562202691e3",
+      "bytes": 1289,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/td-engine-risk.md",
+      "sha256": "f529389fe90cf5c2dc19bb8647266fef3dc0d2c86f2b983ac58eada37e3afb66",
+      "bytes": 1108,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/td-feasibility.md",
+      "sha256": "a9fc59b79406daa233c5e03acc4731569441cccf9310e3184ed162e484154070",
+      "bytes": 1133,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/td-manifest.md",
+      "sha256": "4f5415bdbefa53e615ae233e02a125a9133c1c926d839dad6dad02070f0fd97d",
+      "bytes": 1289,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/td-phase-gate.md",
+      "sha256": "564aaecfc69f5265a4eabf4da52a55425a2abf6495f89677169e74f5f9437cdb",
+      "bytes": 1906,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/director-gates/td-system-boundary.md",
+      "sha256": "1829a37b6eb780ca64b842708c50f0ed24628c5eec6bac23151c9916129663f5",
+      "bytes": 1785,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/directory-structure.md",
+      "sha256": "b7a84db3f2ee1ef57ea2a0ef1adfa53bb7b88b024c621a3661237e2ca4a2c31c",
+      "bytes": 2825,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/effects-map.md",
+      "sha256": "18aa505d7decdf16b8d25d07a6c1cb8d41411a89bc5f3a86e0c06d0da730273e",
+      "bytes": 139983,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/error-recovery-protocol.md",
+      "sha256": "e98a3b47f921e9c83f3ef586e564382a15aaf34e8cf8648938ba6443eea1c1c9",
+      "bytes": 3402,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/hooks-reference.md",
+      "sha256": "004d7442ba5376470f0f60f840151fe4b9282583a596dad39de2267924eea0bc",
+      "bytes": 8726,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/hooks-reference/hook-input-schemas.md",
+      "sha256": "9a5c9942043791e2437a6a2274b92c7835c6c984975d845363c80faacc868db8",
+      "bytes": 6442,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/hooks-reference/post-merge-asset-validation.md",
+      "sha256": "ccf0caa75339ec1b9a1b0528adfb0a5dc04f08ae045cef3a3b903e439973fcd2",
+      "bytes": 2575,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/hooks-reference/post-sprint-retrospective.md",
+      "sha256": "022cecf8189033ea3b1c3b9e7518ad26a89ea2791b7c91186300536497afd14a",
+      "bytes": 2153,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/hooks-reference/pre-commit-code-quality.md",
+      "sha256": "c6e63366e6a172161dde45b6556e5b2985de640db0cb4d8d52af3675cb380b1c",
+      "bytes": 2570,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/hooks-reference/pre-commit-design-check.md",
+      "sha256": "6b1e955cf730fec7790e1f0e90c364f92903a58bf1cc9236f34256113235cb84",
+      "bytes": 2201,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/hooks-reference/pre-push-test-gate.md",
+      "sha256": "d38d29a7267c3bd2eda3e3a5c2f7d8581ed8cb916e629ac0c59e47fb1d6b4d1a",
+      "bytes": 1941,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/model-tiers.md",
+      "sha256": "d0195dfd21964f4ee173a3fa63e973c73e9fd6ffbd5fc0d0eb11ced7c94080a1",
+      "bytes": 5691,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/quick-start.md",
+      "sha256": "c099b40d5016719af01eb0e398b6b2bc65aa4321abe1bf284e8fc1a4a5c67560",
+      "bytes": 18251,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/rules-reference.md",
+      "sha256": "6cc54f31c2f7bfa1213ae221888dd0464c8fba9a62ea03ec7538917175133ac8",
+      "bytes": 5751,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/run-and-observe.md",
+      "sha256": "d84bf2ceb4b532fbc1a741ecd05cb50b1a463df54ef3e7faa6d79eaf6b7e1364",
+      "bytes": 12517,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/settings-guidance.md",
+      "sha256": "6b6b030f555e5512b6717ae7cfd1acd42a7c48e4794c7335f829c27d344d9fc4",
+      "bytes": 6509,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/settings-local-template.md",
+      "sha256": "d2301fed67b7443f10426306fa4523c7d66f5fdbf685a3d731ec67108ad2d72b",
+      "bytes": 2785,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/setup-requirements.md",
+      "sha256": "f9bfbf70a6389e737599cfe695cbac07de70071e7bccc2e0613f335cd2ec48dc",
+      "bytes": 6471,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/skills-reference.md",
+      "sha256": "3ec77ab2e7b06f86c7f4585f3cd123fb12b562480cef854c0364cee615bc4ed6",
+      "bytes": 9340,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/technical-preferences.md",
+      "sha256": "1701ea6e2a853f299ce687b5efe18fbd860feecc3b23ca4cc616e8572a1e1dc3",
+      "bytes": 3632,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/SKILL-CONTRACT-TEMPLATE.md",
+      "sha256": "7f80582f56140cd60c9dcee7da71bac9608b424cb079a5492e378b4482678654",
+      "bytes": 17540,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/accessibility-requirements.md",
+      "sha256": "cc0ca46ab59d6aeb9d59166b8da3ef094053808f5e7d2e8bf240934077c0455f",
+      "bytes": 24310,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/adoption-plan.md",
+      "sha256": "6c93f6a4be3ab97aa1d63a340c102db3aae25ae0c26aa09f0aae8cf5fad5bd09",
+      "bytes": 2253,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/adoption-summary.md",
+      "sha256": "c8aa0cadc36c0526f340e228a2351d4e4af93bc53fccf20d3ed823150d6ac1c5",
+      "bytes": 533,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/architecture-decision-record.md",
+      "sha256": "6a951a46a0b06f98b8e89d8ddeb04c27b9f5f29a9c85d25d74ced6bda1016467",
+      "bytes": 6595,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/architecture-doc-from-code.md",
+      "sha256": "120a052b06f0f687fd3e5d2fb9fbe796cae81626dd0d6bcfc3fd341f67abf982",
+      "bytes": 6215,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/architecture-traceability.md",
+      "sha256": "ab11b121a108af6c9f4e5cd232189318fafb2105fd00589c7ea695e79f02b00e",
+      "bytes": 3396,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/art-bible.md",
+      "sha256": "a28c30415db944f38fb08c27c05543cc79f207ccfd9b5343680b15ab7665e6f6",
+      "bytes": 2795,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/bug-closure-record.md",
+      "sha256": "a07cde04ca837053fe611171c81b88399f38ee95ceb3b476353f1147700febcb",
+      "bytes": 406,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/bug-report.md",
+      "sha256": "ed115a7509082066bb4e059dac21183b674c0251979c9ca43e1aa7a717e8fd83",
+      "bytes": 1638,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/certification-console.md",
+      "sha256": "f635142588ec4d53ed863f4e4032c35db56f465f3d74ded493d12d33d19a51af",
+      "bytes": 453,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/certification-itch.md",
+      "sha256": "bc1ffb11cc7f69bbb0ec7956d6a2a4c32baac10981c106705c6da7fffa8fa033",
+      "bytes": 298,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/certification-none.md",
+      "sha256": "705bbdb75a0d416a9b423bc887d667796f406aaec68a3776625e9b4392d4751f",
+      "bytes": 87,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/certification-steam.md",
+      "sha256": "f07458b6f77820c557bb6ba29ae031db2d5754c3aebe48a09011007e4c93f521",
+      "bytes": 381,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/certification-unknown.md",
+      "sha256": "e845aa4171a019e82c0322ac0137fc627b5d68f1a7159e2691cabc066cc1ecdc",
+      "bytes": 199,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/changelog-internal.md",
+      "sha256": "c49595e5fac70f0920f3753b6c3c315a9fa0c94e107444095b9a336e938c8210",
+      "bytes": 1052,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/changelog-template.md",
+      "sha256": "cc9a45f7b0dbede27fba78745c754f5fe29b7c90e4ea641a346191daba9457a1",
+      "bytes": 936,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/concept-doc-from-prototype.md",
+      "sha256": "f42d764e92891b1f98774a1501a5368c7fcf46b1c4ad4e87757ef2101633f135",
+      "bytes": 8237,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/design-doc-from-implementation.md",
+      "sha256": "cdb12f8909534e8491cbe8d7920a8d54e6df49685df39c1dda0c8731a8993c7a",
+      "bytes": 6139,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/difficulty-curve.md",
+      "sha256": "4aa7b30c66c2882110c3b1cd794594a52d8fd98666bf6c491921515993290279",
+      "bytes": 22588,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/economy-model.md",
+      "sha256": "22af6a9df657a17e8155a6130d04a8ce04c095e5dcb7ad5c2648449013b35a58",
+      "bytes": 4482,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/faction-design.md",
+      "sha256": "abe1d5720e68169e349156bbcb42db135ecca25bf1510dda5ddd1deb3980f257",
+      "bytes": 4653,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/game-brief.md",
+      "sha256": "70d49670b663619843301aa9a1e105f892d6db715f3e0a552b5241632e212b60",
+      "bytes": 2467,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/game-concept.md",
+      "sha256": "fa94f05c71decac7183be449c87767acd99db822f05701121f45f5a5e2251156",
+      "bytes": 12622,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/game-design-document.md",
+      "sha256": "8631250debc1b322f6ae3795296ea7fdf18aba14b9430cfa21abd18e92629f43",
+      "bytes": 1197,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/game-pillars.md",
+      "sha256": "3603610be7704cdee1c421813cd248ce07a410969dc3416aa2b9e4959801d3c8",
+      "bytes": 12852,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/guidance/accessibility-requirements-guide.md",
+      "sha256": "9e86f4bbd8d3b5d4dda65fa7a719af2c448f3037137b9742fcc39d1914518233",
+      "bytes": 13410,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/guidance/game-design-document-guide.md",
+      "sha256": "107a32667a114dbb6cd49d48bf14491899fbd8a77f34bb592011beef2615624a",
+      "bytes": 9937,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/guidance/hud-design-guide.md",
+      "sha256": "68c7c3871c959408b5dbcd8a73a4c906f674f7e8d17c03f735f29e9549613e9a",
+      "bytes": 35185,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/guidance/interaction-pattern-library-guide-game-specific.md",
+      "sha256": "2298ecf4a701a14e8ee861e3ce1787c2394221b36a9a410a993a232b6b0bc149",
+      "bytes": 12382,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/guidance/interaction-pattern-library-guide-navigation-feedback.md",
+      "sha256": "72f3e8f3e5a9347b171cb76d18ce9ae57478bdd61a9c9fcbbf1ae4aff83b0ebd",
+      "bytes": 9156,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/guidance/interaction-pattern-library-guide-standard-controls.md",
+      "sha256": "635ea81444d00fca02a17f9a0d4fef75149a9f0f103ebdf21f62ef313d3af55d",
+      "bytes": 41094,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/guidance/interaction-pattern-library-guide.md",
+      "sha256": "3acc7d239ff79e2ea642790b053cad4302002c1202b8577b9cc0c554722c1d6c",
+      "bytes": 1735,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/guidance/ux-spec-guide.md",
+      "sha256": "47f72f705ffef14cbf81fba6ebb5d914f992a9f06612ce04ec3e90da05a9dfb2",
+      "bytes": 32163,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/help-escalation.md",
+      "sha256": "76cf8b6fe5eda91de427cf7ca5f8413cd00f60459386569731371b08f8748869",
+      "bytes": 583,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/help-where-you-are-minimal.md",
+      "sha256": "e273a39857981cd2b7cb1bf5344c315130a0bab7e5faae7931a31e0f50fd759d",
+      "bytes": 451,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/help-where-you-are.md",
+      "sha256": "1b972e22678d0527acc38c52b5f1bbb930dad81c3e3c0ece5f34fb7f9142586a",
+      "bytes": 537,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/hud-design.md",
+      "sha256": "b98ab81a3c23a473909358240947193ebe99c37a2aeb30524e2fcb200c815c87",
+      "bytes": 18264,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/incident-response.md",
+      "sha256": "a332006b15e79a3e8a40bd20cbd6e3c88e79883c1deda3073be27df14402689e",
+      "bytes": 3938,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/interaction-pattern-library.md",
+      "sha256": "cb2630df55abc32eeaead9a4a61f9d8135185b39598d051d24b6615e20c50508",
+      "bytes": 33395,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/launch-checklist.md",
+      "sha256": "f855bf09a82c228212a091e02980cb8d736be2f92ce922e35b71997cd31de53a",
+      "bytes": 7207,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/level-design-document.md",
+      "sha256": "61b48448c070490ebb0bb5214cfbfa3a926683f687dc1f74c83d310dc063aacb",
+      "bytes": 3248,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/milestone-definition.md",
+      "sha256": "787462069d14754bb367a63ed41228cf15e78725326c5f4ca6638c1ea2e6932b",
+      "bytes": 2326,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/narrative-character-sheet.md",
+      "sha256": "b40bb1cb386727a9c506cbbd76f037990e4461315554e0f78f896f0195cc79e2",
+      "bytes": 3197,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/patch-notes-brief.md",
+      "sha256": "7d87eda21b344ba1af19314fb22fc90e803d4eac2d64f10694f554e41fcbb998",
+      "bytes": 206,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/patch-notes-commentary.md",
+      "sha256": "79dd00b7b422780b23df83f8f1d204a3d037be113bc5aa801bbda7f70fbd027e",
+      "bytes": 181,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/pitch-document.md",
+      "sha256": "ed0a544b18032bad4c9dcbe9a79b1154f943e1c5df210d308976f590eb8889b6",
+      "bytes": 3485,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/player-journey.md",
+      "sha256": "fcb350eefe8fd77ce179880beff2e55023ec1e3101e3f48bff32cb8777a05be7",
+      "bytes": 18039,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/post-mortem.md",
+      "sha256": "e7e2ea73be4295761c2a355ab542be620d5b947ca5749ad8efd43abdd9c16390",
+      "bytes": 1685,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/project-stage-report.md",
+      "sha256": "1b69bbf848758f639bec2579fb5e5e8c46b4b4c4d1191e7947614c0b9a4a26bb",
+      "bytes": 2236,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/prototype-report.md",
+      "sha256": "2228475bd6122e826affd20039ab117acaea064872893a21b2b70e7f8d510145",
+      "bytes": 3177,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/quick-design-change.md",
+      "sha256": "59e13603547fa738e0ccae595a539e25934bb6769712334858f95ce77f46a038",
+      "bytes": 1371,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/quick-design-new-system.md",
+      "sha256": "c3f00e1388040a32fe4de840d97c42677db0ccf825791bd7ff34773f545c8445",
+      "bytes": 1341,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/quick-design-tuning.md",
+      "sha256": "148eff6e25710b4d37e71742d80f1471f1ea4f16ce37e89ba3b42e9eb22212f5",
+      "bytes": 730,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/release-checklist-template.md",
+      "sha256": "c8493708c0a47cd38062cdae6dbc1cf379d7e9a6cacd9c50850dcd2bc556fe63",
+      "bytes": 4119,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/release-notes.md",
+      "sha256": "aee845f552de39f60e0febf7262536bc1ff42a180043f43ba5c8cdd03cdc3944",
+      "bytes": 749,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/release-platform-requirements.md",
+      "sha256": "a0da131cba4eda0a530c042eba6eda589412dfeb09d31bb9d695835fd4637731",
+      "bytes": 1475,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/risk-register-entry.md",
+      "sha256": "0d4460ea5b5a3b2a87506fab8db2344efbffb9cf39b4ece285025038f9e0ff34",
+      "bytes": 1438,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/session-state.md",
+      "sha256": "68b8d7ccd6a09f600facc73607bcffd449277633f3a956149b7122419c47487a",
+      "bytes": 3104,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/soak-test-protocol.md",
+      "sha256": "30d1fae457a73c93b35642c5eab7956df14cd8494b174092189e329c0fc8f9ed",
+      "bytes": 4256,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/sound-bible.md",
+      "sha256": "f15d102361545eb93c1e265a50bff958bdba1e276fe03ba701eddc168b99037f",
+      "bytes": 5296,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/sprint-plan.md",
+      "sha256": "95348349ebc0eeeb88016fb8cabeade73da866b3645b2e9a5071476e2710d17c",
+      "bytes": 1781,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/sprint-status.yaml",
+      "sha256": "1fcf3b4e661d39777c383ea5e54597f6de164ade50a6bcee066f13c1512763d4",
+      "bytes": 946,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/start-paths.md",
+      "sha256": "3a845831f454c483e04654f6f0f0af7d5a3b2611b56d31084ad8a6516cc6e788",
+      "bytes": 2246,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/story.md",
+      "sha256": "312132c53a67d903609fe33644ea342feeaff47fecffb07851cb20a44e66644f",
+      "bytes": 3827,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/systems-index.md",
+      "sha256": "a40a9957676be4adc79d36f654d17e98badb59bd12480dfa67bc47ac51e11d38",
+      "bytes": 5694,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/technical-design-document.md",
+      "sha256": "6823816cd83b7adf04dddb42ea34a1fd69b61824972004192f5ca7edda5629b9",
+      "bytes": 2879,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/test-evidence.md",
+      "sha256": "20974d965d2b57fed99fb94b8f309af852ce879fa6ad9052819840fc645280c8",
+      "bytes": 3272,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/test-plan.md",
+      "sha256": "5342973379ddf4a64fea16861c147a85fd94aa4dcb7b90c9bb1bdec712362a71",
+      "bytes": 5187,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/ux-spec.md",
+      "sha256": "dc7797c608967844786fd301dea0ba9e01af867feb73f2abd63b46a604150a99",
+      "bytes": 16472,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/templates/vertical-slice-report.md",
+      "sha256": "fec321cce5380d3bd99a90175b6457ef22e7ca199fa0f04ff2636c344ff2ce47",
+      "bytes": 5492,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/workflow-catalog.yaml",
+      "sha256": "3e87564320fae7f46f3f5c010b8c9c0b32674b0a8cdd1ab1dc76475020c2739a",
+      "bytes": 21312,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/docs/workflow-modes.md",
+      "sha256": "b5199fe7d1a20a2274936e55b102af780bb37d3fc6875713b017e9fab457bafe",
+      "bytes": 16197,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/hooks/detect-gaps.sh",
+      "sha256": "62697c61d72b68d75803f8117709901a8e4ad5a4e27b16de782cfd8d6bd097f1",
+      "bytes": 16451,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/hooks/log-agent-stop.sh",
+      "sha256": "4a08f9fb1cfa228037d312b59a473f93d0a3a595cf24998b492a1b76a8803953",
+      "bytes": 4397,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/hooks/log-agent.sh",
+      "sha256": "332ef30195ccd17850e0c444e26d77f6b1cbee29a2cbdcd65c211524e775317c",
+      "bytes": 4683,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/hooks/log-instructions.sh",
+      "sha256": "997685aabb431126128561cf1dd79002d643e88fa3ef9168c4175bdd025b24b4",
+      "bytes": 6573,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/hooks/notify.sh",
+      "sha256": "99e412a6d761d692195997c2ee7abb3d0051cb630c68ea38357a1397b5dbdf97",
+      "bytes": 3729,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/hooks/pre-compact.sh",
+      "sha256": "6fa5cb8f7a61f179765cf34a52f8678098d67cf25044695ae50d64ea223c4665",
+      "bytes": 2785,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/hooks/session-start.sh",
+      "sha256": "a80f60a581bcafa6300d7d2a5937b2dce77a5e36b42d9c89fd0e9153f84c4f1d",
+      "bytes": 18728,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/hooks/session-stop.sh",
+      "sha256": "3f5fa6de2a7dc34b16949f89c550cd239bc677b3d2b1e117d8361814f19619dc",
+      "bytes": 8496,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/hooks/update-check.sh",
+      "sha256": "dee572b3310acc4261822815154c2ab56a77805d31117d26f0db8f29ff845ccb",
+      "bytes": 8045,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/hooks/validate-agent-artifact.sh",
+      "sha256": "936660d0f89c03e5d5d5ef1546973f4d5949f65ad6fce0e669d048701888bd1d",
+      "bytes": 5875,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/hooks/validate-assets.sh",
+      "sha256": "ad43ca0faaa459bbc0aefddf9a5fa4c5eac28269b515de7cd6d645a4a89f43f3",
+      "bytes": 8497,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/hooks/validate-commit.sh",
+      "sha256": "eb82e5157144d8f43cdae1e7280ab05ea7c65e598d5c339f95dabb7efac1dc84",
+      "bytes": 46637,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/hooks/validate-push.sh",
+      "sha256": "c110644f59ba8ce86da5b530d32a84d0e5fbb21d7a924d0f5d745aa31445faba",
+      "bytes": 16974,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/hooks/validate-read.sh",
+      "sha256": "3b5aa4b3528558206d2fd85e580d7ba3fdb22be9bafc2d93ed74910f1fcb6103",
+      "bytes": 5659,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/hooks/validate-registry.sh",
+      "sha256": "883062e2015650986894791026d86c4df49cfee0226a2f4fc043c8b07ecba3af",
+      "bytes": 6675,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/hooks/validate-skill-change.sh",
+      "sha256": "8773589c26b847f9266ef08813ede31f2b2fb38e5d2e20d6ec85dc69c7455d28",
+      "bytes": 4947,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/hooks/validate-write.sh",
+      "sha256": "1fbb25825748ad7ff49707217ea8b8f842bcaa6fe14725a6c1d07511124726df",
+      "bytes": 8388,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/hooks/yaml-helper.sh",
+      "sha256": "8299e656cb8afc49ec02b2e17e32b61f3df50b13b93a8544226e30e459f68424",
+      "bytes": 95108,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/rules/agent-memory.md",
+      "sha256": "6f5b9f8db55f057d3f6c2a824347fa27ecf46947eb04812224001a87dad45c14",
+      "bytes": 3121,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/rules/ai-code.md",
+      "sha256": "23719730e64627bfd5f07dd75a8b1dcfc7f1b35543c24bed78e518430542b1b5",
+      "bytes": 753,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/rules/data-files.md",
+      "sha256": "d3847d07cb858ee9c8d41fff8750c8d83ca3b54d01f092e96475cf2f041a973e",
+      "bytes": 2172,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/rules/design-docs.md",
+      "sha256": "bbd53d0ff0b740d420c1218e4a47cefcc5f1a535c30b0fbcbf3fddaba5eb1b28",
+      "bytes": 2202,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/rules/engine-code.md",
+      "sha256": "0c4d68da1f3ae79619001e1115c054a9e6cdeccf02dee98d16c7fc4f5da757d5",
+      "bytes": 2035,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/rules/gameplay-code.md",
+      "sha256": "26deb5b1ea2a443d1bdbcdddb98402cf4ca3b6670b7bc47faae44e0300eb6362",
+      "bytes": 1464,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/rules/narrative.md",
+      "sha256": "be8925e4d9a6242eb7db40fd918bdc94aa6f40e498f9e3aa8d7ffe27ede4a819",
+      "bytes": 755,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/rules/network-code.md",
+      "sha256": "ff65f01bdaa2e571caca0dd025001fb6e043b3f2e16454eba36e24fbff8d12ca",
+      "bytes": 811,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/rules/prototype-code.md",
+      "sha256": "67cf516d0febcb9829407386b4d16b773ea38cc21012fdeb03a53943cc6ed5bd",
+      "bytes": 1551,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/rules/scene-files.md",
+      "sha256": "c184c693e5f31a21faa66512d305881f446b62209aaabfaf6b78749907ea480c",
+      "bytes": 1859,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/rules/shader-code.md",
+      "sha256": "e52f3a5fc123771c333038d141fc0053a34cf36495798e352b97e710e1c44e33",
+      "bytes": 2179,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/rules/skill-authoring.md",
+      "sha256": "2d8f100d9d84b94decd964c6aa97ffea21102e7ea155d8b40f51fcace0f8ccd2",
+      "bytes": 4268,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/rules/test-standards.md",
+      "sha256": "21ad3e43b7efa1ee5c1474ed0d68d410c42b1b42fdbb0f236b46488398ebc882",
+      "bytes": 4108,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/rules/ui-code.md",
+      "sha256": "3e956ed2b2995a3e20022f0bba08f6d8074e43c08fe3a1164801201271a9a524",
+      "bytes": 716,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/adr-dep-graph.sh",
+      "sha256": "f7f4f21c447cc4bd4c87f6f8a9a83f2ab70bb3da1d0613b69f51513f53b808e8",
+      "bytes": 8761,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/adr-status.sh",
+      "sha256": "92c2c02283aa4c8a76ba7c2c0cf36dabacc1d3ba2c618878322fde21d4bc13ff",
+      "bytes": 13605,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/agent-check.sh",
+      "sha256": "b8a1b78415ddc29760f21bb14f0c4502b0d49b8135ff70c7f2377c001cbb24f0",
+      "bytes": 17050,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/artifact-check.sh",
+      "sha256": "53bfb4c03ae52a711755145f1b7fe5dc3218f26f69f78e3a94ecc489f149b540",
+      "bytes": 13459,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/asset-scan.sh",
+      "sha256": "2dd8b5f3f2a29e99c431e7cc1318a3b7ff1fcfc74e4b086583e430ce10fc8e98",
+      "bytes": 33185,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/bug-stats.sh",
+      "sha256": "7502e1824b6df79b39c6a31effe1412bb24dd640eddc076766b48512e381f439",
+      "bytes": 10673,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/code-markers.sh",
+      "sha256": "300125e232b00b18bd69696a62f80c6f43411a52872376ef6af435c4564ebf4a",
+      "bytes": 9382,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/compat-inventory.sh",
+      "sha256": "4d1f2a7951d8ad54ac5d72a79e4939ec601742792a61d691b87e736e27799cb1",
+      "bytes": 24086,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/config-set.sh",
+      "sha256": "9bae063fc2405d19feaca97f75d008a0cd3272af953595a5abded6050eb13c4b",
+      "bytes": 25854,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/content-count.sh",
+      "sha256": "7a13815e90df925a83aea10a8d5db0dc4a82009d93e9753d9bfd9d8a0cd3ce47",
+      "bytes": 19071,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/debt-register.sh",
+      "sha256": "808d60c6072dab3c8f217283a59e43525ced47dd54dffada4af48269c4b85a37",
+      "bytes": 22402,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/flaky-stats.sh",
+      "sha256": "58dd299af50695589b8c75483ebd58d96d5b0c6bad37d85d7cdc908f1f83d565",
+      "bytes": 17863,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/gdd-structure-check.sh",
+      "sha256": "b5c8cf8b50ceb8eff6afe61beb82fec2c9258e87aefbe9a0dfd96f9422996204",
+      "bytes": 5946,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/godot-parse-check.gd",
+      "sha256": "c009f12256161f64d0eaf031ddbcf177dec4b02eb8ff469ab7e6d12632705c5e",
+      "bytes": 1241,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/hook-input.sh",
+      "sha256": "b0fe850dd456f6bd36135565c141fc557f626a11485d8ef4f8909e91c0b1e464",
+      "bytes": 12290,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/inputs-check.sh",
+      "sha256": "c1528088c3c2a33073eeccffa2d8b316668a8c27306e7d1ec0ab6105e0eae19f",
+      "bytes": 7502,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/md-section.sh",
+      "sha256": "0ffa55a3f7215fda020c4070c160e7992577005b00aad3d7b6d527870dd7cfa8",
+      "bytes": 17794,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/migrate-v1-config.sh",
+      "sha256": "8dea94fc7f4b4339c074c9d4f73088bd237382ed7e209c6ddd770930ff1e6323",
+      "bytes": 36075,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/plan-math.sh",
+      "sha256": "5324f4f48156b36d82eb70cd0c735ae3d57375d791125cae792330e0621657d4",
+      "bytes": 11451,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/project-coherence.sh",
+      "sha256": "6b4da1aff42a3c653c2c532d4385f923667ec37d01546b57d1459d659ece3c3b",
+      "bytes": 15256,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/project-state.sh",
+      "sha256": "fce992b9762b6c70f549ec21f12e99c8bca3e17c57a49e6ece15c0cefe115d1a",
+      "bytes": 10233,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/read-guard.sh",
+      "sha256": "04a899c956373c77451e3b44d47f30dbac5860715f3d6d37ace94b47390d3813",
+      "bytes": 6325,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/registry.sh",
+      "sha256": "4b698b1af5ec413da992a459dba2cdb71b505e50fbb1972c80b4e8f33105959e",
+      "bytes": 35486,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/review-receipts.sh",
+      "sha256": "e4234095b47a12875179932508874627012ff086e136ff72f8324d2c0e9836db",
+      "bytes": 17684,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/review-scope.sh",
+      "sha256": "9817c9fa450a20dab05e9922c9840231e8e24786590a7ea49a61ae3d00327704",
+      "bytes": 5034,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/rotate-session-state.sh",
+      "sha256": "5267f72ee556a2fbfe50393459452fdd5740a5f6e975ad9ffa66e76cee33ee42",
+      "bytes": 4880,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/session-state.sh",
+      "sha256": "0838a0cc1c2c23240af3ba569a360e6f7959361ab2c16ae91d093cad03874a13",
+      "bytes": 9935,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/set-stage.sh",
+      "sha256": "717aae86e7fa76f8cb7d0b5ba7b451a2f754e6e949cf8add7400be9174d9e346",
+      "bytes": 13821,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/skill-lint.sh",
+      "sha256": "6a66024bd66908915a76a21ad71fe3590278ef1b420b47aad889c99c243d3c8f",
+      "bytes": 12730,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/story-facts.sh",
+      "sha256": "546a4aa73e73192a876a125464848e1378357457ef5cd3e2ab72155bb579736d",
+      "bytes": 15764,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/story-status.sh",
+      "sha256": "9fb510e4164909f4704c141f38ca42f0e1eb02e6476f73ab8dc7e9141d54ff4d",
+      "bytes": 3511,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/test-run.sh",
+      "sha256": "70d5f44707304f2cba93607f0b52e6747e25d6349d771c928dc1f31884a438b9",
+      "bytes": 23629,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/test-scaffold.sh",
+      "sha256": "99b3ff506932ff6cd18d1b13d358c12c0e652df567958435d76de7849b65fcce",
+      "bytes": 28552,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/write-guard.sh",
+      "sha256": "c7ac4ccf0b7f13e2019391697b5933fee324675194bebf15cfe6e41f5e6d86ff",
+      "bytes": 21229,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/scripts/yaml-get.awk",
+      "sha256": "a8a354eca92398689a28b53554f315b3a87122725bd10a1dfdcaae458f7935ad",
+      "bytes": 3518,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/settings.json",
+      "sha256": "8d6737aff115bad72496ea5efb01765a59a076977fa45737b111f686c66a7f91",
+      "bytes": 8361,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/adopt/SKILL.md",
+      "sha256": "79547d656e76fde14f1761a6840cb3a6fbb058f69f33d7829d5e073390f46b98",
+      "bytes": 4979,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/adopt/references/1-detect.md",
+      "sha256": "4120e881103940ec84816951b7f4fd2b5e206b6ad0325fa172a0354b79575ea8",
+      "bytes": 3820,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/adopt/references/2-format-audit.md",
+      "sha256": "625b3d1dbfe60001089e66253a09f5e0e9dd62f5162d55bc4a79419212739c46",
+      "bytes": 10078,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/adopt/references/3-classify.md",
+      "sha256": "ba708873c7a72055da515a7f290be80b6a6b8e63610b4f6a1549fab82ed9e042",
+      "bytes": 1298,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/adopt/references/4-migration-plan.md",
+      "sha256": "27386c73a5fde71606320013f80d55d093c3cbbdca0318dbcbf70d13a9f7b99e",
+      "bytes": 2767,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/adopt/references/5-summary.md",
+      "sha256": "0661b1c4feb24d630ad4a1fd6a888cee699d907fbe01cef18e8dc658b0178622",
+      "bytes": 1879,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/adopt/references/6-write.md",
+      "sha256": "cb23a80201a30fbe66b92f3356220945fb3fd18ff4ea8966238dff4804152ed9",
+      "bytes": 3476,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/adopt/references/7-first-action.md",
+      "sha256": "290607da90ceea57ddceccf45c4444c1136fc8e258a8bd631658121ec55462bf",
+      "bytes": 2746,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/architecture-decision/CONTRACT.md",
+      "sha256": "f295ec9326ff3050d71219be899bc4a75a97fff28a1221ead0693006c8f8a2be",
+      "bytes": 10803,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/architecture-decision/SKILL.md",
+      "sha256": "b550883ebd9973ad6534c2984a77fdb6229f47eb8d2b2c31e7501d8a89f2cdf5",
+      "bytes": 6849,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/architecture-decision/references/0-accept.md",
+      "sha256": "abc2ab957854d947d7ee01c132cebf9c19c851aef3dfa788e3ee21ce82881016",
+      "bytes": 5134,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/architecture-decision/references/0-retrofit.md",
+      "sha256": "f41ba65eda577623b3dbcef762495672924bf8ab382e7c2650e61006a378d0ce",
+      "bytes": 3734,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/architecture-decision/references/1-engine-context.md",
+      "sha256": "0e0e4e96781ee752bff34d705c1dc26359fd662b50087ae7780495ddfaea353c",
+      "bytes": 1788,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/architecture-decision/references/3-gather-context.md",
+      "sha256": "f226269d8c23f6d9fbc784fbc0dbf050d12a860ec20be0a3388b9b9345ff2d55",
+      "bytes": 3561,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/architecture-decision/references/4-decide.md",
+      "sha256": "14a595f2efc8c0fdbbd9dbf6c0912250b817073db2a1de17ebf1c831d0822f8a",
+      "bytes": 3727,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/architecture-decision/references/5-generate.md",
+      "sha256": "c6862e0d8ce98ad9b0d1c2287f685019d5cb47cb808456d1d164c6dd4deb3138",
+      "bytes": 12804,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/architecture-review/SKILL.md",
+      "sha256": "0219e6c2545af2416775bff139d921c1bc3c3e9cc1ffc25a25d6186f8e444f6e",
+      "bytes": 6351,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/architecture-review/references/1-load.md",
+      "sha256": "d866809875b0d6499cb9ae243ea28643c6d7a72bb06a0dec0894853c45f807ce",
+      "bytes": 10130,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/architecture-review/references/2-extract-requirements.md",
+      "sha256": "c34e4466059db1c71ccbd42946a91ee62964db38f761f333288cb59db2a84263",
+      "bytes": 3505,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/architecture-review/references/3-traceability.md",
+      "sha256": "dd90c9669632cb844d45ca3a1ce2007fd0f34dbf8b13031f22db100cc8961a75",
+      "bytes": 5918,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/architecture-review/references/4-conflicts.md",
+      "sha256": "b20b53754a69064941366d5ab8ca34cc1aced6f0e40ef09b4d39a0b6d48d2d57",
+      "bytes": 4011,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/architecture-review/references/5-engine.md",
+      "sha256": "6d48c267b83bca7de2fba89e7c57685277d2fa5c728a10dc6d01a6b876cd3939",
+      "bytes": 5693,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/architecture-review/references/6-document-coverage.md",
+      "sha256": "f902dc64c01721cee13fd880a3670704c409cc82b9686eb7c0b7609dbdd5fcb7",
+      "bytes": 1044,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/architecture-review/references/7-report.md",
+      "sha256": "d0d31c337e976a1427a770d5f8d761212de181ad66455963a87900a196b966cc",
+      "bytes": 3785,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/architecture-review/references/8-write.md",
+      "sha256": "f7c34fad5198874728b61cb23faae6555debaa63bed376082ed2da1f24e165bc",
+      "bytes": 8548,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/architecture-review/references/9-handoff.md",
+      "sha256": "5620d237cb8f5c429215ec60921ec1ea83f723b004611217f7ccd11422eb7516",
+      "bytes": 2097,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/art-bible/SKILL.md",
+      "sha256": "7873271f9e19fd6f126f00770c3861a2001afa492350f9232e3609fb4d61518a",
+      "bytes": 24184,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/asset-audit/SKILL.md",
+      "sha256": "9aaa056c533cd0d61af1da5332fd26065fbfa6937db4bd117ac0692f8c65a3f4",
+      "bytes": 8235,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/asset-spec/SKILL.md",
+      "sha256": "8e9126653dcf25bdd2e197ee9df6587e3ffd7ee67de7103087cf8971c59fe025",
+      "bytes": 20565,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/balance-check/SKILL.md",
+      "sha256": "1081b0a21d197310c7ea244c8ac1cf1832b95b0235c6288fcf1575fceacdfa44",
+      "bytes": 9187,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/brainstorm/SKILL.md",
+      "sha256": "fa665de84aea3834111c981e919ac166f0a8400764c4c23d579d9a929c0539b6",
+      "bytes": 5245,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/brainstorm/references/full-concept.md",
+      "sha256": "ce34add9f9eb81de45a955d47bda252091a3d8fd6a6c390ee2c09d277f0e1dfa",
+      "bytes": 11915,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/bug-report/SKILL.md",
+      "sha256": "cf643bf40ba2bfd45d580ecb5dfadb186b779b1152ca650962418bbcb3c8d783",
+      "bytes": 10570,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/bug-triage/SKILL.md",
+      "sha256": "818f27203a1adfe2f5a6bc3a351a2673d5297d2fd3e69d773c228c98c8a83b01",
+      "bytes": 9483,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/changelog/SKILL.md",
+      "sha256": "e8ab97b0b07e7cfef09d00b1d273ec7b926fba26c567853a03843243e25874f2",
+      "bytes": 10321,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/code-review/SKILL.md",
+      "sha256": "3468d605b4627e0568c80d0732d1ab1281652641f3dede555191657c40571b8c",
+      "bytes": 13882,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/consistency-check/SKILL.md",
+      "sha256": "be7697de6ff3b8b38b0078c7fa9a71eafe87cc04d008db7192a0439e3d000228",
+      "bytes": 15351,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/content-audit/SKILL.md",
+      "sha256": "56f522eabb8c7a8e70f9fd8f9dcdc40563fdbe3586fad18c027579c9dfb49cba",
+      "bytes": 14762,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/create-architecture/SKILL.md",
+      "sha256": "0613360ba1247bbfc53f840b0f97d15430f38799b4a67498c6efabe53763c23d",
+      "bytes": 7259,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/create-architecture/references/0-load-context.md",
+      "sha256": "2083798d7784c597ca8b9c0933f13d3fd2161936c0fc6771a351f98ab0b56481",
+      "bytes": 10563,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/create-architecture/references/1-layers.md",
+      "sha256": "889231d49bd42e96bb0d4cd3bb052434bce83f5567ebf2d1567b82b3712a0f46",
+      "bytes": 2542,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/create-architecture/references/2-module-ownership.md",
+      "sha256": "1c373de52748ed4941a223092f6a6d17b251df32cac500f275672f4742ee5dff",
+      "bytes": 1147,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/create-architecture/references/3-data-flow.md",
+      "sha256": "33664f68c24c751182df4a95eda3ae2740a94381d58a7806b1d2a40c2b96506a",
+      "bytes": 990,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/create-architecture/references/4-api-boundaries.md",
+      "sha256": "dc914d8fa14cb7e80b46fbc4702d327ba473284744425272f854237645f6d0fd",
+      "bytes": 1017,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/create-architecture/references/5-adr-audit.md",
+      "sha256": "f2dffe08fe962b555cf87f62141cd82b12928ceb7fa67544f5a6c8f485b58e51",
+      "bytes": 1923,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/create-architecture/references/6-missing-adrs.md",
+      "sha256": "d88aa82cabb0803e6b8d989664da8b219eed7f8e39de7fe66b9c635aefdf1ade",
+      "bytes": 715,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/create-architecture/references/7-write.md",
+      "sha256": "e10e9fb89a6b09bd0cd41791d8da83dd79f996a83847982daccf144e0960ee69",
+      "bytes": 4864,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/create-architecture/references/8-handoff.md",
+      "sha256": "dd6f3eb676c4497cf61383cee696d94db1dc7d22c73d5baa574a1f215229bf77",
+      "bytes": 2466,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/create-control-manifest/SKILL.md",
+      "sha256": "a487bb167b3154b19fe76ac618625ef0bfeb65a2a90432804e96e0a83271b75a",
+      "bytes": 13476,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/create-epics/CONTRACT.md",
+      "sha256": "a48adfb04175d21ba016118e614c11def9477ad76c06ca26acf767d3ad4139b3",
+      "bytes": 7533,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/create-epics/SKILL.md",
+      "sha256": "a867fed460ac1ad49debf36302da1f1e44d0c9bc08aee2e14119fa09b572abd0",
+      "bytes": 12472,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/create-epics/references/pr-epic-gate.md",
+      "sha256": "990efdfb2d6955ace5c3562e4753a5a8599f63cb39a48e51366124bcbca4f6d3",
+      "bytes": 1657,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/create-stories/CONTRACT.md",
+      "sha256": "7ab7c94960b73477bbd2620e986d7c6c1b7046e7cecfe48aa10e7f420d117b5e",
+      "bytes": 9010,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/create-stories/SKILL.md",
+      "sha256": "6fbbc16b580e90cf219e1bc67aaebeaf5e81e0dbc24c3b419d493dc6362282c3",
+      "bytes": 16387,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/create-stories/references/qa-lead-gate.md",
+      "sha256": "752d3bc7d4d5de0fa36031821d00128d5c7eb3f3bf66fd6f9e869e943e51eb98",
+      "bytes": 3110,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/day-one-patch/SKILL.md",
+      "sha256": "dcd3d710b55dfd9e426965850cb572945d00d5d2d52daf53e83682ad573da971",
+      "bytes": 11429,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/design-review/SKILL.md",
+      "sha256": "8ed70a1d109fdd5e1a765ae4b2198730c033fb183ac3e3539fa339c106cebe1f",
+      "bytes": 28052,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/design-system/SKILL.md",
+      "sha256": "9c4e7d1f1594e062c50f96e60a06d5a0fbaae1f90a7f4f9762f0952b7248d396",
+      "bytes": 8952,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/design-system/references/1-parse-arguments.md",
+      "sha256": "5a0ad57af5d5d3b4d225c6a81f1d21d5e6e709c723ab48d115829d2531175329",
+      "bytes": 7012,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/design-system/references/2-gather-context.md",
+      "sha256": "149f349250ed5c49c8fbe9cba92f4f1f750b9d5dce96c9a98267cfe29d8a0040",
+      "bytes": 12289,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/design-system/references/3-file-skeleton.md",
+      "sha256": "95dc956f90e443d15f4cd0ff4f7709f70c9068d5da5b163c9226220ac7d89e52",
+      "bytes": 3169,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/design-system/references/4-section-design.md",
+      "sha256": "56ad86f7973a67284731c7ff02e5b740a5e1738e95fe7f8bb2b72d736ac3d29d",
+      "bytes": 29624,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/design-system/references/5-post-design.md",
+      "sha256": "ea90124e8c6caa5e9cdbd61480f4e94ac540c058e709dd1cac4b2c46a32f86df",
+      "bytes": 10229,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/dev-story/CONTRACT.md",
+      "sha256": "95abf80e16dfc28230989db818e6f8afeb05d73cb4600882855f598f5ee77071",
+      "bytes": 13024,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/dev-story/SKILL.md",
+      "sha256": "ca76457c34ec9a8468c34bcc55664273eff2b077afbebe36f1dda0c8ec8e474d",
+      "bytes": 17781,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/dev-story/references/engine-checks.md",
+      "sha256": "c3ec789cc1c424366e5e85ebc56e5df317b5dfdd011f9e944e6242235640fdb4",
+      "bytes": 1528,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/dev-story/references/version-mismatch.md",
+      "sha256": "2f38c7964569cba3b22bfbfc0cc702ecb1c4580e7aa294994b3047cae9318a41",
+      "bytes": 2124,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/estimate/SKILL.md",
+      "sha256": "61d821627b3db4f4038f60b7ce799599a219b864036023ce15d5fc85348874f0",
+      "bytes": 5876,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/gate-check/CONTRACT.md",
+      "sha256": "efc3ec5e64ffe3fef6c5acb475d6f3d6246e9ac46ba877d45c780b0a28bbe380",
+      "bytes": 11733,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/gate-check/SKILL.md",
+      "sha256": "e2ca66469e396bfd53de98fe3ba9761c24ce76b514cb933e5c5b00f17b36c8de",
+      "bytes": 9194,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/gate-check/references/2b-workflow-tier.md",
+      "sha256": "3daee07be4df4801b2d5295dbfee80d04cccb526ca37552fd32a3d3b101fc055",
+      "bytes": 7310,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/gate-check/references/3-run-gate-check.md",
+      "sha256": "c1194a18249ee653ec5b582d66dc2499c48ef93b2d5224fb72b56bbb30e62bca",
+      "bytes": 9391,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/gate-check/references/4-assessment.md",
+      "sha256": "f3ebcc4955e4b76c1f20e8d417dcfc9a049dc627f9588d2a08db10c578bcd9d3",
+      "bytes": 8006,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/gate-check/references/5-verdict.md",
+      "sha256": "d373188788563e8683727bd42baee68dcd82a0814174ebd5eaf79a242abc727c",
+      "bytes": 9027,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/gate-check/references/6-update-stage.md",
+      "sha256": "6f5039acd8c824e4a2ece527cb2bcf4c00571194cb6060e739ebea076c875b94",
+      "bytes": 3260,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/gate-check/references/7-next-steps.md",
+      "sha256": "a1f9be494110861ce15ce0157e56b568fd42d12f0d0c396f0abd134b522966b1",
+      "bytes": 8013,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/gate-check/references/gate-polish.md",
+      "sha256": "f55ab0697622578b8bf84b41806f9e17cd23247f81975e84031a299f0fc3d1e2",
+      "bytes": 3539,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/gate-check/references/gate-pre-production.md",
+      "sha256": "6acf2cf7a92ed8ce4d2a77f8d75560fce49b98ad5218f2b06606a5ba0545786b",
+      "bytes": 5942,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/gate-check/references/gate-production.md",
+      "sha256": "9d77573b61576d4fb233ed9d3ee3f1efab81e26814c1596208fb408b57956e4a",
+      "bytes": 7995,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/gate-check/references/gate-release.md",
+      "sha256": "acc2705086afe5cf766b839fbfbe6dfd0b96039af56737e3d0726457b0a0973f",
+      "bytes": 3562,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/gate-check/references/gate-systems-design.md",
+      "sha256": "2472d9706f3b938c76eeb747b571d9a695232ada2ca05f4ecce4dffbd868be67",
+      "bytes": 1819,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/gate-check/references/gate-technical-setup.md",
+      "sha256": "26279888b7a13b8b2f2ecbdc0105a1b743ddd39f621e304391d917df1d388bcb",
+      "bytes": 2473,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/help/SKILL.md",
+      "sha256": "3a5fd66a1e29fd86133ef3085e764cf0f8e15ce935ed06e9000580a577ddbeb6",
+      "bytes": 16642,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/hotfix/SKILL.md",
+      "sha256": "20233b7851f526da3ad80ee9acb9e2ec9b99bd15e861252eddef04c0d7aaee6c",
+      "bytes": 11740,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/launch-checklist/SKILL.md",
+      "sha256": "ce8813df00b1b1f513c935fa6fcefd560c293e96fee02040a7705063a6afa7d2",
+      "bytes": 16696,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/localize/SKILL.md",
+      "sha256": "321672db96810276c52b6630119d38bfeee8010cf6cd4a4f39511737ed450144",
+      "bytes": 21111,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/map-systems/SKILL.md",
+      "sha256": "d27959d0043bd8c9f08c0f3fb56aa66de8e6ce84812a7e43d5f2d2c43cae01dd",
+      "bytes": 22585,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/milestone-review/SKILL.md",
+      "sha256": "1028ff3cc2f0f1ad609efb5c91d62b40be9644a0d39cc1fb3bb8c0fd42ca29df",
+      "bytes": 11033,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/onboard/SKILL.md",
+      "sha256": "e10acba4b4cac6b95471b3b5b11c524dfea578e030029b87a55407ac129c756c",
+      "bytes": 5479,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/patch-notes/SKILL.md",
+      "sha256": "41e7a4b4b1d5536dd2957ffa048a80391ddcf2c6cf8eac169b05962d66c5f0e7",
+      "bytes": 9762,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/perf-profile/SKILL.md",
+      "sha256": "6d9d1967d68f06b2d3f4f4f8b144ea38894612d3cf9885e50c459fcfa8dc6e8b",
+      "bytes": 10258,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/playtest-report/SKILL.md",
+      "sha256": "503d55d2b3a0144dfdc287e6dc3ba8c6da998e2611fe62ef0cd0d546438286fe",
+      "bytes": 6868,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/project-stage-detect/SKILL.md",
+      "sha256": "be78698fe68ddc7fa79a0d763a1f5e474b1b4c2947237c4ca741071ac1b8f4b8",
+      "bytes": 13078,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/propagate-design-change/SKILL.md",
+      "sha256": "bf110550ddd1ca9c8bbd266cda2808b40aec02646b6ff9886d850ab9f1f1d7c9",
+      "bytes": 11361,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/prototype/SKILL.md",
+      "sha256": "3fc9e89b027234972d595df6adf2d6b6ed501aae7bd11a24fe3887d0e92f0956",
+      "bytes": 5397,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/prototype/references/1-question.md",
+      "sha256": "0e3e23eb0e55f565292ee744ccd102d1297c8b95e82ab891624b9634ffb68954",
+      "bytes": 3599,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/prototype/references/2-load-context.md",
+      "sha256": "be6b3a58b15b69a7d4dd1bf6f54daf70c0abfb05016c8f5f2fe91d40154330ef",
+      "bytes": 961,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/prototype/references/3-choose-path.md",
+      "sha256": "66e109f694bea94d07b9ba4d33fa577028cb8c0fb23f1e1fc4f6d8bac9a227d8",
+      "bytes": 8398,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/prototype/references/4-plan.md",
+      "sha256": "8e2c9901b370d38506cfc9253d6035de4f5796e91da2088b1511f51f5b9e0072",
+      "bytes": 1336,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/prototype/references/5-implement.md",
+      "sha256": "49ed558badc1b7f5c539094fdaf61f3fa1197ed65f072916bef35b3fd1130c78",
+      "bytes": 4349,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/prototype/references/6-debrief.md",
+      "sha256": "cc1f527562b4c202ae09050738c041950d0bbf78b08370c422bcafd08fec8b76",
+      "bytes": 2621,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/prototype/references/7-report.md",
+      "sha256": "d04c5a675e652a83aa5f7bdfa166004324874a667ae5891100a97250f604c8ab",
+      "bytes": 1042,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/prototype/references/8-cd-review.md",
+      "sha256": "cb05e4a4667666af6517ec469b3b3094ad1ac6bacd2b69c04b28ae126b2e1f03",
+      "bytes": 2414,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/prototype/references/9-summary.md",
+      "sha256": "9773ac9f283228d16dc7bcb23217f6da2b43f58aa19a34cc7b2127dbdf327ba1",
+      "bytes": 3765,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/prototype/references/spike-mode.md",
+      "sha256": "52588d00b47dca01513730126e70dab8af627c9e23eb5a8f6491f9cb586aaffe",
+      "bytes": 3705,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/qa-plan/SKILL.md",
+      "sha256": "fa3a333c9f0e298979e8e174165bcd58042d686b788327644487644c25c8efa5",
+      "bytes": 17505,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/quick-design/SKILL.md",
+      "sha256": "32a4521f5290f459b84cf3500f86487d63b03d192281c392b7a023dcede03fb3",
+      "bytes": 11811,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/regression-suite/SKILL.md",
+      "sha256": "65b91a43cfc319b8f369d31f78686549a84cbfaa32ba2c125b9b3abce7f29717",
+      "bytes": 14092,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/release-checklist/SKILL.md",
+      "sha256": "a7bd13a309e683c5a2b8a39f18df753d423d9d0b02ccf384802e3882cac4cfd5",
+      "bytes": 14903,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/retrospective/SKILL.md",
+      "sha256": "29b136a0f3ea57c09acbc6e97e18df413444305f26e2eeac35c7c99de9f9dc61",
+      "bytes": 12408,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/reverse-document/SKILL.md",
+      "sha256": "c498c673b8f1b8d5634e33839b6117b17a827c2f41207acb115eb276f716189a",
+      "bytes": 15781,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/review-all-gdds/SKILL.md",
+      "sha256": "2b5bae8837d3b47bee678ab78aa23f0e177326b4655f22d5c16470089a25241b",
+      "bytes": 7455,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/review-all-gdds/references/1-load.md",
+      "sha256": "1bafd370ec7fa114b23e1d109eff3c1f9dfadca2c432427f214521d197a27ddd",
+      "bytes": 5041,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/review-all-gdds/references/2-consistency.md",
+      "sha256": "38596caeb557efbca1ecb7b767f558865453b2266a35a59f7e34f173b44a2351",
+      "bytes": 6503,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/review-all-gdds/references/3-design-holism.md",
+      "sha256": "8855ba326fc36a2406c15afbcbdb22f01875ed079e4cd1446d8ffed668e819ee",
+      "bytes": 7695,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/review-all-gdds/references/4-scenarios.md",
+      "sha256": "6cbabdb03c253ab2c2fe384ae075d68fbeeef705fc5acd60fcb60f9784ae286d",
+      "bytes": 4485,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/review-all-gdds/references/5-report.md",
+      "sha256": "ae51d4b943c57dbedb5f08a78ec7b4608324c0a9bb97b509c40bb1772e4040cb",
+      "bytes": 4662,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/review-all-gdds/references/6-write.md",
+      "sha256": "e4f3a48fd218f010138b5ef0453178dc7d4617db93044a1c57b7f2d35cbd2942",
+      "bytes": 2487,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/review-all-gdds/references/7-handoff.md",
+      "sha256": "76a11e26daef756825db1aabf6380c3781a1ac479eea38a63104ad697163b4c6",
+      "bytes": 2050,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/scope-check/SKILL.md",
+      "sha256": "70af8cd294881a0c1e62852bc5e47a63f142381f008f4f92adc1b0ed03ab5e11",
+      "bytes": 6839,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/security-audit/SKILL.md",
+      "sha256": "91d9c01dfed0f6bb2dc977c0e3bfe76d705653c307546b19e1d5fd413033daf4",
+      "bytes": 22328,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/settings/SKILL.md",
+      "sha256": "5741b2ef90d60ee3ee350b908d106c10fcd037ad280d2a9ee4cb8f8a7fcc506e",
+      "bytes": 21500,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/setup-engine/SKILL.md",
+      "sha256": "37c08d68ed58b70e6880e269e711e2617b89f2f165d9bba5d966e326e73e9a17",
+      "bytes": 7205,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/setup-engine/references/11-upgrade.md",
+      "sha256": "4099ab07db41a6ef9cc7c19280c52e1241b3c1cb46621aeffed3365ab466d248",
+      "bytes": 4523,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/setup-engine/references/12-output-summary.md",
+      "sha256": "0d722f38faecad23c1acf89aa085d6bf9a5db3f0814129c11869a013b2dc90bb",
+      "bytes": 1741,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/setup-engine/references/2-guided-mode.md",
+      "sha256": "77ef8e043ef536db796f3d32a78d960ecde7a8320caf568f30b7b93036128ffa",
+      "bytes": 8595,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/setup-engine/references/3-version.md",
+      "sha256": "e39430dbb5b1e0afe002568fb150ebd123de5079be48d5a257ada36a22be74ac",
+      "bytes": 2574,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/setup-engine/references/4-claude-md-stack.md",
+      "sha256": "a122df4ebb9167c2defa5a8b9dc5b6a4a649e29f0c48eb43795a1230fb24d2cf",
+      "bytes": 3283,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/setup-engine/references/5-technical-preferences.md",
+      "sha256": "fc332503d281bfbd6163b89f835276ba4ad3f3d6d17ec6df673ffbe2d0103aa5",
+      "bytes": 8691,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/setup-engine/references/5.5-project-yaml.md",
+      "sha256": "853492f39487b65f8155d8dc972e7861adbd01087068c3c525a2954f45b601bd",
+      "bytes": 29275,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/setup-engine/references/6-knowledge-gap.md",
+      "sha256": "694517ca40542c55b671af5c47afe39420dbe9170b29f749e479894acef67a27",
+      "bytes": 1736,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/setup-engine/references/7-reference-docs.md",
+      "sha256": "f072c0a70331e75f7931b5b9ed4d63c9b10b5455e044683616220b4f7846704e",
+      "bytes": 5985,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/setup-engine/references/7.5-scaffold.md",
+      "sha256": "4906f271bd3020520dfe22716f65fb1a8df60554946faf74be810611cb383e22",
+      "bytes": 3980,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/setup-engine/references/8-verify.md",
+      "sha256": "9d75412fd622ec9a51686a9ba81bc9e3f81b097eee0cba22e8cf67bd38d15fa1",
+      "bytes": 2717,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/setup-engine/references/godot-language-config.md",
+      "sha256": "82b2aad2ad6a63616c30a5168f720eb6e83ca40e585bddf82dc13395a0a7d404",
+      "bytes": 7516,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/skill-improve/SKILL.md",
+      "sha256": "79b9febba255d732e2e722d45be8e2b90f7182b7ce5bdb772195e22c1ad8c65e",
+      "bytes": 7352,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/skill-test/SKILL.md",
+      "sha256": "c4a1775aabdac131a0fde02fa380bd741eaffb380516f4e004ae34cfedb363c9",
+      "bytes": 28769,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/smoke-check/SKILL.md",
+      "sha256": "8531f6d673bf35704b2a0676594e3ab4d6af0153fe772ab590479247fddee6d0",
+      "bytes": 5161,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/smoke-check/references/1-detect-setup.md",
+      "sha256": "07af6a1dc13f17fddb6f1877e578969471ffa37e3e5b1845334ca216a36fdff3",
+      "bytes": 5664,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/smoke-check/references/2-run-tests.md",
+      "sha256": "93981f1b4aadeff6d3c8db199de990972e7a7d0540313e3cad4c74aaf52c9f62",
+      "bytes": 11804,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/smoke-check/references/3-coverage.md",
+      "sha256": "34cee3af8199169ed5771a889174c96f955ed3a56cf26fd56077fada46d62224",
+      "bytes": 1656,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/smoke-check/references/4-manual-checks.md",
+      "sha256": "08d9d33dd0441f00346500e00bbea206c21239d83190cc6edbb5d986f9721d07",
+      "bytes": 5769,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/smoke-check/references/5-report.md",
+      "sha256": "f819079544bfd59504d79d1e6a6607aaf98f7476cef0a91e15eb6cf1f73adabb",
+      "bytes": 6789,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/smoke-check/references/6-write-gate.md",
+      "sha256": "35510aaea59e83332a5eccc98a417afed5327114a6180fe62f2b7344cd716192",
+      "bytes": 4618,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/soak-test/SKILL.md",
+      "sha256": "cd1ad9ab08b98b978f7dc5188822597b602e4f8170a811f0ca2ccab2f7f96122",
+      "bytes": 12935,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/sprint-plan/SKILL.md",
+      "sha256": "55b5da9a8180dd0d62a6babffd63dc2cbcc6d5156a2dbcc2528b427253a1606e",
+      "bytes": 19611,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/sprint-status/SKILL.md",
+      "sha256": "34d09121606a14f6b5c5a82cafe65796f97adb4ed8ed8857554384ae6fe90a14",
+      "bytes": 12066,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/start/SKILL.md",
+      "sha256": "ab6e079a48c99479ac71deca11b9143a4b87874b6589e39c3e0a81422d9d1f32",
+      "bytes": 12068,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/story-done/CONTRACT.md",
+      "sha256": "b805929ac2ad562172f5ff9d0492268b172cd7db0f3043a94bf35dc7eec9117a",
+      "bytes": 11877,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/story-done/SKILL.md",
+      "sha256": "3946b6770a8f27fd679a0a2f5d9c8aec6096bba6ee7982827700d1b542c9e74f",
+      "bytes": 18015,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/story-done/references/review-gates.md",
+      "sha256": "49618b4e574a5db5dd9b25bc681b92d357b513ef9e05c760a4509d0471913741",
+      "bytes": 2464,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/story-done/references/sprint-next.md",
+      "sha256": "d18331c32a0e15ac6858d60ac4c9b220b81da607c3f5c83f69eaa691cc932c10",
+      "bytes": 1492,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/story-done/references/tech-debt-row.md",
+      "sha256": "9bc9090f96ee6b1e3e03a99fee382dcd5029647f07ce1bcdb6d730a492f8c31e",
+      "bytes": 1329,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/story-readiness/CONTRACT.md",
+      "sha256": "9f72e5fad1591d91ddb19f295ef392ac31d227908c248354b7584327ebd73891",
+      "bytes": 6616,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/story-readiness/SKILL.md",
+      "sha256": "0c73e0a2c22b13a711a40ea4682a1d31c3c61cd8ad4a5a5115c41f8270659d12",
+      "bytes": 15435,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/story-readiness/references/qa-lead-gate.md",
+      "sha256": "f919c5e0cfc94d1caccd0c68c4ab5b97b64fca75c24d1632ab6f2297a534c226",
+      "bytes": 1643,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/team-audio/SKILL.md",
+      "sha256": "ba6c237d4e63b25a397c06c967c7f98f7827db920237fd9be0170d3e0c59e4e3",
+      "bytes": 17619,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/team-combat/SKILL.md",
+      "sha256": "2bea102f0344c9387f281b59cf3ad9905523e8fe084f63d12091594eb3fd7eb9",
+      "bytes": 19176,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/team-level/SKILL.md",
+      "sha256": "226bbc8a01b071761fedc60ba222bb51b62818e2ceacc792c6c898fd90311fd4",
+      "bytes": 19133,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/team-live-ops/SKILL.md",
+      "sha256": "ac1996365db5638b43ae25dd92cba785bdd33333929a43614149c68d0e1a7f03",
+      "bytes": 17049,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/team-narrative/SKILL.md",
+      "sha256": "66b923ff3dd13b9e633d3ba05885bb5f53b1294c5765ab3a891205dbd8dea8c3",
+      "bytes": 18020,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/team-polish/SKILL.md",
+      "sha256": "8d394fd7111b8ee96d4a91809e6959225d73938ffeafdaa06b0fa5a33679086d",
+      "bytes": 18301,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/team-qa/SKILL.md",
+      "sha256": "19448b88956168db4a56c8e6be312def07f7c8297cdaa746d8bead633a1716bb",
+      "bytes": 26115,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/team-release/SKILL.md",
+      "sha256": "7b9950f0848a72af225564d9820bda4655d56493cd0930208447dfe728d34933",
+      "bytes": 22567,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/team-ui/SKILL.md",
+      "sha256": "dce06487831bdcea7f62ead4f47de38c6b6acd877fb047655bf82ed28cfcfb36",
+      "bytes": 22744,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/tech-debt/SKILL.md",
+      "sha256": "11299c8a170286b24a040e965fc19d74d9d631b32a021678286e4480a24d1408",
+      "bytes": 10139,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/test-evidence-review/SKILL.md",
+      "sha256": "a7ab49090d3018910d1efc2a43bb16f8239c9150bc3b180bdfdaf8bca208c96f",
+      "bytes": 16721,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/test-flakiness/SKILL.md",
+      "sha256": "382ee117ffbcade9c0b598db075a43087762da6873c5e7c7af67b0472e1d42b3",
+      "bytes": 10494,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/test-helpers/SKILL.md",
+      "sha256": "b368b009a8abd6fd9282ce55b6a88aaccb512535cd9622b405b1f5a3f98053c1",
+      "bytes": 17891,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/test-setup/SKILL.md",
+      "sha256": "7d420f14829ba4062dcaf354a91808e41523c091516160593bac048533679973",
+      "bytes": 3388,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/test-setup/references/1-detect.md",
+      "sha256": "88e37a991c459ec5021a6be8657e5ca0ef6909354c407cd00364eb36c17c31c2",
+      "bytes": 1887,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/test-setup/references/2-plan.md",
+      "sha256": "c815ab098204cdf75159bc544100b7538f20500204f60590a3544ac6969932b4",
+      "bytes": 1557,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/test-setup/references/3-directories.md",
+      "sha256": "87d07a2a7a8fd4eeb642a6d310057f6a315e2d534cdab2c4739de86c57468be1",
+      "bytes": 11862,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/test-setup/references/4-ci.md",
+      "sha256": "1897b67d5b21a5274e83758a356837076e5bd6fd2886ad05dbb96eccb1a45245",
+      "bytes": 5370,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/test-setup/references/5-smoke-seed.md",
+      "sha256": "c2c4dabcf16bca70fa3d4170b5fbb6ea9ae92dae4567a23fc0066025f5c9ba6e",
+      "bytes": 1295,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/test-setup/references/6-summary.md",
+      "sha256": "4b614ab4edcc1e9b90f7b8429b3498e17dd59055f592c7565c3689484f18298a",
+      "bytes": 1866,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/ux-design/SKILL.md",
+      "sha256": "4afc2b07ed5c854906f6a6bebd06f7f10ddc174a80ce30d0df2beddb80cfe101",
+      "bytes": 9708,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/ux-design/references/2-gather-context.md",
+      "sha256": "b8c7dac24f6ea2fdd7ef278bf5074a4cba6c068e500154099231dad0997d2b8e",
+      "bytes": 8420,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/ux-design/references/3-file-skeleton.md",
+      "sha256": "ec58c4982148229b4d336f217c92f9fdf71029e22e68b9d0d0e51e909b22a901",
+      "bytes": 5063,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/ux-design/references/4-authoring.md",
+      "sha256": "c0df1eb0c791565c660e93ee813cc96dcc4a5f687ac25406cd75f8801f3abd40",
+      "bytes": 1650,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/ux-design/references/5-crossref-handoff.md",
+      "sha256": "b1785beef772c20984ce2f545edd29104a5587df8fca57f1d4d7d547af5aaa00",
+      "bytes": 2911,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/ux-design/references/sections-hud.md",
+      "sha256": "41f737fdc05271030b85f8d8af1e2030d9558eca831376bb4fd92a3d4243b054",
+      "bytes": 7330,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/ux-design/references/sections-patterns.md",
+      "sha256": "f22f4012b3d7e7a78ebe3b18d7aee67319aef65b2799405d6a8e5a5717e8fe75",
+      "bytes": 2018,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/ux-design/references/sections-ux-spec.md",
+      "sha256": "fce8ca3eb9ab452328e2f1b20ceb01c707a3be9d6a74b5acf481ecdb6a1e9219",
+      "bytes": 12166,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/ux-review/SKILL.md",
+      "sha256": "064b9ce2ad6b8dd954448dab6e5130da6c8bfc784e368c852202a71bf5a2c619",
+      "bytes": 15126,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/skills/vertical-slice/SKILL.md",
+      "sha256": "e7d48f49119cf1ea8c18b13a6cf5857e7d9e11bb91b8c76b12cc322103021aa5",
+      "bytes": 21254,
+      "mode": "100644"
+    },
+    {
+      "path": ".claude/statusline.sh",
+      "sha256": "e55d9f3551d92a1bf0de244879b41dece3def0d22c8a0b0420039e67482e79a5",
+      "bytes": 13526,
+      "mode": "100644"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "d8dda907c8a133ad884560a3b028729b44c83f052f673a416cfaaaf2b8850cda",
+      "bytes": 3531,
+      "mode": "100644"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "6ecc068715c0edffc4bc21e5dca450803e0a45af145f72221da23d14e7588359",
+      "bytes": 1066,
+      "mode": "100644"
+    },
+    {
+      "path": "README.md",
+      "sha256": "ab5469a9244ca290791b5b01a757e40f5f5ec643b8ceaf7c1df9ca4f30179f58",
+      "bytes": 24934,
+      "mode": "100644"
+    },
+    {
+      "path": "UPGRADING.md",
+      "sha256": "ec71660cfb748b01a529f595fe5bbad3c7d8c8697615dedecc8232556a5f55fc",
+      "bytes": 85486,
+      "mode": "100644"
+    },
+    {
+      "path": "project.yaml",
+      "sha256": "858f80b1f4dec0a5c440d22ec5554d74008cada82e557b22afc759389b9c3e1e",
+      "bytes": 1152,
+      "mode": "100644"
+    }
+  ]
+}

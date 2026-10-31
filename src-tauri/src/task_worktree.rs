@@ -237,7 +237,7 @@ fn comparison(root: &Path, source: &Path, record: &Record) -> Result<Value> {
             return Err(error("large"));
         }
         let conflict = parent != base && parent != modified;
-        let supported = base.is_some() && parent.is_some() && modified.is_some();
+        let supported = parent.is_some() || modified.is_some();
         files.push(json!({"path":name,"base":base,"parent":parent,"modified":modified,"conflict":conflict,"supported":supported}));
     }
     let mut value = json!({"projectId":record.project_id,"taskId":record.task_id,"baseRevision":record.base_revision,"parentHead":head(root)?,"files":files});
@@ -771,7 +771,7 @@ mod tests {
             .as_array()
             .unwrap()
             .iter()
-            .any(|r| r["path"] == "new.txt" && r["supported"] == false));
+            .any(|r| r["path"] == "new.txt" && r["supported"] == true));
     }
     #[test]
     fn archive_and_restore_preserve_dirty_files_across_restart() {

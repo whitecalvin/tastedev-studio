@@ -1,4 +1,7 @@
-import {recoveryPlan} from '../src/features/orchestration/recovery.ts';
+import {frameworkJob} from './framework-job.ts';
+import type {FrameworkSession} from '../src/features/frameworks/session.ts';
+import {overridePaths} from '../src/features/frameworks/source.ts';
+import {recoveryPlan,retryPlan} from '../src/features/orchestration/recovery.ts';
 import {factoryContext,factoryPrompt,pathContains,validateFactoryContract,validateFactoryDefinition,type FactoryContext} from '../src/features/orchestration/factory.ts';
 import {validateArtifactInstallations,type ArtifactInstallationReceipt} from '../src/features/orchestration/artifact-installation.ts';
 import {validateArtifactReceipts} from '../src/features/orchestration/artifact-receipts.ts';
@@ -24,7 +27,7 @@ import {graphSourcePlan,graphActivationPlan} from '../src/features/orchestration
 import {validateArtifactLineage,artifactProducerActivation} from '../src/features/orchestration/artifact-lineage.ts';
 import {validateBuildArtifact,type BuildArtifact,type BuildArtifactOrigin,type BuildArtifactDeclaration} from '../src/features/orchestration/build-artifact.ts';
 import {verifyProjectReference,type ProjectSnapshot} from '../src/features/ai/project-snapshot.ts';
-export interface GraphAIBridge {authorizeAI?:(project:string,plan:TaskAIRequest,execution:GraphExecution,activationId:string,leaseId:string)=>void;teamContext?:(project:string,intentId:string,nodeId:string)=>{intent:import('../src/features/orchestration/team-intent.ts').IntentReference;question:string};attempt?(project:string,id:string):FixAttempt|undefined;connections(project:string):ManagedAIConnection[];analysis(project:string,id:string):AnalysisRecord|undefined}
+export interface GraphAIBridge {frameworkSession?:(project:string,runId:string)=>FrameworkSession|undefined;authorizeAI?:(project:string,plan:TaskAIRequest,execution:GraphExecution,activationId:string,leaseId:string)=>void;teamContext?:(project:string,intentId:string,nodeId:string)=>{intent:import('../src/features/orchestration/team-intent.ts').IntentReference;question:string};attempt?(project:string,id:string):FixAttempt|undefined;connections(project:string):ManagedAIConnection[];analysis(project:string,id:string):AnalysisRecord|undefined}
 export interface GraphPersistence {load():unknown;save(state:unknown):void}
 interface State {version:1;definitions:GraphDefinition[];executions:GraphExecution[]}
 type Authority=(actor:string,projectId:string,action:'run'|'approve'|'cancel'|'history-write'|'read')=>void;
@@ -46,22 +49,24 @@ export class GraphExecutionService {
  private execution(project:string,id:string){return this.state.executions.find(e=>e.projectId===project&&e.id===id)??fail('Execution not found in project.');}
  overview(project:string):GraphOverview{const d=this.state.definitions.find(d=>d.projectId===project);return structuredClone({definition:d?{...d,plans:undefined}:null,executions:this.state.executions.filter(e=>e.projectId===project).map(e=>({...e,definition:undefined,source:e.definition.source,artifactPlans:graphArtifactPlans(e.definition),aiTasks:e.definition.aiTasks,nodeLabels:Object.fromEntries(e.definition.graph.nodes.map(n=>[n.id,n.label]))})),durable:!!this.persistence});}
  request(project:string,action:string,input:unknown,actor:string){return this.locked(async()=>{
-  this.authority(actor,project,action==='list'?'read':action==='publish'?'history-write':['approve','ai-start','ai-fix-complete','ai-fix-reject','ai-reanalyze'].includes(action)?'approve':action==='cancel'?'cancel':'run');
+  this.authority(actor,project,action==='list'?'read':action==='publish'?'history-write':['approve','ai-start','ai-fix-complete','ai-fix-reject','ai-reanalyze','framework-complete'].includes(action)?'approve':action==='cancel'?'cancel':'run');
   if(action==='list')return this.overview(project);
-  const source=action==='publish'?(input as {snapshot?:ProjectSnapshot})?.snapshot:action==='start'?this.state.definitions.find(d=>d.projectId===project)?.source:['approve','resume'].includes(action)?this.execution(project,(input as {executionId:string})?.executionId).definition.source:undefined;
-  if(source){if(!this.verifySource)fail('Source verification unavailable.');await this.verifySource!(source,project);}
-  if(action==='publish')this.publish(project,input);
+  const source=action==='publish'?(input as {snapshot?:ProjectSnapshot})?.snapshot:action==='start'?this.state.definitions.find(d=>d.projectId===project)?.source:['approve','resume','retry-failed'].includes(action)?this.execution(project,(input as {executionId:string})?.executionId).definition.source:undefined;
+  let resolvedSource:ProjectSnapshot|undefined;if(source){if(!this.verifySource)fail('Source verification unavailable.');resolvedSource=await this.verifySource!(source,project) as ProjectSnapshot;}
+  if(action==='publish')this.publish(project,input,resolvedSource);
+  else if(action==='framework-complete')await this.frameworkComplete(project,input,actor);
   else if(action==='start')this.start(project,input,actor);
   else if(action==='retry-failed'){
-   const i=input as {executionId:string;activationId:string},e=this.execution(project,i?.executionId);
+   const i=input as {executionId:string;activationId:string;revision?:number;checksum?:string},e=this.execution(project,i?.executionId);
    const failed=e.activations.find(a=>a.id===i.activationId&&a.status==='failed');
-   if(!e.factory||!failed||e.status!=='failed'||!e.activations.every(terminal)||this.now()>Date.parse(e.deadline))fail('Review an unexpired failed factory activation before retrying.');
+   if(!failed||e.activations.filter(a=>a.nodeId===failed.nodeId).at(-1)?.id!==failed.id)fail('Review an unexpired failed activation before retrying.');
+   const retry=retryPlan(e,this.state.definitions.find(d=>d.projectId===project)??null,failed!.nodeId,this.now());if(retry.blocked)fail(retry.blocked);
+   if(!e.factory&&(i.revision!==e.revision||i.checksum!==e.checksum))fail('Approval version conflict.');
    if(this.state.executions.some(other=>other.projectId===project&&other.id!==e.id&&['running','paused','cancelling'].includes(other.status)))fail('Another project execution is active.');
-   if(e.activations.filter(a=>a.nodeId===failed!.nodeId).length>=e.definition.graph.retryLimit)fail('Retry limit reached.');
-   this.commit(s=>{const target=s.executions.find(v=>v.id===e.id)!;target.status='running';target.actor=actor;delete target.finishedAt;delete target.reason;this.activate(target,failed!.nodeId);});
+   this.commit(s=>{const target=s.executions.find(v=>v.id===e.id)!;target.status='running';target.actor=actor;delete target.finishedAt;delete target.reason;this.activate(target,retry.target);});
   }
   else if(action==='approve'){const i=input as {executionId:string;activationId:string;revision:number;checksum:string};const e=this.execution(project,i?.executionId);if(e.status!=='running'||e.revision!==i.revision||e.checksum!==i.checksum)fail('Approval version conflict.');const a=e.activations.find(a=>a.id===i.activationId&&a.status==='approval')??fail('Approval activation not waiting.');this.commit(s=>{const target=s.executions.find(v=>v.id===e.id)!.activations.find(v=>v.id===a.id)!;target.status='passed';target.approvedBy=actor;target.approvedAt=new Date(this.now()).toISOString();this.follow(s.executions.find(v=>v.id===e.id)!,target,'success');});}
-  else if(['ai-start','ai-complete','ai-fail','ai-fix-complete','ai-fix-reject','ai-reanalyze'].includes(action))this.aiAction(project,action,input,actor);
+  else if(['ai-start','ai-complete','ai-fail','ai-fix-complete','ai-fix-reject','ai-reanalyze','framework-complete'].includes(action))this.aiAction(project,action,input,actor);
   else if(action==='resume'){const i=input as {executionId:string};const e=this.execution(project,i?.executionId);const recovery=recoveryPlan(e,this.state.definitions.find(d=>d.projectId===project)??null,this.now());if(recovery.blocked)fail(recovery.blocked);this.commit(s=>{const e2=s.executions.find(v=>v.id===e.id)!;e2.status='running';e2.actor=actor;e2.reason=undefined;for(const a of e2.activations)if(a.status==='failed'&&a.reason==='AI request interrupted by Core restart; no automatic replay.'){a.reason='AI request interrupted; recovery branch reviewed.';this.follow(e2,a,'failure');}});}
   else if(action==='cancel'){const i=input as {executionId:string};const e=this.execution(project,i?.executionId);if(!['running','paused','cancelling'].includes(e.status))fail('Execution already finished.');this.commit(s=>{s.executions.find(v=>v.id===e.id)!.status='cancelling';});}
   else fail('Unknown action.');
@@ -105,7 +110,17 @@ export class GraphExecutionService {
   }
   this.commit(s=>{const x=s.executions.find(v=>v.id===e.id)!,v=x.activations.find(v=>v.id===a.id)!;v.status=action==='ai-complete'?(plan.completion==='verified-fix'?'ai-fix-review':'passed'):'failed';v.analysisId=action==='ai-complete'?i.analysisId:undefined;v.reason=action==='ai-fail'?'AI analysis failed or cancelled; source unchanged.':undefined;if(v.status!=='ai-fix-review')this.follow(x,v,action==='ai-complete'?'success':'failure');});
  }
- private publish(project:string,input:unknown){
+ private async frameworkComplete(project:string,input:unknown,actor:string){
+  const i=input as {executionId:string;activationId:string;revision:number;checksum:string;attemptId:string;sourceChecksum:string;noChanges?:boolean;snapshot?:ProjectSnapshot},e=this.execution(project,i?.executionId),a=e.activations.find(v=>v.id===i.activationId);
+  if(!a||a.status!=='framework-review'||e.status!=='running'||this.now()>Date.parse(e.deadline)||e.revision!==i.revision||e.checksum!==i.checksum||e.activations.some(v=>v.id!==a.id&&!terminal(v)))fail('Review the current native activation without parallel work.');
+  const session=this.ai?.frameworkSession?.(project,a!.runId??''),attempt=this.ai?.attempt?.(project,i.attemptId),state=this.core.snapshot(project),retest=state.runs.find(r=>r.id===attempt?.retestRunId),job=state.jobs.find(j=>j.id===retest?.jobId),snapshot=attempt?.snapshot;
+  if(i.noChanges){const native=state.runs.find(r=>r.id===a!.runId);if(!session||session.id!==a!.frameworkSessionId||session.status!=='needs-review'||!session.nativeSessionId||!session.effectiveSourceChecksum||native?.status!=='passed'||session.events.some(v=>v.type==='changes')||!i.snapshot||!e.definition.source||!this.verifySource)fail('Verified unchanged native Source required.');const current=await this.verifySource!(i.snapshot!,project) as ProjectSnapshot,base=await this.verifySource!(e.definition.source!,project) as ProjectSnapshot,identity=(s:ProjectSnapshot)=>digest(s.files.map(f=>[f.path,f.checksum]).sort());if(identity(current)!==identity(base))fail('Original Source changed; review a new graph.');this.commit(next=>{const x=next.executions.find(v=>v.id===e.id)!,v=x.activations.find(v=>v.id===a!.id)!;(x.frameworkReviews??=[]).push({sessionId:session!.id,activationId:v.id,nativeSessionId:session!.nativeSessionId!,sourceChecksum:base.checksum,actor,approvedAt:new Date(this.now()).toISOString(),noChanges:true});v.status='passed';v.approvedBy=actor;v.approvedAt=new Date(this.now()).toISOString();delete v.reason;this.follow(x,v,'success');});return;}
+  if(!session||session.id!==a!.frameworkSessionId||!session.effectiveSourceChecksum||attempt?.status!=='passed'||attempt.integration?.taskId!==session.id||!attempt.approval||snapshot?.schemaVersion!==2||snapshot.checksum!==i.sourceChecksum||!retest||retest.status!=='passed'||retest.revision?.snapshotId!==snapshot.snapshotId||retest.revision.commit!==snapshot.checksum||retest.revision.proposalId!==attempt.proposalId||job?.payload.testPlan?.testName!==e.definition.plans[a!.nodeId].payload.testPlan?.testName)fail('Actual approved original integration and matching Agent retest required.');
+  const changes=session!.events.filter(v=>v.type==='changes').map(v=>v.value as {path:string;beforeHash:string|null;afterHash:string|null;content:string|null;manualReview:boolean});if(changes.some(c=>c.manualReview)||changes.length!==attempt!.patches.length||changes.some(c=>!attempt!.patches.some(p=>p.path===c.path&&(c.beforeHash===null?p.operation==='create':p.baseHash===c.beforeHash)&&(c.afterHash===null?p.operation==='delete':p.resultHash===c.afterHash)))||attempt!.integration!.comparisonFingerprint!==digest([session!.scope,session!.effectiveSourceChecksum,changes]))fail('Native proposal scope mismatch.');
+  if(!this.verifySource)fail('Source verification unavailable.');const ref={...snapshot!,schemaVersion:2 as const,files:[],changedFiles:[],transfer:{manifestChecksum:snapshot!.checksum,fileCount:snapshot!.files.length,changedFileCount:snapshot!.changedFiles.length,totalBytes:snapshot!.files.reduce((n,f)=>n+(f.size??0),0)}} as ProjectSnapshot,accepted=await this.verifySource!(ref,project) as ProjectSnapshot;const sources:ProtocolSources={};for(const name of protocolFiles){const file=accepted.files.find(f=>f.path==='.tastedev/'+name);if(file)sources[name]=file.content;}if(digest(protocolFiles.map(n=>sources[n]??null))!==e.definition.protocolChecksum)fail('Protocol changed; publish and review a new graph.');
+  this.commit(next=>{const x=next.executions.find(v=>v.id===e.id)!,v=x.activations.find(v=>v.id===a!.id)!;if((x.sourceAdoptions?.length??0)>=30)fail('Source adoption limit.');(x.sourceAdoptions??=[]).push({activationId:v.id,proposalId:attempt!.proposalId,fromSnapshotId:x.definition.source!.snapshotId,fromChecksum:x.definition.source!.checksum,toSnapshotId:ref.snapshotId,checksum:ref.checksum,actor,approvedAt:new Date(this.now()).toISOString(),runId:retest!.id});x.definition.source=ref;for(const [id,plan]of Object.entries(x.definition.plans)){if(plan.payload.steps.some(s=>s.framework)){const node=x.definition.graph.nodes.find(n=>n.id===id)!,op=node.frameworkTask!;x.definition.plans[id]=frameworkJob(accepted,{version:1,...op,engine:'godot',manifest:session!.scope.manifest,writablePaths:op.writablePaths??[],maxTurns:op.maxTurns??20,overrides:accepted.files.filter(f=>(overridePaths as readonly string[]).includes(f.path)).map(f=>({path:f.path,sha256:f.checksum}))},'graph-agent',node.reference,'graph-preflight',sources);}else x.definition.plans[id]=graphSourcePlan(plan,project,ref);}v.status='passed';v.fixAttemptId=attempt!.id;delete v.reason;this.follow(x,v,'success');});
+ }
+ private publish(project:string,input:unknown,verifiedSource?:ProjectSnapshot){
   const i=input as {graph:ProjectGraph;sources:ProtocolSources;expectedRevision:number;snapshot?:ProjectSnapshot;aiConfigurations?:AIConfigurationStore};const graph=validateGraph(i?.graph,project),previous=this.state.definitions.find(d=>d.projectId===project);
   if(i.expectedRevision!==(previous?.revision??0))fail('Revision conflict; reload Core definition.');
   if(!i.sources||Object.entries(i.sources).some(([k,v])=>!protocolFiles.includes(k as typeof protocolFiles[number])||typeof v!=='string'||v.length>65536))fail('Invalid Protocol sources.');
@@ -118,7 +133,8 @@ export class GraphExecutionService {
    const aiBound=configurations?.bindings[n.id];
    if(aiBound){if(!this.ai)fail('AI bridge unavailable.');aiTasks[n.id]=taskAIRequest(configurations!,n,this.ai!.connections(project));}
    if(!aiBound&&!n.reference)fail('Every task needs a Protocol reference.');
-   if(!aiBound){const p=n.taskType==='test'?resolveTestPlan(protocol,project,n.reference):null;plans[n.id]=p?{name:'test: '+n.reference,requirements:p.requirements,payload:planPayload(p)}:resolveProtocol(protocol,'task',n.reference);}
+   if(n.frameworkTask){if(aiBound||n.frameworkTask.mode!=='claude-code'||!verifiedSource||!i.snapshot)fail('Native framework tasks require their own saved Snapshot and model scope.');const op=n.frameworkTask;plans[n.id]=frameworkJob(verifiedSource!,{version:1,skillId:op.skillId,arguments:op.arguments,roleId:op.roleId,engine:'godot',manifest:'b1f58c40e2d5d01f1871af574849853f908301afc57242da0251881b6988a12f',writablePaths:op.writablePaths??[],maxTurns:op.maxTurns??20,...(op.model?{model:op.model}:{}),overrides:verifiedSource!.files.filter(f=>(overridePaths as readonly string[]).includes(f.path)).map(f=>({path:f.path,sha256:f.checksum}))},'graph-agent',n.reference,'graph-preflight',i.sources);}
+   if(!aiBound&&!n.frameworkTask){const p=n.taskType==='test'?resolveTestPlan(protocol,project,n.reference):null;plans[n.id]=p?{name:'test: '+n.reference,requirements:p.requirements,payload:planPayload(p)}:resolveProtocol(protocol,'task',n.reference);}
    const roles=graph.edges.filter(e=>e.to===n.id&&e.relation==='performs');if(roles.length!==1)fail('Each task needs exactly one responsible role.');
    if(n.teamRole&&graph.nodes.find(v=>v.id===roles[0].from)?.teamRole!==n.teamRole)fail('Team task responsibility must match its declared role.');
    if(graph.nodes.find(v=>v.id===roles[0].from)?.role==='deployment'){
@@ -134,14 +150,15 @@ export class GraphExecutionService {
   }
   if(!Object.keys(plans).length&&!Object.keys(aiTasks).length)fail('At least one task required.');
   for(const n of graph.nodes.filter(n=>n.kind==='task'||n.kind==='approval'))if(graph.edges.filter(e=>e.to===n.id&&e.relation==='success').length>1)fail('Multi-parent joins are not supported; use one explicit predecessor.');
-  const definition:GraphDefinition={...(i.snapshot?{source:i.snapshot}:{}),deploymentNodes,projectId:project,revision:(previous?.revision??0)+1,checksum:digest(graph),inputChecksum:digest(Object.keys(aiTasks).length?[i.sources,aiTasks]:i.sources),aiTasks,graph,plans,agents,publishedAt:new Date(this.now()).toISOString()};
+  const definition:GraphDefinition={protocolChecksum:digest(protocolFiles.map(n=>i.sources[n]??null)),...(i.snapshot?{source:i.snapshot}:{}),deploymentNodes,projectId:project,revision:(previous?.revision??0)+1,checksum:digest(graph),inputChecksum:digest(Object.keys(aiTasks).length?[i.sources,aiTasks]:i.sources),aiTasks,graph,plans,agents,publishedAt:new Date(this.now()).toISOString()};
   validateArtifactLineage(definition);
   if(Object.values(plans).some(p=>p.payload.steps.some(s=>s.buildArtifacts))){if(!i.snapshot)fail('Build artifacts require a published workspace Snapshot.');if(!this.core.supportsBuildArtifacts())fail('Build artifact runtime is not enabled; publish did not execute or change the graph.');}
   this.commit(s=>{if(!previous&&s.definitions.length>=100)fail('Definition capacity reached.');s.definitions=s.definitions.filter(d=>d.projectId!==project).concat(definition);});
  }
- private start(project:string,input:unknown,actor:string){const i=input as {revision:number;checksum:string;entryNodeId:string;requestId:string;factory?:FactoryContext;teamIntentId?:string};const d=this.state.definitions.find(d=>d.projectId===project)??fail('Publish definition first.');
+ private start(project:string,input:unknown,actor:string){const i=input as {revision:number;checksum:string;entryNodeId:string;requestId:string;timeoutMinutes?:number;factory?:FactoryContext;teamIntentId?:string};const d=this.state.definitions.find(d=>d.projectId===project)??fail('Publish definition first.');
   if(d.revision!==i?.revision||d.checksum!==i.checksum)fail('Definition changed; review again.');if(typeof i.requestId!=='string'||!/^[-a-zA-Z0-9]{1,64}$/.test(i.requestId))fail('Invalid request identity.');
-  const existing=this.state.executions.find(e=>e.id===i.requestId);if(existing){if(JSON.stringify(existing.factory)!==JSON.stringify(i.factory)||existing.team?.id!==i.teamIntentId||existing.projectId!==project||existing.revision!==d.revision||existing.inputChecksum!==d.inputChecksum||existing.definition.source?.checksum!==d.source?.checksum||existing.checksum!==d.checksum||existing.activations[0]?.nodeId!==i.entryNodeId)fail('Request identity conflict.');return;}
+  const timeout=i.factory?.timeoutMinutes??i.timeoutMinutes??10;if(!Number.isInteger(timeout)||timeout<1||timeout>120||i.factory&&i.timeoutMinutes!==undefined&&i.timeoutMinutes!==i.factory.timeoutMinutes)fail('Invalid execution timeout.');
+  const existing=this.state.executions.find(e=>e.id===i.requestId);if(existing){if(Date.parse(existing.deadline)-Date.parse(existing.createdAt)!==timeout*60000||JSON.stringify(existing.factory)!==JSON.stringify(i.factory)||existing.team?.id!==i.teamIntentId||existing.projectId!==project||existing.revision!==d.revision||existing.inputChecksum!==d.inputChecksum||existing.definition.source?.checksum!==d.source?.checksum||existing.checksum!==d.checksum||existing.activations[0]?.nodeId!==i.entryNodeId)fail('Request identity conflict.');return;}
   const node=d.graph.nodes.find(n=>n.id===i.entryNodeId&&['task','approval'].includes(n.kind))??fail('Choose a task or approval entry.');
   if(d.graph.edges.some(e=>e.to===node.id&&e.relation==='success'))fail('Entry must be a root; approval cannot be bypassed.');
   if(this.state.executions.some(e=>e.projectId===project&&['running','paused','cancelling'].includes(e.status)))fail('Finish or cancel the active project execution first.');
@@ -149,7 +166,7 @@ export class GraphExecutionService {
   const team=i.teamIntentId?this.ai?.teamContext?.(project,i.teamIntentId,i.entryNodeId):undefined;
   if(i.teamIntentId&&(!team||i.factory))fail('Invalid team execution context.');
   if(i.factory){const contract=validateFactoryContract({...i.factory,projectId:project,entryNodeId:i.entryNodeId,revision:d.revision,checksum:d.checksum,inputChecksum:d.inputChecksum,sourceChecksum:d.source?.checksum,dependencies:[],resources:['graph'],maxAttempts:i.factory.maxAttempts,timeoutMinutes:i.factory.timeoutMinutes},project);validateFactoryDefinition(contract,d);context=factoryContext(contract);}
-  const e:GraphExecution={...(team?{team:team.intent}:{}),...(context?{factory:context}:{}),id:i.requestId,projectId:project,revision:d.revision,checksum:d.checksum,inputChecksum:d.inputChecksum,definition:structuredClone(d),status:'running',activations:[],actor,createdAt:new Date(this.now()).toISOString(),deadline:new Date(this.now()+(context?.timeoutMinutes??10)*60000).toISOString()};
+  const e:GraphExecution={...(team?{team:team.intent}:{}),...(context?{factory:context}:{}),id:i.requestId,projectId:project,revision:d.revision,checksum:d.checksum,inputChecksum:d.inputChecksum,definition:structuredClone(d),status:'running',activations:[],actor,createdAt:new Date(this.now()).toISOString(),deadline:new Date(this.now()+timeout*60000).toISOString()};
   if(context)for(const [id,role] of [[context.implementationNodeId,'implementation'],[context.reviewNodeId,'review']] as const){const plan=e.definition.aiTasks![id];plan.maximum=Math.min(plan.maximum,context.maxAttempts);plan.question+=factoryPrompt(context,role);if(plan.question.length>4000)fail('Factory prompt exceeds AI context limit.');}
   if(team){const plan=e.definition.aiTasks?.[node.id];if(!plan||(plan.completion??'analysis')!=='analysis')fail('Read-only role AI plan required.');plan!.question+=team.question;if(plan!.question.length>4000)fail('Shorten the reviewed role context.');}
   this.activate(e,node.id);
@@ -160,13 +177,14 @@ export class GraphExecutionService {
  private owner(jobId:string){const job=this.core.repository.readEntity?.('jobs',jobId)??this.core.repository.read().jobs.find(j=>j.id===jobId);return this.state.executions.find(e=>e.activations.some(a=>a.jobId===jobId||job?.idempotencyKey===`graph:${e.id}:${a.id}`));}
  owns(jobId:string){return !!this.owner(jobId);}
  /** Core-owned identity for transfer grants; Protocol env/Agent metadata cannot supply it. */
- buildArtifactOrigin(jobId:string,stepId:string):{origin:BuildArtifactOrigin;declaration:BuildArtifactDeclaration} {
+ buildArtifactOrigin(jobId:string,stepId:string):{origin:BuildArtifactOrigin;declaration:BuildArtifactDeclaration;deadline:number} {
   const e=this.owner(jobId);if(!e||!this.allows(jobId)||!e.definition.source||this.now()>Date.parse(e.deadline))return fail('Active graph Snapshot required for artifact transfer.');
   const snap=this.core.snapshot(e.projectId),job=snap.jobs.find(j=>j.id===jobId),run=snap.runs.find(r=>r.jobId===jobId&&activeRun(r)),step=snap.steps.find(s=>s.id===stepId&&s.runId===run?.id),a=e.activations.find(a=>a.jobId===jobId||job?.idempotencyKey===`graph:${e.id}:${a.id}`);
   const declaration=step?job?.payload.steps[step.order]?.buildArtifacts:undefined;
   if(!run||!step||step.status!=='running'||!a||!declaration||job?.cancellationRequestedAt)return fail('Artifact grant requires an active declared step.');
   if(JSON.stringify(declaration)!==JSON.stringify(e.definition.plans[a.nodeId]?.payload.steps[step.order]?.buildArtifacts))return fail('Artifact declaration differs from the published plan.');
-  return {origin:{projectId:e.projectId,executionId:e.id,graphRevision:e.revision,producerActivationId:a.id,producerNodeId:a.nodeId,producerRunId:run.id,producerStepId:step.id,snapshotId:e.definition.source.snapshotId,sourceChecksum:e.definition.source.checksum},declaration:structuredClone(declaration)};
+  const timeout=e.definition.plans[a.nodeId]?.payload.steps[step.order]?.timeoutMs??60000,started=Date.parse(step.startedAt??'');const deadline=Math.min(Date.parse(e.deadline),started+timeout);if(!Number.isSafeInteger(timeout)||timeout<1||!Number.isFinite(deadline)||this.now()>=deadline)fail('Artifact step deadline reached.');
+  return {deadline,origin:{projectId:e.projectId,executionId:e.id,graphRevision:e.revision,producerActivationId:a.id,producerNodeId:a.nodeId,producerRunId:run.id,producerStepId:step.id,snapshotId:e.definition.source.snapshotId,sourceChecksum:e.definition.source.checksum},declaration:structuredClone(declaration)};
  }
  recordArtifactInstallation(jobId:string,stepId:string,receipt:ArtifactInstallationReceipt){
   const {origin,declaration}=this.buildArtifactOrigin(jobId,stepId),run=this.core.snapshot(origin.projectId).runs.find(r=>r.id===origin.producerRunId)!;
@@ -214,14 +232,15 @@ export class GraphExecutionService {
     this.commit(s=>{const v=s.executions.find(v=>v.id===e.id)!.activations.find(v=>v.id===a.id)!;v.status='cancelled';delete v.waitingReasons;});continue;
    }
    if(e.status!=='running'||a.status==='approval'||['ai-review','ai-fix-review'].includes(a.status))continue;
+   if(a.status==='framework-review')continue;
    if(a.status==='ai-running'){if(this.now()>Date.parse(a.aiDeadline!))this.commit(s=>{const x=s.executions.find(v=>v.id===e.id)!,v=x.activations.find(v=>v.id===a.id)!;v.status='failed';v.reason='AI activation timeout.';this.follow(x,v,'failure');});continue;}
    if(job){
     if(job.status==='queued')this.dispatch(e.projectId,job.id);
     const snapshot=this.core.snapshot(e.projectId),current=snapshot.jobs.find(j=>j.id===job.id)!,run=snapshot.runs.find(r=>r.jobId===job.id);
-    const assigned=snapshot.agents.find(v=>v.id===current.pinnedAgentId),reasons=assigned?matchAgent(assigned,current.requirements).reasons:['Assigned Agent is no longer registered.'];
+    const assigned=snapshot.agents.find(v=>v.id===current.pinnedAgentId),reasons=assigned?this.core.matches(e.projectId,current.id).find(m=>m.agentId===assigned.id)?.reasons??['Assigned Agent is no longer registered.']:['Assigned Agent is no longer registered.'];
     this.commit(s=>{const x=s.executions.find(v=>v.id===e.id)!,v=x.activations.find(v=>v.id===a.id)!;v.jobId=current.id;v.runId=run?.id;v.agentId=current.pinnedAgentId;
      if(current.status==='queued')v.waitingReasons=reasons.length?[...new Set(reasons)].sort().slice(0,12):['Waiting for Core dispatch.'];else delete v.waitingReasons;
-     if(current.status==='succeeded'){v.status='passed';this.follow(x,v,'success');}else if(current.status==='failed'){v.status='failed';this.follow(x,v,'failure');}else if(current.status==='cancelled'){v.status='cancelled';x.status='cancelling';}else v.status=current.status==='queued'?'queued':'running';});
+     if(current.status==='succeeded'){if(x.definition.graph.nodes.find(n=>n.id===v.nodeId)?.frameworkTask){const session=run?this.ai?.frameworkSession?.(x.projectId,run.id):undefined;if(!session?.effectiveSourceChecksum){v.status='failed';v.reason='Native Source identity unavailable.';this.follow(x,v,'failure');}else{v.status='framework-review';v.frameworkSessionId=session.id;v.reason='Review and integrate the actual native Diff, then verify original Source.';}}else{v.status='passed';this.follow(x,v,'success');}}else if(current.status==='failed'){v.status='failed';this.follow(x,v,'failure');}else if(current.status==='cancelled'){v.status='cancelled';x.status='cancelling';}else v.status=current.status==='queued'?'queued':'running';});
     continue;
    }
    const plan=e.definition.plans[a.nodeId];if(!plan)fail('Immutable plan missing.');

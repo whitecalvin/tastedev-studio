@@ -1,6 +1,7 @@
 mod browser;
 mod build_artifact;
 mod executor;
+mod framework;
 mod model;
 mod pipeline;
 mod reliability;

@@ -36,6 +36,7 @@ export function resolveProtocol(state: ProtocolState, kind: 'task' | 'test', nam
 export function combineRequirements(layers: JobRequirement[]): JobRequirement {
   const result: JobRequirement = { runtimes: {} };
   for (const layer of layers) {
+    if(layer.frameworkRuntime===1)result.frameworkRuntime=1;
     if(layer.buildArtifacts)result.buildArtifacts=Math.max(result.buildArtifacts??1,layer.buildArtifacts) as 1|2;
     for (const key of ['platform', 'architecture', 'browser'] as const) {
       if (result[key] && layer[key] && result[key] !== layer[key]) throw new Error(`Pipeline has conflicting ${key} requirements.`);

@@ -1,4 +1,5 @@
 declare module 'js-yaml' {
+  export const JSON_SCHEMA: object;
   export const CORE_SCHEMA: object;
   export function load(input: string, options?: {
     schema?: object; json?: boolean; maxDepth?: number; maxTotalMergeKeys?: number;

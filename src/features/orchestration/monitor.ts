@@ -19,7 +19,7 @@ export function graphMonitor(graph: ProjectGraph, overview: GraphOverview | null
   }
   const activity=new Map<string,{status:GraphActivation['status'];attempt:number;reason?:string}>(),edges=new Map<string,string>();
   if(compatible){
-    const rank:GraphActivation['status'][]=['failed','ai-fix-review','ai-review','approval','ai-running','running','launching','queued','ready','cancelled','passed'];
+    const rank:GraphActivation['status'][]=['failed','framework-review','ai-fix-review','ai-review','approval','ai-running','running','launching','queued','ready','cancelled','passed'];
     for(const node of graph.nodes){
       if(nodes.has(node.id)){activity.set(node.id,nodes.get(node.id)!);continue;}
       if(!['device','agent','role'].includes(node.kind))continue;

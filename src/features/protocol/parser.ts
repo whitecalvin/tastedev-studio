@@ -56,7 +56,8 @@ class Schema {
       }
     }
     if (own(obj, 'tools')) {
-      const tools = this.object(obj.tools, `${path}.tools`, ['git', 'docker']);
+      const tools = this.object(obj.tools, `${path}.tools`, ['git', 'docker','claudeCodeFramework']);
+      if(own(tools,'claudeCodeFramework'))result.frameworkRuntime=this.bool(tools.claudeCodeFramework,`${path}.tools.claudeCodeFramework`)?1:undefined;
       if (own(tools, 'docker')) result.docker = this.bool(tools.docker, `${path}.tools.docker`) ? 'required' : null;
       if (own(tools, 'git')) {
         if (result.runtimes?.git) this.fail(`${path}.tools.git`, 'Declare Git in tools or runtimes, not both.');

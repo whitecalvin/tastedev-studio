@@ -31,8 +31,17 @@ export class WorkspaceFileService {
   async read(path: string) { return this.host.readFile(this.id(), nonRoot(path)); }
   async readBytes(path:string){return this.host.readBytes?this.host.readBytes(this.id(),nonRoot(path)):new TextEncoder().encode((await this.read(path)).content);}
   async write(path: string, content: string, expected: string) { return this.host.writeFile(this.id(), nonRoot(path), content, expected); }
+  async readState(path:string):Promise<string|null> { const name=nonRoot(path); try{return await this.host.exists(this.id(),name)?(await this.read(name)).content:null;}catch(error){if(error instanceof DOMException&&error.name==='NotFoundError')return null;throw error;} }
+  async transition(path:string,expected:string|null,content:string|null) {
+    if(expected!==null&&content!==null)return this.write(path,content,expected);
+    if(!this.host.transitionFile)throw new FileError('unsupported','Structural integration requires the desktop runtime.');
+    return this.host.transitionFile(this.id(),nonRoot(path),expected,content);
+  }
   async create(parent: string, name: string, kind: 'file' | 'directory') { const path = childPath(parent, name); if (await this.host.exists(this.id(), path)) throw new FileError('duplicate', 'A file or folder with this name already exists.'); if (kind === 'file') await this.host.createFile(this.id(), path); else await this.host.createDirectory(this.id(), path); return path; }
   async rename(path: string, name: string) { const source = nonRoot(path), destination = childPath(parentPath(source), name); if (source === destination) return source; if (await this.host.exists(this.id(), destination)) throw new FileError('duplicate', 'A file or folder with this name already exists.'); await this.host.rename(this.id(), source, destination); return destination; }
+  async directoryState(path:string):Promise<'directory'|'absent'>{const p=nonRoot(path);try{if(!await this.host.exists(this.id(),p))return'absent';}catch(error){if(error instanceof DOMException&&error.name==='NotFoundError')return'absent';throw error;}await this.host.readDirectory(this.id(),p);return'directory';}
+  async makeDirectory(path:string){return this.host.createDirectory(this.id(),nonRoot(path));}
+  async removeEmptyDirectory(path:string){if(!this.host.removeEmptyDirectory)throw new FileError('unsupported','Safe empty directory removal requires an updated runtime.');return this.host.removeEmptyDirectory(this.id(),nonRoot(path));}
   async delete(path: string) { return this.host.delete(this.id(), nonRoot(path)); }
 }
 export async function openFolderProject(host: FileSystemHost, projects: ProjectService, onSelected?: (name: string) => void) {

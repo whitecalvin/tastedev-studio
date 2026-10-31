@@ -1,3 +1,4 @@
+import {validateBinding} from '../../frameworks/domain.ts';
 import { ProjectError, type CloneInput, type NewProjectInput, type Project } from "../types/project.ts";
 import { projectKinds, roles } from '../../orchestration/domain.ts';
 
@@ -45,7 +46,7 @@ export function validateNewProject(input: NewProjectInput): NewProjectInput {
   if (input.projectKind !== undefined && !projectKinds.includes(input.projectKind)) throw new ProjectError('Invalid project kind.');
   if (input.initialTeam !== undefined && input.initialTeam !== 'role-team') throw new ProjectError('Invalid project team template.');
   if (input.initialRoles !== undefined && (!Array.isArray(input.initialRoles) || input.initialRoles.length < 1 || input.initialRoles.length > 3 || input.initialRoles.some(role => !roles.includes(role)))) throw new ProjectError('Select at least one device role.');
-  return { name, workspacePath: normalizeWorkspacePath(input.workspacePath), description: input.description.trim(), ...(input.projectKind ? {projectKind:input.projectKind} : {}), ...(input.initialRoles ? {initialRoles:[...new Set(input.initialRoles)]} : {}), ...(input.initialTeam ? {initialTeam:input.initialTeam} : {}) };
+  return { ...(input.templateBinding ? {templateBinding:validateBinding(input.templateBinding)} : {}), name, workspacePath: normalizeWorkspacePath(input.workspacePath), description: input.description.trim(), ...(input.projectKind ? {projectKind:input.projectKind} : {}), ...(input.initialRoles ? {initialRoles:[...new Set(input.initialRoles)]} : {}), ...(input.initialTeam ? {initialTeam:input.initialTeam} : {}) };
 }
 
 export function assertUniqueProject(projects: Project[], input: NewProjectInput): void {

@@ -246,11 +246,42 @@ pub fn execute(state: &Workspaces, r: FileRequest) -> Result<serde_json::Value> 
             result?;
             Ok(serde_json::Value::Null)
         }
+        "createText" => {
+            if r.expected.is_some() {
+                return Err(error("invalid"));
+            }
+            let content = r.content.ok_or_else(|| error("invalid"))?;
+            if content.len() > 2 * 1024 * 1024 || content.contains('\0') {
+                return Err(error("invalid"));
+            }
+            let mut file = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&path)?;
+            file.write_all(content.as_bytes())?;
+            file.sync_all()?;
+            Ok(serde_json::Value::Null)
+        }
+        "deleteText" => {
+            if r.content.is_some() || !path.is_file() {
+                return Err(error("invalid"));
+            }
+            let expected = r.expected.ok_or_else(|| error("invalid"))?;
+            if read_bounded(&path)? != expected.as_bytes() {
+                return Err(error("conflict"));
+            }
+            fs::remove_file(path)?;
+            Ok(serde_json::Value::Null)
+        }
         "createFile" => {
             fs::OpenOptions::new()
                 .write(true)
                 .create_new(true)
                 .open(path)?;
+            Ok(serde_json::Value::Null)
+        }
+        "removeEmptyDirectory" => {
+            fs::remove_dir(path)?;
             Ok(serde_json::Value::Null)
         }
         "createDirectory" => {
@@ -324,6 +355,36 @@ mod tests {
         }
     }
     #[test]
+    fn empty_only_directory_removal_preserves_user_files_and_rejects_root() {
+        let temp = tempfile::tempdir().unwrap();
+        let state = Workspaces::default();
+        let connection = state.register(temp.path().into()).unwrap();
+        fs::create_dir(temp.path().join("new-dir")).unwrap();
+        fs::write(temp.path().join("new-dir/user.txt"), "saved user bytes").unwrap();
+        let operation = |path: &str| {
+            execute(
+                &state,
+                FileRequest {
+                    connection_id: connection.id.clone(),
+                    operation: "removeEmptyDirectory".into(),
+                    path: path.into(),
+                    destination: None,
+                    content: None,
+                    expected: None,
+                },
+            )
+        };
+        assert!(operation("new-dir").is_err());
+        assert_eq!(
+            fs::read_to_string(temp.path().join("new-dir/user.txt")).unwrap(),
+            "saved user bytes"
+        );
+        assert!(operation("").is_err());
+        fs::remove_file(temp.path().join("new-dir/user.txt")).unwrap();
+        operation("new-dir").unwrap();
+        assert!(!temp.path().join("new-dir").exists());
+    }
+    #[test]
     fn disk_crud_and_conflict() {
         let temp = tempfile::tempdir().unwrap();
         let state = Workspaces::default();
@@ -350,6 +411,16 @@ mod tests {
         assert!(call("write", "test.txt", Some("lost"), Some("")).is_err());
         call("delete", "test.txt", None, None).unwrap();
         assert!(!temp.path().join("test.txt").exists());
+        call("createText", "new.txt", Some("reviewed"), None).unwrap();
+        assert!(call("createText", "new.txt", Some("overwrite"), None).is_err());
+        assert!(call("deleteText", "new.txt", None, Some("stale")).is_err());
+        assert_eq!(
+            fs::read_to_string(temp.path().join("new.txt")).unwrap(),
+            "reviewed"
+        );
+        call("deleteText", "new.txt", None, Some("reviewed")).unwrap();
+        assert!(!temp.path().join("new.txt").exists());
+        assert!(call("deleteText", "", None, Some("")).is_err());
     }
     #[test]
     fn rejects_unknown_workspace_root_mutation_and_junction_escape() {

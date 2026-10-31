@@ -143,7 +143,7 @@ pub fn validate_manifest(s: &Snapshot) -> Result<()> {
     // 최대 10,000개 변경 경로를 파일 목록과 반복 대조하지 않고 정확한 대소문자로 조회한다.
     let mut file_paths = HashSet::with_capacity(s.files.len());
     for f in &s.files {
-        crate::snapshot::safe(&f.path)?;
+        crate::snapshot::safe_project(&f.path)?;
         for part in f.path.split('/') {
             let lower = part.to_ascii_lowercase();
             let stem = lower.split('.').next().unwrap_or("");

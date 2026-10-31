@@ -1,8 +1,11 @@
+import {findInstruction} from '../frameworks/catalog.ts';
+import type {InstructionRef} from '../frameworks/domain.ts';
 import {AIError,limits,analysisSchema,defaultBudget,validateBudget,type AnalysisMetrics,type AnalysisBudget,type Analysis,type AnalysisRecord,type Conversation,type Message,type AIProvider} from './domain.ts';
 import {ContextTools,type ToolEnvironment} from './tools.ts';
 import {aiPath,mask,sanitize} from './security.ts';
-export interface ContextSelection {sourceRunId?:string;fixFeedback?:unknown; current?:{path:string;content:string}; selected?:{path:string;text:string;start:number}; open?:string[]; protocol?:unknown; related?:string[]; runId?:string; originalRunId?:string }
+export interface ContextSelection {instructionRef?:InstructionRef;sourceRunId?:string;fixFeedback?:unknown; current?:{path:string;content:string}; selected?:{path:string;text:string;start:number}; open?:string[]; protocol?:unknown; related?:string[]; runId?:string; originalRunId?:string }
 export async function buildContext(tools:ContextTools,selection:ContextSelection,signal:AbortSignal){
+ if(selection.instructionRef){const entry=findInstruction(selection.instructionRef);if(entry.kind!=='role'||entry.raw.length>limits.file)throw new AIError('context-too-large');const payload={reference:selection.instructionRef,instructions:entry.raw};if(JSON.stringify(payload).length>limits.file)throw new AIError('context-too-large');const item=tools.add('Framework role: '+entry.id,'framework-role',payload,limits.file);if(item.truncated)throw new AIError('context-too-large');}
  tools.add('Project','project',{id:tools.env.projectId,name:tools.env.name});
  if(selection.protocol)tools.add('Protocol','protocol',selection.protocol,4000);
  if(selection.fixFeedback)tools.add('Current fix validation feedback','validation',selection.fixFeedback,4000);
@@ -58,7 +61,7 @@ export class AIService {
   const metrics=(outcome:AnalysisMetrics['outcome']):AnalysisMetrics=>({durationMs:Math.round(performance.now()-started),providerRequests:requests,toolCalls:count,usageComplete:usageComplete&&replies===requests,budget,...(costComplete&&replies===requests?{estimatedCostUsd:cost}:{}),costComplete:costComplete&&replies===requests,outcome});
   this.lastMetrics=null;
   const work=async()=>{
-   if(selection.sourceRunId){if(selection.sourceRunId!==selection.runId||!this.env.runSource)throw new AIError('tool-failure');const resolved=await this.env.runSource(selection.sourceRunId,signal);if(resolved.identity.runId!==selection.runId)throw new AIError('permission');source=resolved.identity;tools.env.files=resolved.files;tools.env.git=undefined;tools.add('Immutable Run Snapshot','run-source',source);}
+   if(selection.sourceRunId){if(selection.sourceRunId!==selection.runId||!this.env.runSource)throw new AIError('tool-failure');const resolved=await this.env.runSource(selection.sourceRunId,signal);if(resolved.identity.runId!==selection.runId)throw new AIError('permission');source=resolved.identity;tools.env.files=resolved.files;tools.env.hasPath=resolved.hasPath;tools.env.sourceIdentity=source;tools.env.git=undefined;tools.add('Immutable Run Snapshot','run-source',source);}
    await buildContext(tools,source?{...selection,current:undefined,selected:undefined,open:undefined,protocol:undefined}:selection,signal);signal.throwIfAborted();onEvent({type:'context',text:tools.context.map(c=>c.label).join('\n')});
    const messages:Message[]=[{role:'user',text:JSON.stringify({question:safeQuestion,mode:selection.runId?'failure':'development',runId:selection.runId,originalRunId:selection.originalRunId,previousConversation:c.messages.slice(-6,-1).map(m=>({role:m.role,text:m.text.slice(0,2500)})),context:tools.context})}];
    const calls=new Set<string>();

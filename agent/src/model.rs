@@ -72,6 +72,8 @@ impl Config {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Capabilities {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub framework_runtime: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_snapshot: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub build_artifacts: Option<u32>,
@@ -86,6 +88,8 @@ pub struct Capabilities {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Requirements {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub framework_runtime: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_snapshot: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -267,6 +271,11 @@ impl Request {
         if let Some(transfer) = &self.build_artifact_transfer {
             transfer.validate(self)?;
         }
+        if self.executable.starts_with("internal-framework-")
+            && (self.requirements.framework_runtime != Some(1) || self.run_step_id.is_none())
+        {
+            return Err("Framework capability and pipeline required".into());
+        }
         // Bare executable name or explicit absolute binary; no relative executable path / shell wrapper.
         let exe = &self.executable;
         if exe.is_empty()
@@ -293,8 +302,10 @@ impl Request {
     }
     pub fn matches(&self, c: &Capabilities) -> bool {
         let r = &self.requirements;
-        r.source_snapshot
-            .is_none_or(|v| v == 2 && c.source_snapshot == Some(2))
+        r.framework_runtime
+            .is_none_or(|v| v == 1 && c.framework_runtime == Some(1))
+            && r.source_snapshot
+                .is_none_or(|v| v == 2 && c.source_snapshot == Some(2))
             && r.build_artifacts.is_none_or(|v| {
                 matches!(v, 1 | 2) && c.build_artifacts.is_some_and(|cap| cap >= v && cap <= 2)
             })

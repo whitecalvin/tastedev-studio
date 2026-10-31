@@ -5,14 +5,15 @@ import {CustomSelect} from '@/components/ui/custom-select';
 import {useI18n} from '@/i18n/react';
 import {useCore} from '../core/context';
 import {useAI} from '../ai/views';
+import {useFiles} from '../editor/session';
 import {factoryPlanningQuestion,parseFactoryPlan} from './factory-plan';
 import {remoteCore} from '../core/remote-client';
-import {validateFactoryContract,validateFactoryDefinition,type FactoryContract,type FactoryOverview,type FactoryTask} from './factory';
+import {factorySourceChanged,factoryDependencyProgress,validateFactoryContract,validateFactoryDefinition,type FactoryContract,type FactoryOverview,type FactoryTask} from './factory';
 import {intentReference,type TeamIntent} from './team-intent';
 import type {GraphOverview} from './execution';
 
 export function FactoryBoard({onTemplate,onChoose,templateDisabled,intent}:{intent?:TeamIntent;onTemplate:()=>void;onChoose:(executionId:string,nodeId:string)=>void;templateDisabled:boolean}){
-  const core=useCore(),ai=useAI(),{t}=useI18n(),project=core.project.id,session=remoteCore.generation,connected=core.remote&&core.connection.connected;
+  const core=useCore(),ai=useAI(),files=useFiles(),{t}=useI18n(),project=core.project.id,session=remoteCore.generation,connected=core.remote&&core.connection.connected;
   const [data,setData]=useState<{project:string;session:number;factory:FactoryOverview;graph:GraphOverview}|null>(null);
   const [objective,setObjective]=useState(''),[acceptance,setAcceptance]=useState(''),[paths,setPaths]=useState('src'),[resources,setResources]=useState(''),[dependencies,setDependencies]=useState('');
   const [entry,setEntry]=useState(''),[implementation,setImplementation]=useState(''),[review,setReview]=useState(''),[notes,setNotes]=useState(''),[consent,setConsent]=useState(false),[attempts,setAttempts]=useState(3),[timeout,setTimeoutMinutes]=useState(30);
@@ -45,6 +46,7 @@ export function FactoryBoard({onTemplate,onChoose,templateDisabled,intent}:{inte
     }catch(e){if(generation===epoch.current)setError(e instanceof Error?e.message:'Invalid plan.');}
     finally{lock.current=false;setBusy(false);}
   }
+  async function reviewSource(task:FactoryTask){if(!definition?.source)return;const answer=await files.ask({title:'Review current Source',message:task.contract.taskId+'\n'+task.contract.sourceChecksum+' → '+definition.source.checksum+'\n'+t('Source reviewed. Explicit queue approval is required.'),choices:[{value:'review',label:'Confirm'},{value:'cancel',label:'Cancel'}]});if(answer==='review')await action('review-source',{taskId:task.contract.taskId,version:task.version,sourceChecksum:definition.source.checksum,revision:definition.revision});}
   function taskAction(actionName:string,task:FactoryTask,accepted?:boolean){void action(actionName,{taskId:task.contract.taskId,version:task.version,...(accepted===undefined?{}:{accepted}),notes});}
   return <details className="orch-factory" open={intent?true:undefined}><summary><Factory size={16} aria-hidden="true"/>{t('Software factory')} · {current?.factory.tasks.length??0}</summary>
     <p>{t('Approve a work contract to queue implementation, real tests and independent review. Source patches retain their existing approval checks.')}</p>
@@ -72,8 +74,8 @@ export function FactoryBoard({onTemplate,onChoose,templateDisabled,intent}:{inte
       <ol className="orch-factory-tasks">{current.factory.tasks.map(task=><li key={task.contract.taskId}>
         <strong>{task.contract.objective}</strong><span>{t(task.status)} · v{task.version} · {task.attempts.length}/{task.contract.maxAttempts}</span><code>{task.contract.taskId}</code>
         <details><summary>{t('Work contract')}</summary><ul>{task.contract.acceptance.map((line,i)=><li key={i}>{line}</li>)}</ul><p>{task.contract.paths.join(', ')} · {task.contract.resources.join(', ')}</p><p>{t('Core revision')}: {task.contract.revision}</p><code>{task.contract.sourceChecksum}</code><p>{task.contract.dependencies.map(d=>d.projectId+'/'+d.taskId).join(', ')}</p></details>
-        {task.reason&&<p>{t(task.reason)}</p>}
-        {task.attempts.map((attempt,i)=><button key={i} className="ws-text-button" onClick={()=>onChoose(attempt.executionId,task.contract.implementationNodeId)}>{t('Execution monitoring')} · {i+1} · {attempt.executionId.slice(-8)}</button>)}
+        {['draft','queued','paused'].includes(task.status)&&!task.attempts.length&&factorySourceChanged(task.contract,definition)&&<button className="fs-button" disabled={busy} onClick={()=>void reviewSource(task)}>{t('Review current Source')}</button>}{task.sourceReviews?.length&&<details><summary>{t('Source review history')}</summary>{task.sourceReviews.map((r,i)=><p key={i}>{r.previous.sourceChecksum} · {r.at}</p>)}</details>}{task.reason&&<p>{t(task.reason)}</p>}
+        {!!task.contract.dependencies.length&&<details><summary>{t('Dependencies: task ID or project ID/task ID')}</summary>{factoryDependencyProgress(task,current.factory.tasks).map(dep=><div className="orch-factory-dependency" key={dep.projectId+'/'+dep.taskId}><p><code>{dep.taskId}</code> · {t(dep.status)}</p>{dep.sourceChecksum&&<span>{t('Execution Source')}<code>{dep.sourceChecksum}</code></span>}{dep.executionId&&dep.nodeId&&dep.projectId===project&&<button className="ws-text-button" onClick={()=>onChoose(dep.executionId!,dep.nodeId!)}>{t('Execution monitoring')}</button>}{dep.runId&&dep.projectId===project&&<button className="ws-text-button" onClick={()=>void ai.openRun(dep.runId!)}>{t('Open Run')}</button>}</div>)}</details>}{task.attempts.map((attempt,i)=><button key={i} className="ws-text-button" onClick={()=>onChoose(attempt.executionId,task.contract.implementationNodeId)}>{t('Execution monitoring')} · {i+1} · {attempt.executionId.slice(-8)}</button>)}
         {task.status==='draft'&&<button className="fs-button" disabled={busy||!consent} onClick={()=>taskAction('queue',task)}>{t('Approve and queue')}</button>}
         {task.status==='paused'&&<button className="fs-button" disabled={busy||!consent} onClick={()=>taskAction('resume',task)}>{t('Resume reviewed work')}</button>}
         {task.status==='failed'&&current.graph.executions.find(e=>e.id===task.attempts.at(-1)?.executionId)?.status==='failed'&&<button className="fs-button" disabled={busy||!consent||!notes.trim()||task.attempts.length>=task.contract.maxAttempts} onClick={()=>taskAction('retry',task)}>{t('Retry failed gate')}</button>}

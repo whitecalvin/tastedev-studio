@@ -1463,7 +1463,17 @@ fn flow_on_rechecks_every_24_hours_without_asking_twice() {
     assert!(matches!(flow.stage(), Stage::Ask(_)));
     flow.later();
     assert!(matches!(flow.status(), Status::Available(_)));
-    assert_eq!(flow.next_check(t0), Some(AUTO_CHECK_INTERVAL));
+    // Windows also wakes the UI to receive cooperative close requests.
+    // That wake-up must not change the independent network-check schedule.
+    assert_eq!(flow.schedule().wait(true, t0), Some(AUTO_CHECK_INTERVAL));
+    assert_eq!(
+        flow.next_check(t0),
+        Some(if cfg!(windows) {
+            Duration::from_millis(500)
+        } else {
+            AUTO_CHECK_INTERVAL
+        })
+    );
 
     // 24시간이 되기 전에는 다시 확인하지 않는다.
     let almost = t0 + AUTO_CHECK_INTERVAL - Duration::from_secs(60);
@@ -1567,7 +1577,15 @@ fn flow_turning_auto_on_checks_and_manual_check_resets_the_schedule() {
     );
     // 끄면 일정도 멈춘다.
     flow.set_auto(false);
-    assert_eq!(flow.next_check(t2), None);
+    assert_eq!(flow.schedule().wait(false, t2), None);
+    assert_eq!(
+        flow.next_check(t2),
+        if cfg!(windows) {
+            Some(Duration::from_millis(500))
+        } else {
+            None
+        }
+    );
     assert_eq!(flow.poll_at(t2 + AUTO_CHECK_INTERVAL * 2, &noop()), None);
 }
 

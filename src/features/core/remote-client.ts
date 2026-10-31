@@ -74,6 +74,7 @@ export class RemoteCoreClient {
   }
   async uploadSnapshot(snapshot:ProjectSnapshot,signal?:AbortSignal,onProgress?:(progress:SourceUploadProgress)=>void){if(!this.connected||this.project?.id!==snapshot.projectId)throw Error('Connect to Core before transferring a workspace snapshot.');const key=this.connectionKey,token=this.token,base=new URL(this.endpoint);base.protocol=base.protocol==='wss:'?'https:':'http:';base.search='';return uploadProjectSnapshot(snapshot,(path,init)=>{if(!this.connected||this.connectionKey!==key||this.token!==token)throw Error('Core connection changed; Source transfer stopped.');const url=new URL(base);url.pathname=path;return fetch(url,{...init,headers:{...init.headers,Authorization:'Bearer '+token,'X-Project-Id':snapshot.projectId}});},signal,onProgress);}
   teamWorkRequest<T>(action:string,input?:unknown){return this.call<T>('team-work',[action,input]);}
+  frameworkRequest<T>(action:'list'|'respond'|'cancel'|'start'|'get-by-run'|'resume',input?:unknown){return this.call<T>('framework',[action,input]);}
   factoryRequest<T>(action:string,input?:unknown){return this.call<T>('factory',[action,input]);}
   graphRequest<T>(action:string,input?:unknown){return this.call<T>('graph',[action,input]);}
   recordsRequest<T>(action:string,input?:unknown){return this.call<T>('records',[action,input]);}
@@ -88,6 +89,9 @@ export class RemoteCoreClient {
   cancelJob(_projectId:string,id:string){return this.call<CoreSnapshot['jobs'][number]>('cancelJob',[id]);}
   retryJob(_projectId:string,id:string){return this.call<CoreSnapshot['jobs'][number]>('retryJob',[id]);}
   operationsRequest<T>(action:string,input?:unknown){return this.call<T>('operations',[action,input]);}
+  assignmentReview<T>(jobId:string){return this.call<T>('assignment-review',[jobId]);}
+  reassignJob(job:CoreSnapshot['jobs'][number],agentId:string|null){return this.call<CoreSnapshot['jobs'][number]>('reassign-job',[job.id,agentId,job.updatedAt,job.assignmentHistory?.length??0]);}
+  executionPolicyRequest<T>(action:string,input?:unknown){return this.call<T>('execution-policy',[action,input]);}
   integrationRequest<T>(action:string,input?:unknown){return this.call<T>('integration',[action,input]);}
   teamReportRequest<T>(intentId:string){return this.call<T>('team-report',[intentId]);}
   teamPolicyRequest<T>(action:string,input?:unknown){return this.call<T>('team-policy',[action,input]);}

@@ -1,4 +1,6 @@
 'use client';
+import {catalog} from '../frameworks/catalog';
+import {instructionRef} from '../frameworks/domain';
 import {useEffect,useRef,useState} from 'react';
 import {CustomSelect} from '@/components/ui/custom-select';
 import {useI18n} from '@/i18n/react';
@@ -34,7 +36,7 @@ export function AIConfigurationPanel({state,nodes}:{state:ReturnType<typeof useA
  <button className="fs-button" disabled={!state.ready||state.store.profiles.length>=30} onClick={()=>{const p=newAIConfiguration(crypto.randomUUID());state.change({...state.store,profiles:[...state.store.profiles,p]});setSelected(p.id);}}>{t('Add AI configuration')}</button>
  <button className="fs-button" disabled={!state.ready||!state.dirty} onClick={state.save}>{t('Save AI configurations')}</button></div>
  {state.error&&<p role="status">{t(state.error)}</p>}
- {profile&&<div className="orch-ai-fields"><label>{t('Name')}<input maxLength={120} value={profile.name} onChange={e=>update({name:e.target.value})}/></label>
+ {profile&&<div className="orch-ai-fields"><label>{t('Framework role')}<CustomSelect value={profile.instructionRef?.path??''} onChange={e=>{const role=catalog.entries.find(r=>r.path===e.target.value);update({instructionRef:role?instructionRef(role):undefined});}}><option value="">{t('None')}</option>{catalog.entries.filter(e=>e.kind==='role').map(e=><option key={e.path} value={e.path}>{e.id}</option>)}</CustomSelect></label><label>{t('Name')}<input maxLength={120} value={profile.name} onChange={e=>update({name:e.target.value})}/></label>
  <label>{t('AI provider')}<CustomSelect value={profile.provider} onChange={e=>update({provider:e.target.value as AIConfiguration['provider']})}>{aiProviders.map(p=><option key={p} value={p}>{({openai:'OpenAI',anthropic:'Anthropic',google:'Google',local:t('Local AI')})[p]}</option>)}</CustomSelect></label>
  <label>{t('Model')}<input value={profile.model} maxLength={120} placeholder={t('Configured on Core')} onChange={e=>update({model:e.target.value})}/></label>
  <label>{t('Connection method')}<CustomSelect value={profile.connection} onChange={e=>update({connection:e.target.value as AIConfiguration['connection']})}>{aiConnections.map(p=><option key={p} value={p}>{t(labels[p])}</option>)}</CustomSelect></label>

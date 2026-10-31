@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {SoftwareFactory,type FactoryBridge} from '../transport/software-factory.ts';
 import {factoryTemplate} from '../src/features/orchestration/factory-template.ts';
 import {parseFactoryPlan,factoryPlanningQuestion} from '../src/features/orchestration/factory-plan.ts';
-import {factoryConflicts,factoryContext,validateFactoryContract,validateFactoryDefinition,type FactoryContract,type FactoryTask} from '../src/features/orchestration/factory.ts';
+import {factoryDependencyProgress,factorySourceChanged,factoryConflicts,factoryContext,validateFactoryContract,validateFactoryDefinition,type FactoryContract,type FactoryTask} from '../src/features/orchestration/factory.ts';
 import {initialGraph} from '../src/features/orchestration/domain.ts';
 import {emptyAIConfigurations} from '../src/features/orchestration/ai-config.ts';
 import type {GraphDefinition,GraphOverview} from '../src/features/orchestration/execution.ts';
@@ -123,3 +123,23 @@ test('reviewed batch queue validates all draft versions before any launch or sta
 });
 
 test('integrated completion requires an authoritative proof and keeps stale dependent Source queued',async()=>{const f=fixture();await f.create();const proof={kind:'workspace-integration' as const,requestId:crypto.randomUUID(),attemptId:crypto.randomUUID(),proposalId:crypto.randomUUID(),runId:crypto.randomUUID(),checksum:'b'.repeat(64),contentChecksum:'c'.repeat(64),reviewAnalysisId:crypto.randomUUID(),graphRevision:1,graphChecksum:hash,acceptedAt:new Date(time).toISOString()};assert.throws(()=>f.factory().completeIntegration('p','work',proof,'operator'),/idle isolated/);f.bridge.validateIntegration=(contract,receipt)=>{assert.equal(contract.taskId,'work');assert.equal(receipt.requestId,proof.requestId);};f.factory().completeIntegration('p','work',proof,'operator');assert.equal(f.get().status,'completed');assert.equal(f.get().attempts.length,0);f.restart();assert.equal(f.get().integrationCompletion?.requestId,proof.requestId);await f.queue({...contract('p','dependent'),dependencies:[{projectId:'p',taskId:'work'}]});f.bridge.sourceContent=()=>'d'.repeat(64);await f.factory().tick();assert.equal(f.get('p','dependent').status,'queued');assert.match(f.get('p','dependent').reason!,/integrated Source/);assert.equal(f.calls.length,0);f.bridge.sourceContent=()=>proof.contentChecksum;await f.factory().tick();assert.equal(f.calls.filter(c=>c.action==='start').length,1);});
+
+test('dependent work Source review preserves contract history and requires fresh queue approval',async()=>{
+ const f=fixture(),c=contract();await f.factory().request('p','create',{contract:c},'owner');
+ const d=f.bridge.overview('p').definition!;d.revision=2;d.checksum='b'.repeat(64);d.inputChecksum='c'.repeat(64);d.source!.checksum='d'.repeat(64);
+ const before=f.factory().overview('p').tasks[0];
+ await assert.rejects(f.factory().request('p','review-source',{taskId:c.taskId,version:before.version,sourceChecksum:'f'.repeat(64),revision:2},'owner'),/changed/);
+ await f.factory().request('p','review-source',{taskId:c.taskId,version:before.version,sourceChecksum:d.source!.checksum,revision:2},'owner');
+ const after=f.factory().overview('p').tasks[0];assert.equal(after.status,'draft');assert.equal(after.contract.sourceChecksum,d.source!.checksum);assert.equal(after.sourceReviews?.[0].previous.checksum,c.checksum);assert.equal(f.calls.length,0);
+ await assert.rejects(f.factory().request('p','queue',{taskId:c.taskId,version:before.version},'owner'),/changed/);
+});
+
+test('Source re-review accepts new bytes with the same graph and preserves the previous contract',async()=>{const f=fixture(),c=contract();await f.factory().request('p','create',{contract:c},'owner');const initial=f.get();await assert.rejects(f.factory().request('p','review-source',{taskId:c.taskId,version:initial.version,sourceChecksum:c.sourceChecksum,revision:1},'owner'),/already uses/);const d=f.bridge.overview('p').definition!;d.revision=2;d.source!.checksum='d'.repeat(64);assert.equal(d.checksum,c.checksum);await f.factory().request('p','review-source',{taskId:c.taskId,version:initial.version,sourceChecksum:d.source!.checksum,revision:2},'owner');const after=f.get();assert.equal(after.status,'draft');assert.equal(after.contract.sourceChecksum,d.source!.checksum);assert.equal(after.sourceReviews?.[0].previous.sourceChecksum,c.sourceChecksum);assert.equal(after.attempts.length,0);assert.equal(f.calls.length,0);});
+
+test('GUI Source review identity includes revision, input and Source even without layout change',()=>{const c=contract(),d=definition('p');assert.equal(factorySourceChanged(c,d),false);for(const changed of [{...d,revision:2},{...d,inputChecksum:'b'.repeat(64)},{...d,source:{...d.source!,checksum:'b'.repeat(64)}}])assert.equal(factorySourceChanged(c,changed),true);assert.equal(factorySourceChanged(c,null),false);});
+test('dependency progress resolves exact project identities without inventing unavailable completion',()=>{const c=contract(),task={contract:{...c,dependencies:[{projectId:'p',taskId:'parent'},{projectId:'foreign',taskId:'parent'}]}} as FactoryTask;const parent={contract:{...c,taskId:'parent'},status:'completed',attempts:[{executionId:'actual'}]} as FactoryTask;const rows=factoryDependencyProgress(task,[parent]);assert.equal(rows[0].status,'completed');assert.equal(rows[0].executionId,'actual');assert.equal(rows[1].status,'Not reported');assert.equal(rows[1].executionId,undefined);});
+
+test('dependency navigation targets its own implementation node',async()=>{
+ const {factoryDependencyProgress}=await import('../src/features/orchestration/factory.ts');const f=fixture();await f.queue();const parent=structuredClone(f.get()),child=structuredClone(parent);parent.contract.implementationNodeId='parent-node';child.contract.taskId=crypto.randomUUID();child.contract.implementationNodeId='child-node';child.contract.dependencies=[{projectId:parent.contract.projectId,taskId:parent.contract.taskId}];
+ assert.equal(factoryDependencyProgress(child,[parent,child])[0].nodeId,'parent-node');
+});

@@ -51,3 +51,19 @@ test('reviewed recovery keeps passed results and waiting approval without replay
  const f=fixture();await f.pub();await f.start();f.finish();await f.service.tick();const recovered=f.make(),before=recovered.overview('p').executions[0].activations,jobs=f.core.snapshot('p').jobs.length;
  await recovered.request('p','resume',{executionId:'execution'},'user');assert.deepEqual(recovered.overview('p').executions[0].activations,before);assert.equal(f.core.snapshot('p').jobs.length,jobs);assert.equal(before.filter(a=>a.status==='passed').length,1);assert.equal(before.filter(a=>a.status==='approval').length,1);
 });
+
+test('reviewed ordinary retry preserves successful work, creates independent attempt and cannot replay old failure',async()=>{
+ const f=fixture();await f.pub();await f.start();f.finish();await f.service.tick();let e=f.service.overview('p').executions[0];const gate=e.activations.at(-1)!;
+ await f.service.request('p','approve',{executionId:e.id,activationId:gate.id,revision:e.revision,checksum:e.checksum},'user');f.finish(false);await f.service.tick();e=f.service.overview('p').executions[0];const first=e.activations[0],failed=e.activations.at(-1)!,input={executionId:e.id,activationId:failed.id,revision:e.revision,checksum:e.checksum};
+ await assert.rejects(f.service.request('p','retry-failed',{...input,checksum:'stale'},'user'),/version conflict/);
+ await f.service.request('p','retry-failed',input,'user');e=f.service.overview('p').executions[0];assert.deepEqual(e.activations[0],first);assert.equal(e.activations.at(-1)!.attempt,2);assert.equal(f.core.snapshot('p').jobs.length,3);
+ f.finish(false);await f.service.tick();await assert.rejects(f.service.request('p','retry-failed',input,'user'),/failed activation/);
+ const current=f.service.overview('p').executions[0].activations.at(-1)!;f.expire();await assert.rejects(f.service.request('p','retry-failed',{...input,activationId:current.id},'user'),/finished/);
+});
+
+test('reviewed graph timeout is bounded, immutable per request and never silently extended',async()=>{
+ const f=fixture();await f.pub();const d=f.service.overview('p').definition!,i={revision:d.revision,checksum:d.checksum,entryNodeId:'task',requestId:'budget',timeoutMinutes:60};
+ await assert.rejects(f.service.request('p','start',{...i,timeoutMinutes:121},'user'),/timeout/);
+ await f.service.request('p','start',i,'user');const e=f.service.overview('p').executions[0];assert.equal(Date.parse(e.deadline)-Date.parse(e.createdAt),3600000);
+ await f.service.request('p','start',i,'user');assert.equal(f.core.snapshot('p').jobs.length,1);await assert.rejects(f.service.request('p','start',{...i,timeoutMinutes:120},'user'),/identity conflict/);
+});

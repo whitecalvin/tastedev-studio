@@ -9,8 +9,8 @@ import {buildArtifactGateway} from '../transport/build-artifact-gateway.ts';
 
 const evidence=path.resolve('resources/verification/dev-01/tasks/tastedev-studio/build-artifact-http-20261005/fixtures');
 const bytes=Buffer.from('controlled executable artifact'),checksum=createHash('sha256').update(bytes).digest('hex');
-async function setup(executable?:boolean){
- const f=await artifactGraphFixture(true,executable);await f.publish();await f.start();
+async function setup(executable?:boolean,timeoutSeconds?:number){
+ const f=await artifactGraphFixture(true,executable);if(timeoutSeconds){const tasks=JSON.parse(f.sources['tasks.yml']);tasks.build.timeout=timeoutSeconds;f.sources['tasks.yml']=JSON.stringify(tasks);}await f.publish();await f.start();
  await fs.mkdir(evidence,{recursive:true});const root=await fs.mkdtemp(path.join(evidence,'http-'));let allowed=true,clock=Date.now();
  const gateway=buildArtifactGateway(f.core,f.service,root,['http://studio.local'],()=>allowed,()=>clock,['dummy-private-credential']);
  const server=createServer((req,res)=>{void gateway.handle(req,res);});await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -18,7 +18,7 @@ async function setup(executable?:boolean){
  function nextCommand(runId:string){const source=f.orchestrator.next(runId)!;assert(source.command.source);f.orchestrator.complete(runId,source.step.id,'passed',0,undefined,{repository:source.command.source!.repository,branch:'controlled',commit:f.reference.checksum,snapshotId:f.reference.snapshotId,proposalId:f.reference.proposalId,attempt:1});return f.orchestrator.next(runId)!;}
  const run=f.core.snapshot(f.projectId).runs[0],producer=nextCommand(run.id),transfer=await gateway.grant(run.id,producer.step.id,base),output=transfer.outputs[0];
  const headers={...(executable!==undefined?{'X-Build-Executable':String(executable)}:{}),Authorization:`Bearer ${output.token}`,'X-Project-Id':f.projectId,'X-Build-Size':String(bytes.length),'X-Build-Checksum':checksum};
- return {...f,root,gateway,base,run,producer,output,headers,nextCommand,setAllowed:(v:boolean)=>{allowed=v;},expire:()=>{clock+=300001;},close:async()=>{server.closeAllConnections();await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));await fs.rm(root,{recursive:true,force:true});}};
+ return {...f,root,gateway,base,run,producer,output,headers,nextCommand,setAllowed:(v:boolean)=>{allowed=v;},expire:()=>{clock+=300001;},advance:(ms:number)=>{clock+=ms;},close:async()=>{server.closeAllConnections();await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));await fs.rm(root,{recursive:true,force:true});}};
 }
 test('actual HTTP bytes follow successful producer, explicit approval and consumer checksum precondition',async()=>{
  const f=await setup();try{
@@ -62,4 +62,8 @@ test('v2 upload binds explicit executable policy and rejects missing or differen
   for(const value of ['false','', '0777'])assert.equal((await fetch(f.output.url,{method:'PUT',headers:{...f.headers,'X-Build-Executable':value},body:bytes})).status,403);
   const result=await fetch(f.output.url,{method:'PUT',headers:f.headers,body:bytes});assert.equal(result.status,200);const {artifact}=await result.json();assert.equal(artifact.version,2);assert.equal(artifact.executable,true);assert.equal((await f.gateway.verifyOutputs(f.producer.job.id,f.producer.step.id))[0].executable,true);
  }finally{await f.close();}
+});
+
+test('long build upload survives five minutes but never its approved step deadline',async()=>{
+ const f=await setup(undefined,600);try{f.advance(300001);assert.equal((await fetch(f.output.url,{method:'PUT',headers:f.headers,body:bytes})).status,200);f.advance(300001);assert.equal((await fetch(f.output.url,{method:'PUT',headers:f.headers,body:bytes})).status,403);}finally{await f.close();}
 });

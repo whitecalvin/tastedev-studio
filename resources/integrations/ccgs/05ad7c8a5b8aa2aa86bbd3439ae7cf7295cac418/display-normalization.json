@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "commit": "05ad7c8a5b8aa2aa86bbd3439ae7cf7295cac418",
+  "identity": "b1f58c40e2d5d01f1871af574849853f908301afc57242da0251881b6988a12f",
+  "policy": "Only inspection mirrors remove trailing whitespace and extra EOF blank lines. Runtime/catalog retain original bytes.",
+  "files": [
+    {
+      "path": ".claude/docs/effects-map.md",
+      "sourceChecksum": "18aa505d7decdf16b8d25d07a6c1cb8d41411a89bc5f3a86e0c06d0da730273e",
+      "displayChecksum": "bc4daa81e4a1e8abbdcbea1dd2414809b08ce8e7229aae46fda79ca47b0d84e6",
+      "displayBytes": 139903
+    },
+    {
+      "path": ".claude/skills/gate-check/SKILL.md",
+      "sourceChecksum": "e2ca66469e396bfd53de98fe3ba9761c24ce76b514cb933e5c5b00f17b36c8de",
+      "displayChecksum": "102c62817484b04a1c7bfe3a2063910a25fcc61cb7e1c5da25bd68f6ed0391e2",
+      "displayBytes": 9192
+    }
+  ]
+}

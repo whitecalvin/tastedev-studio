@@ -115,3 +115,26 @@
 .orch-team-preflight>ul{list-style:none;padding:0}.orch-team-check .ws-text-button{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}.orch-team-preflight .orch-team-actions{align-items:center}.orch-team-preflight .orch-team-actions h3{margin:0;margin-inline-end:auto}
 
 .orch-team-check .ws-text-button{height:32px;flex:none}
+/* Device policy form reuses shared control tokens and keeps scope review readable. */
+.orch-operations .task-integration{display:grid;gap:12px;max-width:640px;padding:16px;margin-top:16px;border-top:1px solid var(--studio-line)}
+.orch-operations .task-integration h3,.orch-operations .task-integration p{margin:0;line-height:1.6}
+.orch-operations .task-integration>label:not(:has(input[type=checkbox])){display:flex;flex-direction:column;gap:6px;max-width:360px}
+.orch-operations .task-integration label:has(input[type=checkbox]){display:inline-flex;align-items:center;gap:8px}
+.orch-operations .task-integration input:not([type=checkbox]){width:100%;min-width:0;padding-inline:9px;background:var(--studio-bg);color:var(--studio-text);border:1px solid var(--studio-line);font:inherit}
+.orch-operations .task-integration .orch-team-actions{display:flex;flex-wrap:wrap;gap:16px}
+.orch-operations .task-integration>.fs-button{justify-self:start}
+.orch-product-flow{margin:16px 0;padding:12px;border:1px solid var(--studio-line);border-radius:var(--studio-control-radius)}.orch-product-flow>summary{font-weight:600}.orch-product-flow>p{margin:12px 0;line-height:1.6}.orch-product-flow>label{display:flex;align-items:center;gap:8px;margin:12px 0}.orch-product-flow>.fs-button{margin:8px 0}.orch-operations-tasks li>span,.orch-operations-tasks li>small{display:block;margin-top:6px;overflow-wrap:anywhere}.orch-artifact-plans li code{display:block;overflow-wrap:anywhere}.orch-recovery li{padding:8px 0;border-bottom:1px solid var(--studio-line)}
+
+.orch-factory-dependency{display:grid;gap:6px;padding:10px 0;border-bottom:1px solid var(--studio-line);min-width:0}.orch-factory-dependency code{display:block;overflow-wrap:anywhere;white-space:normal}.orch-factory-dependency>.ws-text-button{justify-self:start}
+.orch-factory-dependency>p{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin:0}
+
+.orch-product-flow .orch-factory-fields{grid-template-columns:repeat(3,minmax(0,1fr))}.orch-product-flow .orch-factory-fields>label{display:flex;flex-direction:column;align-items:stretch;gap:6px;min-width:0;margin:0}.orch-product-flow .orch-factory-fields select{width:100%}.orch-product-flow [role=alert]{color:var(--studio-danger)}@media(max-width:1200px){.orch-product-flow .orch-factory-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:900px){.orch-product-flow .orch-factory-fields{grid-template-columns:minmax(0,1fr)}}
+
+/* Role communication is separate from execution success/failure flow. */
+.orch-edge[data-relation="delegates"]{color:var(--studio-accent)}
+.orch-edge[data-relation="delegates"]>path{stroke-dasharray:8 4}
+.orch-edge[data-relation="consults"]{color:var(--studio-muted)}
+.orch-edge[data-relation="consults"]>path{stroke-dasharray:2 5}
+.orch-edge[data-relation="escalates"]{color:var(--studio-accent)}
+.orch-edge[data-relation="escalates"]>path{stroke-dasharray:10 3 2 3}
+.orch-node[data-execution-state="framework-review"]{box-shadow:0 0 0 2px var(--studio-accent)}

@@ -1,4 +1,5 @@
 export interface Project {
+  templateBinding?: import('../../frameworks/domain.ts').TemplateBinding;
   taskWorkspace?: {parentProjectId:string;taskId:string;baseRevision:string};
   id: string;
   name: string;
@@ -20,6 +21,7 @@ export interface Project {
 }
 
 export interface NewProjectInput {
+  templateBinding?: import('../../frameworks/domain.ts').TemplateBinding;
   name: string;
   workspacePath: string;
   description: string;

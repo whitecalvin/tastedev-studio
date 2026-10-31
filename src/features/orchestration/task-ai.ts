@@ -1,3 +1,5 @@
+import {findInstruction} from '../frameworks/catalog.ts';
+import type {InstructionRef} from '../frameworks/domain.ts';
 import {AIError,defaultBudget,type AnalysisBudget} from '../ai/domain.ts';
 import {aiRoute,type AIRoute,type ManagedAIConnection} from '../ai/routing.ts';
 import {configurationPrompt,configurationRoute,validateAIConfigurations,type AIConfigurationStore} from './ai-config.ts';
@@ -5,12 +7,13 @@ import type {GraphNode,ProjectGraph} from './domain.ts';
 import {mask} from '../ai/security.ts';
 export interface GraphAIIdentity {executionId:string;activationId:string;leaseId:string}
 export interface GraphFailureContext {runId:string;originalRunId:string;attemptId:string;previousAnalysisId:string}
-export interface TaskAIRequest {failure?:GraphFailureContext;completion?:'analysis'|'verified-fix';graph?:GraphAIIdentity;projectId:string;nodeId:string;label:string;profileId:string;route:AIRoute;question:string;budget:AnalysisBudget;maximum:number}
+export interface TaskAIRequest {instructionRef?:InstructionRef;failure?:GraphFailureContext;completion?:'analysis'|'verified-fix';graph?:GraphAIIdentity;projectId:string;nodeId:string;label:string;profileId:string;route:AIRoute;question:string;budget:AnalysisBudget;maximum:number}
 export function taskAIRequest(store:AIConfigurationStore,node:GraphNode,connections:ManagedAIConnection[]):TaskAIRequest{
  const checked=validateAIConfigurations(store,store.projectId),profile=checked.profiles.find(p=>p.id===checked.bindings[node.id]),route=configurationRoute(profile,connections);
  if(node.teamRole&&profile&&((profile.completion==='verified-fix')!==(node.teamRole==='implementation')||node.teamRole==='review'&&profile.role!=='review'))throw new AIError('unavailable');
+ if(profile?.instructionRef&&findInstruction(profile.instructionRef).kind!=='role')throw new AIError('unavailable');
  if(node.kind!=='task'||!profile||!route||! /^[A-Za-z0-9_-]{1,120}$/.test(node.id)||typeof node.label!=='string'||!node.label.trim()||node.label.length>120)throw new AIError('unavailable');
- return {...(profile.completion?{completion:profile.completion}:{}),projectId:store.projectId,nodeId:node.id,label:mask(node.label),profileId:profile.id,route:aiRoute(route),question:configurationPrompt(profile,node.label),budget:{...defaultBudget,maxProviderRequests:profile.maxRequests,timeoutMs:profile.timeoutSeconds*1000},maximum:profile.maxAttempts};
+ return {...(profile.instructionRef?{instructionRef:profile.instructionRef}:{}),...(profile.completion?{completion:profile.completion}:{}),projectId:store.projectId,nodeId:node.id,label:mask(node.label),profileId:profile.id,route:aiRoute(route),question:configurationPrompt(profile,node.label),budget:{...defaultBudget,maxProviderRequests:profile.maxRequests,timeoutMs:profile.timeoutSeconds*1000},maximum:profile.maxAttempts};
 }
 export async function reviewedTaskAI(request:TaskAIRequest,approve:()=>Promise<boolean>,current:()=>boolean,run:(request:TaskAIRequest)=>Promise<unknown>){
  const pinned=structuredClone(request);if(!await approve())return 'cancelled';if(!current())throw new AIError('cancelled');await run(pinned);return 'submitted';

@@ -1,7 +1,7 @@
 import {uuid} from '../src/features/ai/security.ts';
 import {createHash,randomUUID} from 'node:crypto';
 import {CoreError} from '../src/features/core/domain.ts';
-import {factoryConflicts,factoryContext,pathContains,validateFactoryContract,validateFactoryDefinition,type IntegrationCompletion,type FactoryContract,type FactoryOverview,type FactoryTask} from '../src/features/orchestration/factory.ts';
+import {factorySourceChanged,factoryConflicts,factoryContext,pathContains,validateFactoryContract,validateFactoryDefinition,type IntegrationCompletion,type FactoryContract,type FactoryOverview,type FactoryTask} from '../src/features/orchestration/factory.ts';
 import type {GraphOverview} from '../src/features/orchestration/execution.ts';
 import type {GraphPersistence} from './graph-execution.ts';
 import type {AnalysisRecord} from '../src/features/ai/domain.ts';
@@ -36,7 +36,7 @@ export class SoftwareFactory {
     if(saved){
       if(saved.version!==1||!Array.isArray(saved.tasks)||saved.tasks.length>500)fail('Invalid durable state; preserved.');
       const keys=new Set<string>();
-      for(const task of saved.tasks){const c=validateFactoryContract(task.contract,task.contract.projectId),key=c.projectId+'/'+c.taskId;if(keys.has(key)||!Number.isSafeInteger(task.version)||task.version<1||!['draft','queued','launching','running','review','completed','failed','paused','cancelling','cancelled'].includes(task.status)||typeof task.actor!=='string'||!Array.isArray(task.attempts)||task.attempts.length>c.maxAttempts||!Number.isFinite(Date.parse(task.createdAt))||task.deadline!==undefined&&!Number.isFinite(Date.parse(task.deadline))||task.attempts.some(a=>!/^factory-[a-f0-9-]{36}$/.test(a.executionId)||!Number.isFinite(Date.parse(a.startedAt))))fail('Invalid durable task; preserved.');if(task.integrationCompletion){const p=task.integrationCompletion;[p.requestId,p.attemptId,p.proposalId,p.runId,p.reviewAnalysisId].forEach(uuid);if(task.status!=='completed'||p.kind!=='workspace-integration'||! /^[a-f0-9]{64}$/.test(p.checksum)||! /^[a-f0-9]{64}$/.test(p.contentChecksum)||p.graphRevision!==c.revision||p.graphChecksum!==c.checksum||!Number.isFinite(Date.parse(p.acceptedAt)))fail('Invalid integration completion receipt; preserved.');}keys.add(key);}
+      for(const task of saved.tasks){const c=validateFactoryContract(task.contract,task.contract.projectId),key=c.projectId+'/'+c.taskId;if(keys.has(key)||!Number.isSafeInteger(task.version)||task.version<1||!['draft','queued','launching','running','review','completed','failed','paused','cancelling','cancelled'].includes(task.status)||typeof task.actor!=='string'||!Array.isArray(task.attempts)||task.attempts.length>c.maxAttempts||!Number.isFinite(Date.parse(task.createdAt))||task.deadline!==undefined&&!Number.isFinite(Date.parse(task.deadline))||task.attempts.some(a=>!/^factory-[a-f0-9-]{36}$/.test(a.executionId)||!Number.isFinite(Date.parse(a.startedAt))))fail('Invalid durable task; preserved.');if(task.integrationCompletion){const p=task.integrationCompletion;[p.requestId,p.attemptId,p.proposalId,p.runId,p.reviewAnalysisId].forEach(uuid);if(task.status!=='completed'||p.kind!=='workspace-integration'||! /^[a-f0-9]{64}$/.test(p.checksum)||! /^[a-f0-9]{64}$/.test(p.contentChecksum)||p.graphRevision!==c.revision||p.graphChecksum!==c.checksum||!Number.isFinite(Date.parse(p.acceptedAt)))fail('Invalid integration completion receipt; preserved.');}if(task.sourceReviews&&(!Array.isArray(task.sourceReviews)||task.sourceReviews.length>3||task.sourceReviews.some(r=>typeof r.actor!=='string'||!Number.isFinite(Date.parse(r.at))||validateFactoryContract(r.previous,c.projectId).taskId!==c.taskId)))fail('Invalid Source review history; preserved.');keys.add(key);}
       this.tasks=structuredClone(saved.tasks);
       this.commit(next=>{for(const task of next)if(['queued','launching','running'].includes(task.status)){task.status='paused';task.reason='Core restarted. Review and resume; no work was replayed.';task.version++;}});
     }
@@ -52,11 +52,11 @@ export class SoftwareFactory {
     this.validateDefinition(task.contract);this.bridge.validateIntegration!(task.contract,proof);
     this.update(task,t=>{t.status='completed';t.integrationCompletion=structuredClone(proof);t.reason='Accepted integrated Source after actual retest and independent review.';});
   }
-  overview(project:string):FactoryOverview{return {tasks:structuredClone(this.tasks.filter(t=>t.contract.projectId===project).map(t=>({...t,actor:'',attempts:t.attempts.map(a=>({...a,reviewedBy:undefined}))}))),durable:!!this.persistence,maximumParallel:this.maximumParallel};}
+  overview(project:string):FactoryOverview{return {tasks:structuredClone(this.tasks.filter(t=>t.contract.projectId===project).map(t=>({...t,...(t.sourceReviews?{sourceReviews:t.sourceReviews.map(r=>({...r,actor:''}))}:{}),actor:'',attempts:t.attempts.map(a=>({...a,reviewedBy:undefined}))}))),durable:!!this.persistence,maximumParallel:this.maximumParallel};}
   request(project:string,action:string,input:unknown,actor:string){return this.locked(async()=>{
-    const permission=action==='list'?'read':['create','create-plan'].includes(action)?'history-write':action==='cancel'?'cancel':action==='review'?'approve':'run';this.authority(actor,project,permission);
+    const permission=action==='list'?'read':['create','create-plan'].includes(action)?'history-write':action==='cancel'?'cancel':['review','review-source'].includes(action)?'approve':'run';this.authority(actor,project,permission);
     if(action==='list')return this.overview(project);
-    const i=input as {taskId:string;version:number;contract:FactoryContract;accepted?:boolean;notes?:string};
+    const i=input as {taskId:string;version:number;contract:FactoryContract;accepted?:boolean;notes?:string;sourceChecksum?:string;revision?:number};
     if(action==='queue-plan'){
       this.authority(actor,project,'approve');
       const items=(input as {tasks:{taskId:string;version:number}[]})?.tasks;
@@ -85,7 +85,18 @@ export class SoftwareFactory {
       this.commit(next=>{if(next.length>=500)fail('Task capacity reached.');next.push({contract,version:1,status:'draft',actor,createdAt:new Date(this.now()).toISOString(),attempts:[]});});
     }else{
       const task=this.task(project,i?.taskId);if(task.version!==i.version)fail('Task changed. Refresh before continuing.');
-      if(action==='queue'){
+      if(action==='review-source'){
+        this.authority(actor,project,'approve');
+        if(!['draft','paused','queued'].includes(task.status)||task.attempts.length||task.integrationCompletion||(task.sourceReviews?.length??0)>=3)fail('Only idle work can review a new Source.');
+        const d=this.bridge.overview(project).definition??fail('Published Source required.');
+        const source=d.source??fail('Published Source required.');
+        if(!source||i.sourceChecksum!==source.checksum||i.revision!==d.revision)fail('Published Source changed. Refresh and review again.');
+        if(!factorySourceChanged(task.contract,d))fail('Work already uses this Source.');
+        const updated=validateFactoryContract({...task.contract,revision:d.revision,checksum:d.checksum,inputChecksum:d.inputChecksum,sourceChecksum:source.checksum},project);
+        this.validateDefinition(updated);
+        for(const dep of updated.dependencies){this.authority(actor,dep.projectId,'read');const dependency=this.task(dep.projectId,dep.taskId);if(dep.projectId===project&&dependency.integrationCompletion&&this.bridge.sourceContent?.(project,source.checksum)!==dependency.integrationCompletion.contentChecksum)fail('Publish the accepted integrated Source before reviewing dependent work.');}
+        this.update(task,t=>{(t.sourceReviews??=[]).push({previous:structuredClone(t.contract),actor,at:new Date(this.now()).toISOString()});t.contract=updated;t.status='draft';t.actor=actor;delete t.deadline;t.reason='Source reviewed. Explicit queue approval is required.';});
+      }else if(action==='queue'){
         if(task.status!=='draft')fail('Only a draft can be approved for the queue.');
         this.validateDefinition(task.contract);
         this.update(task,t=>{t.status='queued';t.actor=actor;t.deadline=new Date(this.now()+t.contract.timeoutMinutes*60000).toISOString();delete t.reason;});

@@ -193,3 +193,7 @@ Core-verified stored outputs now persist per activation and appear separately fr
 ## Artifact executable policy v2 — 2026-10-05
 
 Declare `executable: true|false` on every input/output of a v2 artifact step; producer and consumer must agree. Requirements/capability2 negotiated; v1 remains supported for declarations without this field. Core rejects downgrade, mismatched upload policy or receipt. Unix staging explicitly uses owner-only0700/0600, no privileged mode propagation; Windows retains metadata only. Actual local two-Agent v2 PASS/FAIL/SQLite receipt restore verified, Node955 plus final11, Rust Debug53 plus final13/related Release13/Clippy/fmt/build, final lint/production build PASS. Unix-specific tests not run here; no Linux or GUI qualification claimed. Existing relative executable restriction retained; configured Protocol test/harness required. Evidence: resources/verification/dev-01/tasks/tastedev-studio/artifact-executable-v2-20261005/RESULT.md.
+
+## Claude-Code-Game-Studios native runtime
+
+프로젝트 요구사항 `tools.claudeCodeFramework: true`는 실행 capability `frameworkRuntime:1`로 해석한다. SDK 실행은 고정 `internal-framework-runner`, Godot 검증은 `internal-framework-godot`이며 일반 Shell fallback은 없다. Protocol의 검증 정의는 실제 Snapshot blob과 일치해야 한다. 플레이어 표시 변경은 headless가 아닌 e2e와 실제 PNG 증거를 요구한다. 예제·Agent 로컬 runtime 구성은 `TASTEDEV_GAME_STUDIOS.md`에 있다.
