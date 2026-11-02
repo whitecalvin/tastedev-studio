@@ -129,6 +129,11 @@
     "expectedFingerprint": "SHA256:DpGg4oWYas1GSPxa6bb0Xq3EtYbq5A2rxyfdv8O9G1k"
   },
   "signing": {
+    "macos": {
+      "identity": "Developer ID Application: Young-Gu. Choi (G369SUVV89)",
+      "teamId": "G369SUVV89",
+      "notaryProfile": "tastedev-notary"
+    },
     "windows": {
       "endpoint": "https://eus.codesigning.azure.net/",
       "subscriptionId": "be541831-c82a-48eb-896c-905d83d4bf47",
