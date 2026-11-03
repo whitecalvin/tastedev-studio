@@ -113,3 +113,25 @@ Studio Provider는 기존 AIService/Provider와 read-only tools를 사용한다.
 - 패키징·서명·설치·배포·자동 commit/push는 수행하지 않았다. 제품 버전0.2.8을 유지했다.
 
 검증 결과·정확한 Run/Snapshot/Proposal ID·입력/산출물 hash·잔여 제한은 `resources/verification/dev-01/ccgs-20261031/RESULT.ko.md`와 `EVIDENCE-INDEX.md`를 따른다.
+
+## 온보딩 보조 명령의 추가 경계 — 2026-11-02
+
+원본 `project-state.sh`, `set-stage.sh`, `config-set.sh`는 고정 bundle의 checksum과 실제 경로를 확인한 뒤 제한된 인자로 실행한다. 상태 조회는 읽기 전용이다. 단계 변경은 `project.yaml`과 `production/stage.txt` 모두 쓰기 승인 범위에 있어야 한다. 설정 변경은 `modes.rigor`와 `modes.automation`의 원본 enum으로 한정한다. `--root`, `--local`, 명령 연결·치환·리다이렉션과 변조된 helper는 허용하지 않는다.
+
+고정 실행 진입점은 runner와 보조 명령 정책 모듈의 SHA-256을 확인한다. 정책 변경 시 `node scripts/pin-framework-policy.mjs`가 불일치를 보고하며, 검토 후 `--write`로 갱신한 진입점의 새로운 hash를 실행 장비 설정에도 반영해야 한다. 이전 runtime 신원으로 변경된 정책을 실행하지 않는다.
+
+이 추가 범위는 경계 테스트 5건, 관련 프레임워크 테스트 35건, 실제 원본 helper 명령 4건과 lint/typecheck를 검증했다. 여섯 원본 스킬의 연속 실행은 별도 게이트다. 새 disposable Godot Source의 외부 전송 승인을 기다리고 있으며, 이 기록으로 `/setup-engine`부터 `/story-done` 전체의 실제 실행을 통과 처리하지 않는다. 현재 근거는 `resources/verification/dev-01/orchestration-completion-20261101/STAGE-5-TASK.ko.md`와 전송 미리보기를 따른다.
+
+## 오케스트레이션 완성 5단계 마감 — 2026-11-02
+
+상태: **DEV_VERIFIED_NATIVE_GODOT_MINIMAL**. 원본 minimal 여섯 스킬을 실제 Claude Code 2.1.296와 실제 framework Rust Agent에서 실행했다. 부족했던 화면 증거·행동 검증은 강화된 실제 테스트와 보관된 게임 PNG로 보완한 뒤 원본 story-done이 스토리를 Complete로 변경했다. 엔진 설정은 실제 Agent Run 및 원본 coherence 5항목 일치/차이0/미검사0, 기존 Godot 역할5개의 Version Awareness로 추가 확인했다. 수출 preset·gdUnit4 설치는 이 최소 경로의 범위가 아니다.
+
+프레임워크 Source 준비는 빠졌던 공개 엔진 참조46개를 고정 commit에서 별도 package로 가져온다. 원본439개 정의 bundle과156개 카탈로그 항목은 바꾸지 않았다. 기존 프로젝트 문서는 보존하고 없는 문서만 검토 Snapshot에 보충한다. 원본 바이트/SHA는 보존하며 Snapshot의 표시 사본은 공개 URL query/fragment를 명시적으로 생략한다. 비밀 제외 정책을 완화하지 않았고 사용자 문서의 비밀 값은 공용 문서로 바꿔치기하지 않는다. 이 데이터도 desktop compile cache 입력에 포함했다.
+
+엔진 설정4개와 게임·기획·검증8개 파일은 다른 task/proposal의 별도 Diff/승인으로 반영했다. 각 제안의 기존8파일 제한을 유지했다. 원본 재시험 **62788538-0176-40e0-96fb-1fbad0994113 PASS**, 후속 실제 Graph **5e6f1c54-4b73-47f0-b752-b568c5d89e39 PASS**이며 수락한 Source 바이트 내용 해시가 같다. 실제 Agent에 전달된64개 파일의 크기/SHA를 검증했고 Dummy .env는 원본에서 보존/전송에서 제외했다. PNG는 실제 Core/검증 근거로 보관하고 원본 바이너리 자동 병합은 하지 않았다.
+
+Studio Provider는 별도로 실제 OpenAI의 producer·godot-specialist·qa-lead3개 역할을 실행했다. 승인된 두 파일/선택 Run·로그/공개 역할만 읽었으며 이미지 본문은 전송하지 않았다. QA가 접근하지 못한 초기 Run·장면 파일과 미검증 행동을 불확실성으로 남긴 점도 원문에 보존했다. 실제 추가 행동 검증과 Source 비교는 별도 운영자/Agent 근거이며 AI가 수행했다고 쓰지 않는다.
+
+품질: 최종 Node1215/1215·lint·typecheck·운영 webpack compile/generate PASS. JS에는 별도 Debug/Release 테스트 구성이 없어 중복 구성을 만들지 않았다. 불변 Rust입력33개와 고정 Agent SHA를 확인해 기존 범위의 native 근거만 재사용했다. 물리 held-key 검증은 미판정이며 엔진 action 주입 PASS를 물리 키보드 PASS로 대체하지 않는다. 정제된 Agent 환경의 shader cache 경고, 미지원 Unix/Unity/Unreal 실전 검증과 전체 원본 Shell/rigor 호환은 제한으로 남는다.
+
+정본: `resources/verification/dev-01/orchestration-completion-20261101/{stage-5-final-audit.json,stage-5-qualification-inputs.json,STAGE-5-RESULT.ko.md,EVIDENCE-INDEX.md}`. 단계6 장애 복구를 이어간다. 패키징/설치/배포/버전·태그/커밋·푸시는 수행하지 않았다.

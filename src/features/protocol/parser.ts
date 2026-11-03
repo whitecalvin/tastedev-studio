@@ -56,7 +56,9 @@ class Schema {
       }
     }
     if (own(obj, 'tools')) {
-      const tools = this.object(obj.tools, `${path}.tools`, ['git', 'docker','claudeCodeFramework']);
+      const tools = this.object(obj.tools, `${path}.tools`, ['git', 'docker','claudeCodeFramework','executionIsolation','isolatedChildProcesses']);
+      if(own(tools,'executionIsolation'))result.executionIsolation=this.bool(tools.executionIsolation,`${path}.tools.executionIsolation`)?1:undefined;
+      if(own(tools,'isolatedChildProcesses')){const count=tools.isolatedChildProcesses;if(!Number.isInteger(count)||Number(count)<2||Number(count)>4||tools.executionIsolation===false)this.fail(`${path}.tools.isolatedChildProcesses`,'Use2..4 total isolated processes with execution isolation enabled.');result.executionIsolation=1;result.isolatedChildProcesses=Number(count);}
       if(own(tools,'claudeCodeFramework'))result.frameworkRuntime=this.bool(tools.claudeCodeFramework,`${path}.tools.claudeCodeFramework`)?1:undefined;
       if (own(tools, 'docker')) result.docker = this.bool(tools.docker, `${path}.tools.docker`) ? 'required' : null;
       if (own(tools, 'git')) {

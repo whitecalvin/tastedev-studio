@@ -48,7 +48,7 @@ impl OutputSummary {
         }
     }
 }
-fn output_chunks(mut text: &str) -> impl Iterator<Item = &str> {
+pub(crate) fn output_chunks(mut text: &str) -> impl Iterator<Item = &str> {
     // 청크 목록을 할당하지 않고 UTF-8 경계를 지키며 필요한 조각만 전달한다.
     std::iter::from_fn(move || {
         if text.is_empty() {
@@ -151,6 +151,9 @@ pub fn inherited_environment(executable: &str) -> Vec<&'static str> {
         .file_name()
         .and_then(|name| name.to_str())
         .is_some_and(|name| matches!(name.trim_end_matches(".exe"), "cargo" | "rustc"));
+    if compiler {
+        keys.push("CARGO_TARGET_DIR");
+    }
     if cfg!(windows) && compiler {
         keys.extend(["LIB", "LIBPATH", "INCLUDE"]);
     }
@@ -176,7 +179,44 @@ pub fn command(
     let mut exit = None;
     let mut status = "failed";
     let mut output = OutputSummary::default();
+    let mut artifact_installation = None;
     let operation = (|| -> Result<()> {
+        if request.isolation.is_some() || request.requirements.execution_isolation.is_some() {
+            if ready.is_some() {
+                return Err(
+                    "Isolated background services require a supported broker contract".into(),
+                );
+            }
+            let mut sequence = 0u64;
+            let mut receive = |stream: &str, text: &str| {
+                sequence += 1;
+                output.forward(&events, json!({"type":"output","jobId":request.job_id,"runId":request.run_id,"runStepId":request.run_step_id,"sequence":sequence,"stream":stream,"text":text}), text.len())
+            };
+            let mut observer = crate::isolation::OutputObserver {
+                secrets: request.env.values().cloned().collect(),
+                receive: &mut receive,
+                dropped_chunks: 0,
+                dropped_bytes: 0,
+                artifact_installation: None,
+            };
+            let outcome = crate::isolation::execute(&request, root, &cancel, &mut observer);
+            let lost = (observer.dropped_chunks, observer.dropped_bytes);
+            artifact_installation = observer.artifact_installation.take();
+            drop(observer);
+            output.total_chunks = output.total_chunks.saturating_add(lost.0);
+            output.dropped_chunks = output.dropped_chunks.saturating_add(lost.0);
+            output.dropped_bytes = output.dropped_bytes.saturating_add(lost.1);
+            output.partial |= lost.0 > 0;
+            match outcome? {
+                crate::isolation::CommandExit::Completed(code) => {
+                    exit = Some(code as i32);
+                    status = if code == 0 { "passed" } else { "failed" };
+                }
+                crate::isolation::CommandExit::TimedOut => status = "timeout",
+                crate::isolation::CommandExit::Cancelled => status = "cancelled",
+            }
+            return Ok(());
+        }
         let cwd = if request.run_step_id.is_some() {
             crate::pipeline::cwd(root, &request.run_id, &request.cwd)?
         } else {
@@ -317,7 +357,11 @@ pub fn command(
             _ => "TEST_FAILED",
         }
     };
-    json!({"type":"result","protocolVersion":VERSION,"jobId":request.job_id,"runId":request.run_id,"runStepId":request.run_step_id,"status":status,"exitCode":exit,"startedAt":started,"finishedAt":chrono::Utc::now().to_rfc3339(),"error":operation.err(),"classification":classification,"outputSummary":output})
+    let mut result = json!({"type":"result","protocolVersion":VERSION,"jobId":request.job_id,"runId":request.run_id,"runStepId":request.run_step_id,"status":status,"exitCode":exit,"startedAt":started,"finishedAt":chrono::Utc::now().to_rfc3339(),"error":operation.err(),"classification":classification,"outputSummary":output});
+    if let Some(installation) = artifact_installation {
+        result["artifactInstallation"] = installation;
+    }
+    result
 }
 pub fn probe(executable: &str, args: &[&str]) -> Option<String> {
     probe_with_path(executable, args, None)
@@ -431,6 +475,19 @@ pub fn verify_capabilities(
     mut current: Capabilities,
     cancel: &AtomicBool,
 ) -> Result<Capabilities> {
+    if request.isolation.is_some() || request.requirements.execution_isolation.is_some() {
+        // Reject before any Source-selected PATH/runtime executable can be
+        // probed outside the isolated process, including for an unqualified Agent.
+        crate::isolation::verify_request(request)?;
+        current.runtimes = crate::isolation::observed_runtimes(request)?;
+        if cancel.load(Ordering::SeqCst) {
+            return Err("Capability check cancelled".into());
+        }
+        if !request.matches(&current) {
+            return Err("Capability changed or required runtime unavailable".into());
+        }
+        return Ok(current);
+    }
     if let Some(required) = &request.requirements.runtimes {
         for name in required.keys().filter(|name| name.as_str() != "playwright") {
             if cancel.load(Ordering::SeqCst) {
@@ -524,6 +581,8 @@ pub fn detect() -> Capabilities {
         runtimes.insert("playwright".into(), version.into());
     }
     Capabilities {
+        execution_isolation: None,
+        isolated_child_processes: None,
         framework_runtime: crate::framework::available().then_some(1),
         source_snapshot: Some(2),
         build_artifacts: Some(2),

@@ -2,7 +2,9 @@ mod browser;
 mod build_artifact;
 mod executor;
 mod framework;
+mod isolation;
 mod model;
+mod output_window;
 mod pipeline;
 mod reliability;
 mod snapshot;
@@ -80,13 +82,50 @@ fn connect(endpoint: &str) -> Result<WebSocket<MaybeTlsStream<TcpStream>>> {
 mod endpoint_uri {
     pub type Uri = tungstenite::http::Uri;
 }
-fn send(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>, mut value: Value) -> bool {
-    value["protocolVersion"] = json!(VERSION);
-    match socket.send(Message::Text(value.to_string().into())) {
-        Ok(()) => true,
-        Err(tungstenite::Error::Io(e)) if e.kind() == ErrorKind::WouldBlock => true,
-        _ => false,
+#[derive(Debug, PartialEq, Eq)]
+enum SendOutcome {
+    Queued,
+    Backpressured,
+    Closed,
+}
+fn send_outcome<S: std::io::Read + std::io::Write>(
+    socket: &mut WebSocket<S>,
+    value: &Value,
+) -> SendOutcome {
+    let mut wire = value.clone();
+    wire["protocolVersion"] = json!(VERSION);
+    match socket.send(Message::Text(wire.to_string().into())) {
+        Ok(()) => SendOutcome::Queued,
+        // tungstenite retains the frame on WouldBlock, but returns the unsent
+        // frame on WriteBufferFull. Retain one application event for that case.
+        Err(tungstenite::Error::Io(e)) if e.kind() == ErrorKind::WouldBlock => SendOutcome::Queued,
+        Err(tungstenite::Error::WriteBufferFull(_)) => SendOutcome::Backpressured,
+        Err(error) => {
+            eprintln!(
+                "Agent transport send failure: {}",
+                transport_failure(&error)
+            );
+            SendOutcome::Closed
+        }
     }
+}
+fn wire_would_block(error: &tungstenite::Error) -> bool {
+    matches!(error, tungstenite::Error::Io(e) if e.kind() == ErrorKind::WouldBlock)
+        || matches!(error, tungstenite::Error::WriteBufferFull(_))
+}
+fn transport_failure(error: &tungstenite::Error) -> String {
+    match error {
+        tungstenite::Error::Io(e) => format!("io:{:?}", e.kind()),
+        tungstenite::Error::Capacity(e) => format!("capacity:{e:?}"),
+        tungstenite::Error::Protocol(e) => format!("protocol:{e:?}"),
+        tungstenite::Error::WriteBufferFull(_) => "write-buffer-full".into(),
+        _ => format!("kind:{:?}", std::mem::discriminant(error)),
+    }
+}
+fn send(socket: &mut WebSocket<MaybeTlsStream<TcpStream>>, value: Value) -> bool {
+    // Heartbeats may wait for the next interval; durable results are retried by
+    // DeliveryClock. A full bounded write buffer is not a broken connection.
+    send_outcome(socket, &value) != SendOutcome::Closed
 }
 fn run(config: Config) -> Result<()> {
     config.validate()?;
@@ -102,7 +141,7 @@ fn run(config: Config) -> Result<()> {
     fs::create_dir_all(&claims).map_err(|_| "Claims directory unavailable")?;
     // Core rejects concurrent connections using the same identity. Atomic persistent
     // run claims remain the execution authority, including across process restarts.
-    let capabilities = executor::detect();
+    let mut capabilities = executor::detect();
     if capabilities.memory_mi_b == 0 || capabilities.cpu_cores == 0 {
         return Err("Hardware detection failed".into());
     }
@@ -110,10 +149,24 @@ fn run(config: Config) -> Result<()> {
     let signal = stop.clone();
     ctrlc::set_handler(move || signal.store(true, Ordering::SeqCst))
         .map_err(|_| "Shutdown handler failed")?;
+    if let Err(error) = isolation::initialize(
+        config.isolation_catalog.as_deref(),
+        &root,
+        &id,
+        &config.token_env,
+        &stop,
+    ) {
+        // Fail closed for isolated work; legacy capability/IDE operation stays
+        // available. No capability is derived from configuration or old receipts.
+        eprintln!("Execution isolation unavailable: {error}");
+    }
+    isolation::qualify_capabilities(&mut capabilities);
     let (tx, rx) = mpsc::sync_channel::<Value>(64);
     let mut active: Option<Active> = None;
     let sessions: pipeline::Sessions = Arc::new(std::sync::Mutex::new(None));
     let mut results = Vec::<Value>::new();
+    let mut pending_output: Option<Value> = None;
+    let mut output_window = output_window::OutputWindow::default();
     // Claims with no result represent an interrupted prior Agent. Never re-execute them.
     for entry in fs::read_dir(&claims)
         .map_err(|_| "Claims unavailable")?
@@ -131,6 +184,17 @@ fn run(config: Config) -> Result<()> {
             uuid::Uuid::parse_str(execution_id).map_err(|_| "Claim invalid")?;
             let pending = claims.join(format!("{execution_id}.pending"));
             let ack = claims.join(format!("{execution_id}.ack"));
+            let phase = if ack.exists() {
+                isolation::ClaimPhase::Acknowledged
+            } else if pending.exists() {
+                isolation::ClaimPhase::PendingResult
+            } else {
+                isolation::ClaimPhase::Interrupted
+            };
+            let cleanup = isolation::recover_recorded(&root, &id, &record, phase);
+            if cleanup.is_err() && (ack.exists() || pending.exists()) {
+                eprintln!("Agent isolation cleanup incomplete; task result preserved; inspect recovery observations for execution {execution_id}");
+            }
             if ack.exists() {
                 continue;
             }
@@ -145,6 +209,11 @@ fn run(config: Config) -> Result<()> {
             } else {
                 let now = chrono::Utc::now().to_rfc3339();
                 let mut result = json!({"type":"result","protocolVersion":VERSION,"jobId":record["jobId"],"runId":run_id,"runStepId":record["runStepId"],"status":"failed","exitCode":null,"startedAt":now,"finishedAt":now,"classification":"AGENT_RESTARTED","error":"Agent restarted after interrupted execution"});
+                if let Err(error) = cleanup {
+                    result["error"] = json!(format!(
+                        "Agent restarted; isolation cleanup incomplete: {error}"
+                    ));
+                }
                 if let Some(summary) =
                     browser::resume_evidence(&root, &record, tx.clone(), stop.clone())
                 {
@@ -194,12 +263,28 @@ fn run(config: Config) -> Result<()> {
             persist(&claims.join(format!("{}.pending", a.execution_id)), &result)?;
             results.push(result);
         }
-        for _ in 0..64 {
-            let Ok(event) = rx.try_recv() else { break };
-            if ready {
-                if let Some(ws) = socket.as_mut() {
-                    if !send(ws, event) {
-                        ready = false;
+        let mut output_drained = false;
+        if ready {
+            if let Some(ws) = socket.as_mut() {
+                for _ in 0..64 {
+                    if !output_window.available() {
+                        break;
+                    }
+                    let Some(event) = pending_output.take().or_else(|| rx.try_recv().ok()) else {
+                        output_drained = true;
+                        break;
+                    };
+                    match send_outcome(ws, &event) {
+                        SendOutcome::Queued => output_window.sent(&event),
+                        SendOutcome::Backpressured => {
+                            pending_output = Some(event);
+                            break;
+                        }
+                        SendOutcome::Closed => {
+                            pending_output = Some(event);
+                            ready = false;
+                            break;
+                        }
                     }
                 }
             }
@@ -209,7 +294,7 @@ fn run(config: Config) -> Result<()> {
                 Ok(mut ws) => {
                     if send(
                         &mut ws,
-                        json!({"type":"register","token":token,"agentId":id,"name":config.name,"agentVersion":env!("CARGO_PKG_VERSION"),"sourceCache":source_cache::inventory(&root),"platform":platform(),"architecture":architecture(),"capabilities":capabilities,"activeRunId":active.as_ref().map(|a|a.run_id.as_str()).or_else(||results.first().and_then(|r|r["runId"].as_str()))}),
+                        json!({"type":"register","outputAck":1,"token":token,"agentId":id,"name":config.name,"agentVersion":env!("CARGO_PKG_VERSION"),"sourceCache":source_cache::inventory(&root),"platform":platform(),"architecture":architecture(),"capabilities":capabilities,"activeRunId":active.as_ref().map(|a|a.run_id.as_str()).or_else(||results.first().and_then(|r|r["runId"].as_str()))}),
                     ) {
                         socket = Some(ws);
                         last_core = Instant::now();
@@ -243,7 +328,7 @@ fn run(config: Config) -> Result<()> {
                 );
                 beat = Instant::now();
             }
-            if ready {
+            if ready && output_drained && output_window.drained() {
                 for result in &results {
                     let run_id = result["runStepId"]
                         .as_str()
@@ -280,6 +365,10 @@ fn run(config: Config) -> Result<()> {
                         match m["type"].as_str() {
                             Some("registered") => {
                                 if m["agentId"] != id {
+                                    lost = true;
+                                    break;
+                                }
+                                if !output_window.configure(m["outputWindow"].as_u64()) {
                                     lost = true;
                                     break;
                                 }
@@ -335,7 +424,7 @@ fn run(config: Config) -> Result<()> {
                                     continue;
                                 };
                                 file.write_all(
-                                    json!({"runId":request.run_id,"projectId":request.project_id,"runStepId":request.run_step_id,"jobId":request.job_id})
+                                    json!({"runId":request.run_id,"projectId":request.project_id,"runStepId":request.run_step_id,"jobId":request.job_id,"executionIsolation":request.isolation.is_some()})
                                         .to_string()
                                         .as_bytes(),
                                 )
@@ -429,6 +518,7 @@ fn run(config: Config) -> Result<()> {
                                     pipeline::close(&sessions)?;
                                 }
                             }
+                            Some("output_ack") => output_window.acknowledge(&m),
                             Some("ack") => {
                                 if let Some(run) =
                                     m["runStepId"].as_str().or_else(|| m["runId"].as_str())
@@ -468,22 +558,29 @@ fn run(config: Config) -> Result<()> {
                 lost = true;
             }
             // Ping detects half-open links without equating heartbeat writes with receipt.
-            if ready
-                && last_core.elapsed() > Duration::from_secs(5)
-                && ws.send(Message::Ping(vec![1].into())).is_err()
-            {
-                lost = true;
+            if ready && last_core.elapsed() > Duration::from_secs(5) {
+                if let Err(error) = ws.send(Message::Ping(vec![1].into())) {
+                    if !wire_would_block(&error) {
+                        eprintln!(
+                            "Agent transport keepalive failure: {}",
+                            transport_failure(&error)
+                        );
+                        lost = true;
+                    }
+                }
             }
             if last_core.elapsed() > Duration::from_secs(10) {
                 lost = true;
             }
-            if ws.flush().is_err_and(
-                |e| !matches!(e,tungstenite::Error::Io(ref io)if io.kind()==ErrorKind::WouldBlock),
-            ) {
+            if ws.flush().is_err_and(|error| !wire_would_block(&error)) {
                 lost = true;
             }
         }
         if lost {
+            eprintln!(
+                "Agent connection lost: ready={ready} silence_ms={}",
+                last_core.elapsed().as_millis()
+            );
             pipeline::stop(&sessions);
             socket = None;
             ready = false;
@@ -511,6 +608,9 @@ fn run(config: Config) -> Result<()> {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let result = (|| -> Result<()> {
+        if args.len() == 2 && args[1] == "--isolation-self-check-child" {
+            return isolation::self_check_child();
+        }
         if args.len() != 3 || args[1] != "--config" {
             return Err("Usage: tastedev-agent --config <config.json>".into());
         }

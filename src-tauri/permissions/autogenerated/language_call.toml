@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-language-call"
+description = "Enables the language_call command without any pre-configured scope."
+commands.allow = ["language_call"]
+
+[[permission]]
+identifier = "deny-language-call"
+description = "Denies the language_call command without any pre-configured scope."
+commands.deny = ["language_call"]

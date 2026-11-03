@@ -2,6 +2,7 @@ use crate::model::{no_links, Request, Result, Source};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+pub(crate) mod sealed;
 use std::{
     collections::{HashMap, HashSet},
     fs,
@@ -372,6 +373,7 @@ pub fn prepare(request: &Request, root: &Path, cancel: Arc<AtomicBool>) -> Resul
         let _ = fs::remove_dir_all(&staging);
     }
     outcome?;
+    sealed::publish(request, &run, s)?;
     let now = chrono::Utc::now().to_rfc3339();
     Ok(
         json!({"protocolVersion":1,"type":"result","agentId":request.agent_id,"jobId":request.job_id,"runId":request.run_id,"runStepId":request.run_step_id,"status":"passed","exitCode":0,"startedAt":now,"finishedAt":now,"revision":{"repository":source.repository,"branch":source.revision,"commit":s.checksum,"snapshotId":s.snapshot_id,"proposalId":s.proposal_id,"attempt":s.attempt}}),
@@ -381,7 +383,7 @@ pub fn prepare(request: &Request, root: &Path, cancel: Arc<AtomicBool>) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn source() -> Source {
+    pub(super) fn source() -> Source {
         let f = File {
             path: "main.js".into(),
             content: "console.log(1);".into(),

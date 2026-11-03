@@ -304,7 +304,12 @@ pub fn execute(
 ) -> Value {
     let started = chrono::Utc::now().to_rfc3339();
     let mut installed = None;
+    let isolated =
+        request.isolation.is_some() || request.requirements.execution_isolation.is_some();
     let operation = (|| -> Result<Value> {
+        if isolated {
+            crate::isolation::verify_request(&request)?;
+        }
         {
             let mut guard = sessions.lock().map_err(|_| "Session unavailable")?;
             if let Some(session) = guard.as_ref() {
@@ -321,9 +326,13 @@ pub fn execute(
         }
         let transfer_cancel = cancel.clone();
         let deadline = std::time::Instant::now() + Duration::from_millis(request.timeout_ms);
-        crate::build_artifact::download(&request, root, &transfer_cancel, deadline)?;
+        if !isolated {
+            crate::build_artifact::download(&request, root, &transfer_cancel, deadline)?;
+        }
         // 설치 완료 증거는 후속 명령 실패와 구분해 결과에 보존한다.
-        installed = request.build_artifact_transfer.as_ref().filter(|t| !t.inputs.is_empty()).map(|t| json!(t.inputs.iter().map(|i| { let mut report = json!({"id":i.artifact.id,"path":i.path,"size":i.artifact.size,"checksum":i.artifact.checksum}); if let Some(executable) = i.artifact.executable { report["executable"] = json!(executable); } report }).collect::<Vec<_>>()));
+        if !isolated {
+            installed = request.build_artifact_transfer.as_ref().filter(|t| !t.inputs.is_empty()).map(|t| json!(t.inputs.iter().map(|i| { let mut report = json!({"id":i.artifact.id,"path":i.path,"size":i.artifact.size,"checksum":i.artifact.checksum}); if let Some(executable) = i.artifact.executable { report["executable"] = json!(executable); } report }).collect::<Vec<_>>()));
+        }
         if request.build_artifact_transfer.is_some() {
             let remaining = deadline
                 .saturating_duration_since(std::time::Instant::now())
@@ -403,7 +412,7 @@ pub fn execute(
                 None,
             )),
         }?;
-        if outcome["status"] == "passed" {
+        if outcome["status"] == "passed" && !isolated {
             crate::build_artifact::upload(&request, root, &transfer_cancel, deadline)?;
         }
         Ok(outcome)

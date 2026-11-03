@@ -2,10 +2,11 @@ import { detectRuntime } from '../../runtime/hosts.ts';
 import { nativeBridge, nativeFileError } from '../../runtime/native-hosts.ts';
 import { validateClone, validateNewProject } from '../utils/validation.ts';
 import type { FolderConnection } from '../../filesystem/contracts.ts';
-export type ProjectTemplate = 'empty' | 'node-smoke' | 'typescript-smoke' | 'python-smoke' | 'rust-smoke';
+export type ProjectTemplate = 'empty' | 'node-smoke' | 'typescript-smoke' | 'python-smoke' | 'rust-smoke' | 'godot-smoke';
 export function templateFiles(name: string, template: ProjectTemplate) {
   const project = validateNewProject({ name, description: '', workspacePath: '/' });
   if (template === 'empty') return [];
+  if (template === 'godot-smoke') return godotTemplate(project.name);
   if (template !== 'node-smoke') return languageTemplate(project.name, template);
   return [
     { path: 'package.json', content: JSON.stringify({ name: 'studio-starter', private: true, scripts: { test: 'node --test tests/smoke.test.cjs' } }, null, 2) + '\n' },
@@ -16,6 +17,20 @@ export function templateFiles(name: string, template: ProjectTemplate) {
     { path: '.tastedev/tests.yml', content: JSON.stringify({ smoke: { task: 'smoke', type: 'unit' } }, null, 2) + '\n' },
     { path: 'README.md', content: '# ' + project.name + '\n\nRun `node --test tests/smoke.test.cjs` locally. In Studio, open Tests, connect Core and queue the smoke test using a saved workspace snapshot. No dependency installation is needed.\n' },
   ];
+}
+
+function godotTemplate(name:string){
+ const json=(value:unknown)=>JSON.stringify(value,null,2)+'\n';
+ return [
+  {path:'project.godot',content:'config_version=5\n\n[application]\nconfig/name='+JSON.stringify(name)+'\nrun/main_scene="res://main.tscn"\n\n[display]\nwindow/size/viewport_width=640\nwindow/size/viewport_height=360\n\n[rendering]\nrenderer/rendering_method="gl_compatibility"\n'},
+  {path:'main.tscn',content:'[gd_scene load_steps=2 format=3]\n\n[ext_resource type="Script" path="res://src/player.gd" id="1"]\n\n[node name="Game" type="Node2D"]\n\n[node name="Player" type="Node2D" parent="."]\nposition = Vector2(280, 180)\nscript = ExtResource("1")\n'},
+  {path:'src/player.gd',content:'extends Node2D\n\n@export var speed: float = 180.0\n\nfunc _process(delta: float) -> void:\n\tposition += Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down") * speed * delta\n\nfunc _draw() -> void:\n\tdraw_rect(Rect2(-16, -16, 32, 32), Color(0.2, 0.8, 0.9))\n'},
+  {path:'tests/visual.gd',content:'extends SceneTree\n\nfunc _initialize() -> void:\n\tcall_deferred("verify")\n\nfunc verify() -> void:\n\tvar scene = load("res://main.tscn").instantiate()\n\troot.add_child(scene)\n\tawait process_frame\n\tvar actor = scene.get_node("Player")\n\tvar before = actor.position.x\n\tInput.action_press("ui_right")\n\tawait create_timer(0.3).timeout\n\tInput.action_release("ui_right")\n\tif actor.position.x - before < 20:\n\t\tprinterr("STARTER_MOVEMENT_FAIL")\n\t\tquit(1)\n\t\treturn\n\tawait RenderingServer.frame_post_draw\n\tDirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://.tastedev-artifacts/godot"))\n\tvar saved = root.get_texture().get_image().save_png("res://.tastedev-artifacts/godot/frame.png")\n\tif saved != OK:\n\t\tprinterr("STARTER_EVIDENCE_FAIL")\n\t\tquit(2)\n\t\treturn\n\tprint("STARTER_PASS: keyboard movement and rendered frame verified")\n\tquit(0)\n'},
+  {path:'.tastedev/project.yml',content:json({version:1,project:{name,type:'generic'},requirements:{tools:{claudeCodeFramework:true}}})},
+  {path:'.tastedev/tasks.yml',content:json({visual:{command:'internal-framework-godot',args:['--path','.','--script','tests/visual.gd','--rendering-method','gl_compatibility','--resolution','640x360','--audio-driver','Dummy'],timeout:60}})},
+  {path:'.tastedev/tests.yml',content:json({movement:{task:'visual',type:'e2e',timeout:90}})},
+  {path:'README.md',content:'# '+name+'\n\nGodot 4 starter. Arrow keys move the player. The movement Protocol test runs the actual renderer and saves a frame; it requires the configured TASTESTUDIO Godot runtime capability. Creating files does not install an engine or authenticate Claude Code. Review Agent readiness before execution.\n'},
+ ];
 }
 
 function languageTemplate(name: string, template: ProjectTemplate) {

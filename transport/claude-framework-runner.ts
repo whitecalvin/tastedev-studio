@@ -6,6 +6,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {mask,sanitize} from '../src/features/ai/security.ts';
 import {bundleManifest,catalog} from '../src/features/frameworks/catalog.ts';
+import {frameworkStateCommand} from './framework-state-commands.ts';
 export interface NativeFrameworkRun {projectId:string;runId:string;workspaceId:string;cwd:string;claude:string;python:string;bash:string;sourceChecksum:string;configurationChecksum:string;skillId:string;roleId?:string;arguments:string;model?:string;maxTurns:number;timeoutMs:number;resume?:string;writablePaths:string[]}
 export interface NativeFrameworkEvent {type:'started'|'question'|'permission'|'assistant'|'tool'|'subagent'|'completed'|'authentication-required'|'failed'|'cancelled'|'hook'|'system';value:unknown;parentToolUseId?:string}
 export interface NativeInteraction {emit(event:NativeFrameworkEvent):Promise<void>;request(kind:'question'|'permission',requestId:string,payload:unknown,signal:AbortSignal):Promise<unknown>}
@@ -38,7 +39,7 @@ export async function runNativeFramework(input:NativeFrameworkRun,interaction:Na
   if(tool==='Skill')return typeof args.skill==='string'&&catalog.entries.some(e=>e.id==='skill:'+String(args.skill).replace(/^\//,'')&&e.kind==='skill');
   if(tool==='Agent'){if(args.isolation||args.run_in_background||args.background||args.permissionMode&&args.permissionMode!=='default'||args.mode&&args.mode!=='default'||args.resume&&!childAgents.has(String(args.resume)))return false;const type=args.subagent_type??args.agent_type;return typeof type==='string'&&catalog.entries.some(e=>e.id==='role:'+type&&e.kind==='role');}
   if(['AskUserQuestion','TodoWrite'].includes(tool))return true;
-  if(tool==='Bash'){const command=String(args.command??'');const match=command.match(/^bash "([^"\r\n]+)" resolve_config(?: [A-Za-z0-9_.,=-]+)*$/);if(match){try{return await realpath(match[1])===await realpath(path.join(cwd,'.claude/hooks/yaml-helper.sh'));}catch{return false;}}
+  if(tool==='Bash'){const command=String(args.command??'');const stateDecision=await frameworkStateCommand(command,cwd,p=>safeFile(p,true));if(stateDecision!==undefined)return stateDecision;const match=command.match(/^bash "([^"\r\n]+)" resolve_config(?: [A-Za-z0-9_.,=-]+)*$/);if(match){try{return await realpath(match[1])===await realpath(path.join(cwd,'.claude/hooks/yaml-helper.sh'));}catch{return false;}}
    if(/[;|&<>$`\r\n]/.test(command))return false;const tokens=command.match(/"[^"]*"|'[^']*'|[^\s]+/g)?.map(s=>s.replace(/^(["'])(.*)\1$/,'$2'))??[];if(tokens[0]!=='bash'||tokens.length<2||tokens.slice(2).some(s=>s.includes('..')||s.startsWith('/')||/^[A-Za-z]:/.test(s)||s==='--root'))return false;
    const name=path.basename(tokens[1]),allowed=['story-facts.sh','adr-status.sh','md-section.sh','review-receipts.sh','session-state.sh'];if(!allowed.includes(name)||name==='review-receipts.sh'&&tokens[2]!=='hash'||name==='session-state.sh'&&tokens[2]!=='show')return false;
    try{const target=await realpath(path.resolve(cwd,tokens[1])),expected=path.join(cwd,'.claude/scripts',name),file=bundleManifest.files.find(f=>f.path==='.claude/scripts/'+name);return target===await realpath(expected)&&!!file&&digest(await readFile(target))===file.sha256;}catch{return false;}}

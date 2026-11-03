@@ -24,6 +24,8 @@ pub struct Config {
     pub log_level: String,
     #[serde(default)]
     pub allow_insecure_lan: bool,
+    #[serde(default)]
+    pub isolation_catalog: Option<PathBuf>,
 }
 fn heartbeat() -> u64 {
     2000
@@ -62,6 +64,10 @@ impl Config {
             || !(200..=10000).contains(&self.heartbeat_ms)
             || !(500..=60000).contains(&self.reconnect_max_ms)
             || !matches!(self.log_level.as_str(), "error" | "info")
+            || self
+                .isolation_catalog
+                .as_ref()
+                .is_some_and(|path| !path.is_absolute())
         {
             return Err("Invalid configuration".into());
         }
@@ -71,6 +77,10 @@ impl Config {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Capabilities {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution_isolation: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub isolated_child_processes: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub framework_runtime: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -88,6 +98,10 @@ pub struct Capabilities {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Requirements {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution_isolation: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub isolated_child_processes: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub framework_runtime: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -115,6 +129,8 @@ pub struct Request {
     pub run_id: String,
     pub project_id: String,
     pub requirements: Requirements,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub isolation: Option<crate::isolation::Policy>,
     pub executable: String,
     pub args: Vec<String>,
     pub cwd: String,
@@ -193,6 +209,24 @@ impl Request {
         self.run_step_id.as_deref().unwrap_or(&self.run_id)
     }
     pub fn validate(&self, agent: &str) -> Result<()> {
+        if self.requirements.isolated_child_processes.is_some_and(|n| {
+            !(2..=4).contains(&n) || self.requirements.execution_isolation != Some(1)
+        }) {
+            return Err("Invalid approved isolated child requirement".into());
+        }
+        if let Some(policy) = &self.isolation {
+            policy.validate_approval(&self.requirements)?;
+            if self.requirements.execution_isolation != Some(1) {
+                return Err("Execution isolation capability required".into());
+            }
+        } else if self.requirements.execution_isolation == Some(1)
+            && self.source.is_none()
+            && self.healthcheck.is_none()
+            && self.executable != "internal-stop-services"
+        {
+            return Err("Approved execution isolation policy required".into());
+        }
+
         if let Some(step) = &self.run_step_id {
             Uuid::parse_str(step).map_err(|_| "Invalid step ID")?;
             if !matches!(
@@ -302,8 +336,16 @@ impl Request {
     }
     pub fn matches(&self, c: &Capabilities) -> bool {
         let r = &self.requirements;
-        r.framework_runtime
-            .is_none_or(|v| v == 1 && c.framework_runtime == Some(1))
+        r.execution_isolation
+            .is_none_or(|v| v == 1 && c.execution_isolation == Some(1))
+            && r.isolated_child_processes.is_none_or(|n| {
+                (2..=4).contains(&n)
+                    && c.execution_isolation == Some(1)
+                    && c.isolated_child_processes
+                        .is_some_and(|max| n <= max && max <= 4)
+            })
+            && r.framework_runtime
+                .is_none_or(|v| v == 1 && c.framework_runtime == Some(1))
             && r.source_snapshot
                 .is_none_or(|v| v == 2 && c.source_snapshot == Some(2))
             && r.build_artifacts.is_none_or(|v| {
@@ -332,7 +374,7 @@ impl Request {
             })
     }
 }
-fn version(s: &str) -> Option<[u32; 3]> {
+pub(crate) fn version(s: &str) -> Option<[u32; 3]> {
     let mut v = [0; 3];
     let parts: Vec<_> = s.split('.').collect();
     if parts.is_empty() || parts.len() > 3 {

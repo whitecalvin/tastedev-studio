@@ -13,7 +13,7 @@ export interface BuildArtifactTransfer {
  outputs:{name:string;path:string;id:string;url:string;token:string;executable?:boolean}[];
  inputs:{name:string;path:string;artifact:BuildArtifact;url:string;token:string}[];
 }
-export function buildArtifactGateway(core:CoreService,graph:GraphExecutionService,root:string,origins:string[],agentAllowed:(project:string,agent:string,job:string)=>boolean=()=>true,now=Date.now,credentialValues:string[]=[]){
+export function buildArtifactGateway(core:CoreService,graph:Pick<GraphExecutionService,'buildArtifactOrigin'|'buildArtifactProducer'>,root:string,origins:string[],agentAllowed:(project:string,agent:string,job:string)=>boolean=()=>true,now=Date.now,credentialValues:string[]=[]){
  const store=new BuildArtifactStore(root),grants=new Map<string,Grant>();
  const same=(a:BuildArtifactOrigin,b:BuildArtifactOrigin)=>(['projectId','executionId','graphRevision','producerActivationId','producerNodeId','producerRunId','producerStepId','snapshotId','sourceChecksum'] as const).every(k=>a[k]===b[k]);
  function check(g:Grant,token?:string){

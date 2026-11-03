@@ -23,3 +23,16 @@ test('retry limit follows original failure across retest analysis and tool permi
 
 test('applied state persistence failure compensates Source and clean Editor together',async()=>{const {service,record,docs,disk}=setup();await docs.open('a.ts');service.setPersistence({save:async a=>{if(a.status==='applied')throw Error('controlled storage failure');}});const a=await service.propose(record,[0]);await service.approve(a.id,['a.ts']);await assert.rejects(service.apply(a.id),/PERSISTENCE_FAILED/);assert.equal(disk.get('a.ts'),'user baseline');assert.equal(docs.snapshot().openEditors[0].content,'user baseline');assert.equal(docs.snapshot().dirtyEditors.length,0);});
 test('reverted state persistence failure restores previously applied Source and Editor',async()=>{const {service,record,docs,disk}=setup();await docs.open('a.ts');service.setPersistence({save:async a=>{if(a.status==='reverted')throw Error('controlled storage failure');}});const a=await service.propose(record,[0]);await service.approve(a.id,['a.ts']);await service.apply(a.id);await assert.rejects(service.revert(a.id),/PERSISTENCE_FAILED/);assert.equal(service.get(a.id).status,'applied');assert.equal(disk.get('a.ts'),'user baseline fixed');assert.equal(docs.snapshot().openEditors[0].content,'user baseline fixed');});
+
+
+test('revert preflight refusal preserves verified status, completed journal and dirty editor without recovery writes',async()=>{
+ const {service,record,docs,disk}=setup();await docs.open('a.ts');const a=await service.propose(record,[0]);await service.approve(a.id,['a.ts']);await service.apply(a.id);service.beginRetest(a.id);service.retestResult(a.id,'passed');
+ const before=service.get(a.id),editor=docs.snapshot().openEditors[0];docs.edit(editor.id,'unsaved user change');await assert.rejects(service.revert(a.id),/DIRTY_EDITOR/);
+ assert.deepEqual(service.get(a.id),before);assert.equal(disk.get('a.ts'),'user baseline fixed');assert.equal(docs.get(editor.id).content,'unsaved user change');
+ docs.edit(editor.id,'user baseline fixed');await service.revert(a.id);assert.equal(service.get(a.id).status,'reverted');assert.equal(docs.get(editor.id).content,'user baseline');
+});
+
+test('revert base mismatch before writes preserves original completion journal and later user bytes',async()=>{
+ const {service,record,disk}=setup();const a=await service.propose(record,[0]);await service.approve(a.id,['a.ts']);await service.apply(a.id);service.beginRetest(a.id);service.retestResult(a.id,'passed');
+ const before=service.get(a.id);disk.set('a.ts','later user change');await assert.rejects(service.revert(a.id),/PATCH_CONFLICT/);assert.deepEqual(service.get(a.id),before);assert.equal(disk.get('a.ts'),'later user change');
+});

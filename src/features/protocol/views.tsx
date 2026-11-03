@@ -9,6 +9,7 @@ import { initializeProtocol, loadProtocol, workspaceReader } from './loader';
 import { resolveProtocol, resolveTestPlan } from './resolver';
 import { planPayload } from '../core/test-plan';
 import { buildProjectSnapshot } from '../ai/project-snapshot';
+import { workspaceSourceRevision } from '../orchestration/task-workspace';
 import { withWorkspaceSnapshot } from './workspace-test';
 import { DefinitionForm } from './definition-form';
 import { matchAgent } from '../core/matcher';
@@ -67,7 +68,7 @@ function useProtocolState() {
         if (choice !== 'run') return;
         const d = fresh.definition;
         const secrets = [...Object.values(d.environment), ...Object.values(d.environments).flatMap(Object.values), ...Object.values(d.tasks).flatMap(task => Object.values(task.env)), ...Object.values(d.tests).flatMap(test => Object.values(test.env ?? {}))];
-        const { snapshot } = await buildProjectSnapshot(files, { projectId: core.project.id, proposalId: plan.id, attempt: 1, baseRevision: 'working-tree', changedFiles: [] }, secrets);
+        const { snapshot } = await buildProjectSnapshot(files, { projectId: core.project.id, proposalId: plan.id, attempt: 1, baseRevision: workspaceSourceRevision(core.project.taskWorkspace, 'working-tree'), changedFiles: [] }, secrets);
         if (current !== generation.current || files.connection?.id !== connection.id || documents.snapshot().dirtyEditors.length) throw Error('The workspace changed. Reload Protocol before queuing.');
         const reference=await core.connection.uploadSnapshot(snapshot,undefined,p=>setMessage(`Source transfer: ${p.files}/${p.totalFiles} files, ${p.cachedFiles} reused`));
         if(current!==generation.current||files.connection?.id!==connection.id||documents.snapshot().dirtyEditors.length)throw Error('The workspace changed during transfer. Reload before queuing.');

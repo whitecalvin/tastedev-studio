@@ -62,7 +62,7 @@ export class ProjectService {
       const projects=await this.repository.list(),existing=projects.find(p=>p.taskWorkspace?.parentProjectId===parent.id&&p.taskWorkspace.taskId===task.taskId);
       if(existing){if(existing.workspacePath!==task.path||existing.taskWorkspace!.baseRevision!==task.baseRevision)throw new ProjectError('Task workspace identity changed. Existing project was preserved.');return existing;}
       const valid=validateNewProject({name:parent.name+' · '+task.taskId.slice(0,8),description:'Isolated task workspace',workspacePath,initialTeam:'role-team'});assertUniqueProject(projects,valid);
-      const now=this.options.now?.()??new Date().toISOString(),project:Project={...valid,id:this.options.id?.()??crypto.randomUUID(),repositoryUrl:null,defaultBranch:null,framework:parent.framework,runtime:parent.runtime,packageManager:parent.packageManager,projectType:parent.projectType,gitEnabled:true,createdAt:now,updatedAt:now,lastOpenedAt:null,taskWorkspace:{parentProjectId:parent.id,taskId:task.taskId,baseRevision:task.baseRevision}};
+      const now=this.options.now?.()??new Date().toISOString(),project:Project={...valid,id:this.options.id?.()??crypto.randomUUID(),repositoryUrl:null,defaultBranch:null,framework:parent.framework,runtime:parent.runtime,packageManager:parent.packageManager,projectType:parent.projectType,gitEnabled:true,createdAt:now,updatedAt:now,lastOpenedAt:null,...(parent.development?{development:structuredClone(parent.development)}:{}),...(parent.templateBinding?{templateBinding:structuredClone(parent.templateBinding)}:{}),taskWorkspace:{parentProjectId:parent.id,taskId:task.taskId,baseRevision:task.baseRevision}};
       await this.repository.save(project);return project;
     });
   }
@@ -81,11 +81,11 @@ export class ProjectService {
       assertUniqueProject((await this.repository.list()).filter(item => item.id !== id), valid);
       await this.repository.save({ ...project, workspacePath: valid.workspacePath, browserFolder: false, updatedAt: this.options.now?.() ?? new Date().toISOString() });
     });
-  }  async registerBrowserFolder(name: string, description = '', setup?: Pick<NewProjectInput, 'projectKind' | 'initialRoles' | 'initialTeam' | 'templateBinding'>): Promise<Project> {
+  }  async registerBrowserFolder(name: string, description = '', setup?: Pick<NewProjectInput, 'projectKind' | 'initialRoles' | 'initialTeam' | 'templateBinding' | 'development'>): Promise<Project> {
     return this.exclusive(async () => {
       const now = this.options.now?.() ?? new Date().toISOString();
       const project: Project = { id: this.options.id?.() ?? crypto.randomUUID(), name, description, workspacePath: null, browserFolder: true, repositoryUrl: null, defaultBranch: null, framework: null, runtime: null, packageManager: null, projectType: null, gitEnabled: null, createdAt: now, updatedAt: now, lastOpenedAt: null };
-      if (setup) { const valid = validateNewProject({name, description, workspacePath:'/', ...setup}); project.projectType=valid.projectKind??null; project.initialRoles=valid.initialRoles; project.initialTeam=valid.initialTeam; project.templateBinding=valid.templateBinding; }
+      if (setup) { const valid = validateNewProject({name, description, workspacePath:'/', ...setup}); project.projectType=valid.projectKind??null; project.initialRoles=valid.initialRoles; project.initialTeam=valid.initialTeam; project.templateBinding=valid.templateBinding; project.development=valid.development; }
       await this.repository.save(project); return project;
     });
   }

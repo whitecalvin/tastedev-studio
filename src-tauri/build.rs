@@ -1,6 +1,10 @@
 fn main() {
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
+            "project_begin",
+            "project_prepare",
+            "project_cancel",
+            "project_environment",
             "workspace_select",
             "workspace_restore",
             "workspace_bind",
@@ -9,6 +13,13 @@ fn main() {
             "workspace_disconnect",
             "workspace_file",
             "git_operation",
+            "git_collaboration",
+            "language_start",
+            "language_call",
+            "language_stop",
+            "debug_start",
+            "debug_action",
+            "debug_stop",
             "task_worktree_action",
             "task_worktree_open",
             "process_start",

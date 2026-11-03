@@ -1,4 +1,6 @@
 'use client';
+import {RecoveryAuditPanel} from './recovery-audit-view';
+import {recoveryReviewKey} from './recovery-audit';
 import {useState} from 'react';
 import {useI18n} from '@/i18n/react';
 import type {ProjectGraph} from './domain';
@@ -17,7 +19,7 @@ function GraphNodeControlBody({graph,overview,executionId,nodeId,connected,sessi
  const {t}=useI18n(),[reviewedScope,setReviewedScope]=useState(''),[feedback,setFeedback]=useState('');
  const monitor=graphMonitor(graph,overview,executionId),execution=monitor.execution,activation=monitor.nodes.get(nodeId);
  if(!execution||!connected)return null;
- const scope=JSON.stringify([session,execution.id,execution.revision,execution.checksum,execution.inputChecksum,nodeId,activation?.id,activation?.status,execution.status]);
+ const scope=recoveryReviewKey(session,execution,nodeId);
  const reviewed=reviewedScope===scope;
  const approval=monitor.compatible&&execution.status==='running'&&activation?.status==='approval';
  const recovery=recoveryPlan(execution,overview?.definition??null);
@@ -36,6 +38,7 @@ function GraphNodeControlBody({graph,overview,executionId,nodeId,connected,sessi
   <p>{execution.id.slice(0,8)} · v{execution.revision} · {t(execution.status)}</p>
   {monitor.compatible&&activation&&<GraphActivationDetails activation={activation} running={execution.status==='running'} artifactPlans={execution.artifactPlans?.[nodeId]}/>}
   {!monitor.compatible&&<p>{t('This execution differs from the current graph. Node states are hidden.')}</p>}
+  {resume&&<RecoveryAuditPanel executionId={execution.id} scope={scope} labels={execution.nodeLabels}/>}
   {resume&&<details className="orch-recovery"><summary>{t('Review and resume')}</summary><p>{t('passed')}: {recovery.retained.length} · {t('failed')}: {recovery.failed.length} · {t('queued')}: {recovery.pending.length}</p>{recovery.blocked&&<p role="alert">{t(recovery.blocked)}</p>}<ul>{recoveryChecklist(execution).map(row=><li key={row.activationId}><strong>{execution.nodeLabels[row.nodeId]??row.nodeId}</strong> · {t('Attempt')} {row.attempt} · {t(row.status)}<p>{t(row.message)}</p>{row.runId&&<code>{row.runId}</code>}{row.fixAttemptId&&<code>{row.fixAttemptId}</code>}</li>)}</ul>{recovery.retained.map(a=><p key={a.id}>{execution.nodeLabels[a.nodeId]??a.nodeId} · {t('Attempt')} {a.attempt} · {a.runId??a.id}</p>)}</details>}
   {(approval||resume||retryable)&&<>
    <details><summary>{t('Review execution scope')}</summary><p>{t(execution.nodeLabels[nodeId]??nodeId)}</p><p>{t('Protocol input checksum')}: {execution.inputChecksum}</p>{execution.source&&<p>Snapshot: {execution.source.snapshotId}<br/>Checksum: {execution.source.checksum}</p>}{activation&&<p>{t('Attempt')}: {activation.attempt}</p>}</details>

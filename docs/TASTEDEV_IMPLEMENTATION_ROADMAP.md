@@ -862,3 +862,271 @@ Node 유효1,134 PASS(전체1,132 실행에서 번역1실패를 수정하고 i18
 
 
 CCGS 후속 보안 경계: 모델 완료 후 실제 Diff·봉인 Source checksum·Godot 버전·고정 Protocol 인자에 대한 별도 검증 승인을 요구한다. 원본 Apply 승인과 분리하며, 거절·취소·만료·stale Source는 실행을 차단한다. 이 실행기는 OS sandbox가 아니며 Agent 계정 권한으로 승인된 게임 코드를 실행한다.
+
+## 2026-11-01 — 실사용 오케스트레이션 완성 / 1단계
+
+프로젝트 technology/engine 독립 metadata·생성 파일 미리보기·실제 Agent/Protocol 기반 준비 점검·검토된 첫 테스트 노드 초안을 연결했다. Node1169PASS와 GUI 문구 후속i18n9/lint/최종Web compile PASS, 실제Godot 템플릿 이동·렌더링 및 Core DB사본/읽기전용IPC/실제Agent 연결 GUI를 확인했다. 실제Native GUI는4단계이며 설치/패키징/배포를 수행하지 않았다. 전체7단계는 진행 중이고 다음은OS 실행격리다. 사용법/정본: docs/TASTEDEV_ORCHESTRATION_COMPLETION.md, resources/verification/dev-01/orchestration-completion-20261101/STAGE-1-RESULT.ko.md 및 checkpoint.json.
+
+## 2026-11-01 — 2단계 실행 격리 중간 검증
+
+Core 격리 계약과 실행 프로필 보호, bounded Source mirror, 운영자 프로그램 카탈로그·실제 복사 SHA 검증, suspended leaf Job·자식 제한·소유 프로세스 정리·typed timeout/cancel을 추가했다. 일반 Agent Debug는 기존72건 통과(실패/중단9건만 동일 이미지로 재개)와 새 카탈로그4건의 개별 근거를 보존한다. 관련 Release14 PASS/실기5ignored, 카탈로그 Release4 PASS, Agent test-target Clippy PASS다. 단일 전체 최신 녹색 실행이나 전체 production lint로 표현하지 않는다.
+
+실제 raw AppContainer의 파일/네트워크/자식/환경 차단은 확인했지만, 공유 UI 경로의 입력 Desktop 연결 가능성을 발견하여 채택하지 않았다. 독립 private Window Station 후보의 권한 환경 검증을 요청했으며 아직 실기 결과가 없다. executionIsolation capability 광고와 실제 required-policy 실행은 계속 차단한다. 프로그램/Source/산출물 broker·journal/복구·실제 Godot/Native 연결은 미완료이며 전체7단계 목표를 유지한다. 패키징·설치·출시·102배포·commit/push 없음. 정본: resources/verification/dev-01/orchestration-completion-20261101/STAGE-2-UI-DIAGNOSIS.ko.md 및 checkpoint.json.
+
+## 2026-11-01 — 2단계 Source manifest 실행 신원 보존
+
+Snapshot 준비 완료 후 Source 밖에 본문·환경값·전송 credential 없는 sealed-source.json을 배타적으로 게시한다. 프로젝트/Run/Snapshot 신원과 manifest checksum, 전송 checkpoint 및 현재 Source의 누락·추가·변조를 다시 검사하는 loader를 추가했다. 이 파일은 broker 소유 로컬 기록이며 서명이나 동일 사용자 host 공격 방어라고 주장하지 않는다. Source 준비의 실제 게시 경로는 연결했고 loader의 격리 실행 broker 소비는 미완료다.
+
+최신 Agent 전체 Debug 79 PASS/실기 전용 5 ignored, 관련 Snapshot Release 11 PASS, strict test-target Clippy PASS. Release Agent 컴파일은 성공했지만 미연결 격리 후보 코드로 42 warnings가 남는다. 첫 제한 실행의 hard-link 실패와 동일 이미지 일반 권한 재개 PASS 로그를 함께 보존했다. 실제 private UI qualification과 프로그램/산출물 broker·소유권 복구, 후속 3~7단계는 미완료이며 전체 목표를 유지한다. 패키징·설치·출시·배포·커푸 없음. 정본: resources/verification/dev-01/orchestration-completion-20261101/checkpoint.json의 stage2SealedSource와 runtime-progress-receipts.
+
+## 2026-11-01 — 2단계 격리 준비 broker와 선언 결과 수집
+
+sealed Source receipt를 읽어 source 하위 cwd만 허용하고, 전체 Agent workspace 밖 운영자 카탈로그의 프로그램을 SHA 검증하여 새 소유 프로필에 복사하는 내부 준비 경로를 연결했다. 프로그램 쓰기·삭제와 runtime 상위 폴더 교체를 handle 잠금으로 막으며 Drop 순서에서 잠금을 먼저 해제한 뒤 해당 프로필만 정리한다. 실제 새 프로필의 통제된 복사본·잠금·정리는 Debug/Release 실기로 확인했지만 복사한 fixture는 실행하지 않았다.
+
+선언된 최대16개 결과를 bounded bytes/SHA로 수집한다. 원본 Source는 전후 검사하며 원본에 자동 반영하지 않는다. 경로/secret 파일명·중복·누락·크기·활성 Windows writer·junction/reparse·hard-link 참조를 거부한다. 결과 수집은 프로세스 종료 후 호출해야 하며 실제 executor의 생명주기 및 기존 전송 소비 연결은 미완료다.
+
+최신 Agent 전체 Debug82 PASS/6ignored, 관련 isolation Release14 PASS/6ignored, 실제 프로필 준비/잠금/정리 Release1 PASS, test-target strict Clippy PASS. Release Agent 컴파일 성공/미연결 후보 코드 경고48개. 실제 OS 프로세스/UI qualification, 실행/framework broker, 전송, 소유권 journal/복구와 3~7단계는 미완료다. 단위 검증을 실제 Provider/Agent 프로그램 실행이나 Native GUI로 보고하지 않는다. 새 capability 광고·패키징·설치·배포·커푸 없음. 정본: resources/verification/dev-01/orchestration-completion-20261101/checkpoint.json의 stage2PreparedBroker.
+
+## 2026-11-01 — 2단계 실제 Agent 시작 시 소유 자원 복구 연결
+
+Agent/project/Run/Job/Step·Snapshot/Source checksum·등록 프로그램 checksum·정확한 AppContainer 이름/SID/OS 경로를 exclusive journal로 묶었다. 새 durable claim에 isolation 요청 여부를 기록하고 실제 Agent 시작의 미완료 claim 경로에서 소유 프로필만 복구한 뒤 AGENT_RESTARTED 실패 결과를 저장한다. 이전 작업은 다시 실행하지 않으며 legacy claim은 기존 동작을 유지한다. 복구 실패는 failed result에 명시하고 journal을 보존한다. 정리 전 깊이64/항목65536/누적 경로16MiB를 검사하고 reparse link 자체만 제거한다.
+
+고정 SHA의 실제 Release Agent 실행 파일을 Dummy 인증·별도 workspace·연결되지 않는 localhost endpoint로 시작하여 소유 프로필 정리, 원래 claim/host canary/별도 control profile 보존과 재실행 없음을 확인했다. 만든 Agent는 소유 Job으로 종료·wait했다. 실제 격리 child 실행·Core 작업·AI·Godot·Native GUI나 전체 crash lifecycle의 증거로 확대하지 않는다.
+
+최신 Debug85 PASS/8ignored, 관련 Release17 PASS/8ignored, 명시적 Release 실기 소유권/준비/실제 Agent startup 각1 PASS, test-target Clippy PASS. Release Agent 컴파일 성공/미연결 코드 경고45개. profile 생성/초기 header 기록 중 crash window, pending/ACK 자원 복구, qualified 실행/framework/output broker 및 private UI qualification은 미완료다. 전체7단계 목표와 2단계 진행 상태를 유지한다. 내부 미활성 경로이므로 기존 다국어 next 원고를 보존하고 새 사용자 실행 기능 완료로 쓰지 않았다. 패키징·설치·배포·커푸 없음. 정본: resources/verification/dev-01/orchestration-completion-20261101/checkpoint.json의 stage2OwnedRecovery 및 agent-recovery-candidate.json.
+
+## 2026-11-01 — 2단계 pending/ACK 정리 경계와 별도 관찰 기록
+
+실제 Agent 시작 시 interrupted/pending-result/acknowledged 세 상태 모두에서 정확한 소유권 journal을 검사·정리하도록 연결했다. 기존 task result와 ACK는 그대로 보존하고 정리 성공/기완료/차단은 claims 아래 내용 기반 불변 observation으로 따로 남긴다. 동일 관찰은 최초 timestamp를 보존하며 중복 생성하지 않고 손상·충돌 기록은 덮어쓰지 않는다. bounded identifier만 기록하여 잘못된 객체 필드의 Dummy 민감 값이 복사되지 않음을 검사했다.
+
+고정된 실제 Release Agent로 세 상태의 소유 프로필 정리, task result/ACK·claim·host canary·별도 control profile 보존 및 비재실행을 Debug/Release harness에서 확인했다. Release 최초 fixture가 observation만 보고 pending 결과 게시 전에 Agent를 종료한 경합은 대기 조건만 수정하고 실패 게이트부터 같은 Agent 이미지로 재개했다. 실패 로그는 보존했다. 실제 Source child/Provider/Core 테스트/Godot/Native GUI 또는 전체 crash lifecycle 증거로 확대하지 않는다.
+
+Debug86 unique PASS/8ignored·관련 Release18 unique PASS/8ignored는 full gate 이후 변경된 regular metadata fixture만 추가 재검증한 범위 재사용이며 최신 단일 전체 실행으로 표현하지 않는다. 명시적 Release startup/소유권/준비 검사와 test-target Clippy PASS. Release Agent 컴파일 성공/미연결 경고45개, 테스트 전용 후속 변경에 앱 이미지는 재빌드하지 않았다. 초기 생성/header crash window, qualified 실행/framework/output broker와 private UI qualification 및 3~7단계는 남아 있다. 내부 미활성 경로로 기존 다국어 next 원고 보존, 패키징·설치·배포·커푸 없음. 정본: resources/verification/dev-01/orchestration-completion-20261101/checkpoint.json의 stage2CompletedClaimRecovery.
+
+## 2026-11-01 — 2단계 현재 소스 Windows 비공개 UI 메커니즘 실기 PASS
+
+관리자 실행 결과의 requestId·고정 이미지 SHA·로그 SHA·현재 전체 입력 해시를 검증했다. 후보7c31b91b0a2c497e8294d6249a65f582의 controlled2 tests PASS: 실제 자식 진입 후 outside Dummy 읽기/쓰기·loopback·자식·부모 Dummy 환경 차단, 정확한 private station/desktop·비대화형 station·host station/input desktop 전환 차단·외부 canary window 차단을 확인했다. timeout/cancel 모두 ready=true 후 owned process exit와 profile 제거를 확인했다. screenDcDenied=false는 확인된 private station DC 획득 관찰값이며 host pixel-copy 검증으로 확대하지 않는다.
+
+이전 관리자 후보의0xc0000142 초기화 실패는 기존 고정 이미지·로그·manifest archive에 보존했다. 명시적 station\\desktop 연결/상속 UI handle 제거, NUL·전용 anonymous pipe, bounded capture/종료, 실제 진입·종료 확인으로 수정한 조합이 통과했다. 단일 설정만 원인이라고 단정하지 않는다. 기존 객체 ACL·서비스·방화벽·설치·사용자 프로젝트를 변경하지 않았다.
+
+초기 profile 생성 전 정확한 이름·Agent/project/Run/Job/Step·Source/program 신원을 durable reservation으로 기록하고, 소유권 미확인 상태는 자동 삭제 대신 정확한 이름의 review로 보존한다. 완전한 owner와 예약이 다르면 정리를 거부한다. 실프로필/실제 Agent 시작의 review 경로도 검증했다. OS 메커니즘의 관리자 context PASS와 production runtime self-check/실행/framework/output/Core/Godot/Native GUI 미통합을 분리한다. Agent executionIsolation 광고는 계속 비활성이고 결과 파일로 capability를 켜지 않는다.
+
+새 binding/stdio 단위 Debug/Release PASS, source -Dwarnings test-target Clippy PASS(cache hardlink fallback warning 별도), 관련 reservation/preparation Release 실기 PASS. 현재 Release Agent 컴파일 성공/미통합 경고55개. 기존 Agent87/9ignored·관련 Release19/9ignored는 UI 수정 이전 근거이며 최신 단일 전체 실행으로 보고하지 않는다. 전체7단계 목표는 유지, 2단계 진행 중/3~7 대기, 패키징·설치·배포·커푸 없음. 정본: resources/verification/dev-01/orchestration-completion-20261101/checkpoint.json의 stage2PrivateUiVerified 및 runtime-progress-receipts.
+
+## 2026-11-01 — 2단계 production 자체 검사 자식 진입점
+
+실제 Agent의 내부 `--isolation-self-check-child` 경로를 Config/Core/인증 환경 읽기보다 앞에 연결하고 controlled test와 공통 probe를 사용하도록 분리했다. 호출자가 지정한 경로를 읽기 전에 실제 AppContainer token·정확한 owned private station/desktop·비대화형 UI를 요구한다. 보고서는 private cwd의 새 파일로만 생성하며 기존 파일을 덮어쓰지 않는다. loopback canary만 허용하고 외부 쓰기 검사는 내용을 변경하지 않는 write-access open으로 확인한다. 자식 차단이 실패해도 재귀 실행되지 않도록 검증용 자식은 유효하지 않은 내부 명령으로 즉시 종료한다.
+
+고정한 실제 Release Agent를 일반 호스트 token에서 실행한 3조건(sleep/boundary/invalid)이 모두 파일 접근·대기 전에 exit1로 거부되었다. Dummy 원본 보존·report/ready 미생성·Dummy credential 미출력·자식 종료 wait를 확인했다. 제한 도구 환경 자체가 AppContainer인 첫 실행은 일반 token 전용 오류 문구 기대와 달라 실패했으며, 동일 이미지의 일반 호스트 실행에서 PASS했다. 이 차이를 보호 경계 실패나 양성 격리 실행 PASS로 바꾸지 않는다.
+
+동일 후보 Debug 전체 inventory101개 중 79개 제한 환경 PASS, HTTP/junction 실패·미완료12개만 동일 SHA 이미지로 일반 환경에서 재개하여 PASS(합계91 PASS, 기본10 ignored). 관련 Release는 21 PASS/2 junction 실패/10 ignored 후 같은 이미지의 실패2개만 재개 PASS(합계23). 기본 ignored 중 실제 Agent 호스트 거부1개는 별도 실행 PASS다. 단일 환경 전체 suite 또는 모든 ignored 실행 완료로 보고하지 않는다. test-target source Clippy -Dwarnings PASS(cache hardlink fallback warning 별도), Release Agent 컴파일 성공/미통합 경고53개. 초기 test-only 메서드명 컴파일 실패와 제한 환경 실패 로그는 보존했다.
+
+앞선 관리자 후보7c31b91b0a2c497e8294d6249a65f582의2/2 PASS는 그 당시 입력 해시에 대한 실기 근거로 유지한다. 이번 probe 분리로 입력이 달라졌으므로 새 production 자체 검사의 양성 격리 실행·parent qualification이 통과했다고 간주하지 않는다. capability는 계속 비활성이다. parent live self-check·catalog admission·실제 command/structured output/결과 전달·Core/framework/Godot 연결은 남아 있다. 2단계 진행 중/3~7 대기, 사용자 기능으로 아직 제공하지 않는 내부 경로이므로 기존 다국어 next 원고를 보존했다. 패키징·설치·배포·커푸 없음. 정본: resources/verification/dev-01/orchestration-completion-20261101/checkpoint.json의 stage2ProductionChildProbe 및 runtime-progress-receipts.
+
+## 2026-11-01 — 2단계 실제 Agent 시작 경로의 live qualification
+
+선택적 operator `isolationCatalog`를 Config에 추가하고 실제 Agent 시작에서 취소 처리 준비 후/Core 작업 수락 전에 live 자체 검사를 실행한다. catalog는 Agent 작업 영역 밖에 있어야 한다. 현재 Agent 이미지를 해시 고정·복사·잠금하고 새 owned AppContainer에서 고정 자식 진입점을 실행한다. 부모의 Dummy 파일·loopback·숨긴 자체 canary window 기준선을 먼저 확인하며 인증값은 전송하지 않고 환경 변수 이름의 자식 부재만 검사한다. 필수12개 보호 결과와 명시적 profile/journal 정리가 모두 성공해야 현재 프로세스의 자격 객체와 배타 handle을 보관한다. 저장된 보고서로 자격을 복원하지 않는다.
+
+자체 검사는 Core 프로젝트 Run이 아닌 분리된 내부 namespace를 사용한다. context 공개→durable 예약→OS 생성 순서를 유지하고 재시작 시 정확한 owner/예약을 복구한 뒤 새 신원으로 진행한다. context만 있고 owner/예약이 모두 없으면 생성 미시작으로 처리한다. 기존 예약의 불명확한 소유권·다른 Agent·기록 충돌은 자동 진행하지 않는다. 기존 context는 보존한다.
+
+실제 Release Agent를 동일 disposable workspace에서 두 번 시작한 실기가 PASS했다. 현재 일반 사용자 context에서는 private station 생성이 Win32 5로 거부되어 두 번 모두 qualified=false였다. 매번 정확한 profile 정리·Agent 종료 wait·기존 Source canary 보존·Core claim0·서로 다른 새 검사 신원·Dummy credential 미출력을 확인했다. 양성 자격/성공한 격리 명령/Provider/Godot 검증으로 확대하지 않는다.
+
+전체 Agent Debug95 PASS/11 기본 ignored, 관련 Release27 PASS/11 기본 ignored, 기본 ignored 중 위 실제 시작·재시작1개 별도 PASS. source test-target Clippy -Dwarnings PASS(cache hardlink fallback warning 별도), Release Agent 컴파일 성공/미통합 경고16개. 최초 bootstrap 재시작 단위 실패는 context 공개 후 예약 전의 생성 미시작 분기를 수정한 근거로 보존했다. 이번 후보의 단계 완료 full Release/전체 E2E는 미실행이다.
+
+격리 명령의 frozen invocation·구조화 출력·선언 결과 전달·runtime/child policy 조합과 양성 production Agent/Godot/Native GUI는 아직 미통합이며 capability는 계속 비활성이다. 2단계 진행 중/3~7 대기. 사용자에게 아직 제공되지 않는 내부 startup 진단이므로 기존 다국어 next 원고를 보존한다. 패키징·설치·배포·커푸 없음. 정본: resources/verification/dev-01/orchestration-completion-20261101/checkpoint.json의 stage2LiveAgentQualification 및 runtime-progress-receipts.
+
+## 2026-11-01 — 2단계 기존 executor의 격리 명령·출력 연결
+
+기존 executor의 격리 분기를 process-local 자격 객체·고정 catalog·sealed Source 준비와 연결했다. Agent/root 일치, 프로그램 복사 hash/lock, private cwd, args/env/timeout 고정, 준비 시간을 포함하는 실행 예산, Original Source 전후 검사와 명시적 profile/journal 정리를 적용한다. Source를 원본으로 자동 반영하지 않는다.
+
+실제 native anonymous pipe reader에서 UTF-8 복원·기존 Redactor 적용 후32개×최대4096-byte의 bounded 큐에 넣고, 부모가 기존 job/run/step/sequence output event·OutputSummary로 전달한다. Core live 출력1MiB 예산을 재사용한다. 느린 소비자는 손실/partial을 기록하고, 연결 해제는 소유 프로세스 취소로 연결한다. capture 오류는 성공으로 숨기지 않으며 reader 종료는 bounded다. 관측 경로는 raw 진단 tail을 보관·출력하지 않는다.
+
+정책 또는 executionIsolation 요구사항 중 하나라도 있으면 격리 게이트를 거친다. 정책 누락으로 일반 실행에 빠지지 않으며, capability 재검사도 Source 지정 PATH/runtime을 호스트에서 조회하기 전에 자격 확인을 한다. 자격이 없는 요청은 workspace 생성·marker 실행·출력 없이 실패한다. credentials·runtime override·broker metadata 환경 변수는 private 명령에 주입하지 않는다.
+
+최종 Agent Debug103 PASS/11 기본 ignored, 관련 Release39 PASS/11 기본 ignored, 실제 준비/profile/program lock/Source 보존 및 새 실제 Agent 시작·재시작2개 별도 PASS(기본 ignored 중2개 실행,9개 미실행). 실제 anonymous pipe·split UTF8/secret·손실 집계·held writer·disconnected consumer를 검증했다. 양성 private child→Core 출력 E2E로 확대하지 않는다. 정책 누락 방어를 추가해 초기103 PASS 후보가 무효화되어 최종 후보로 재검증했으며 초기 로그는 보존했다. final test-target source Clippy -Dwarnings PASS(cache hardlink fallback 별도), Release Agent 컴파일 성공/미통합·진단 경고6개.
+
+capability는 계속 비활성이다. 현재 framework/browser/service/artifact transfer 및 미구현 runtime-version 조합은 거부한다. 이 거부를 지원 완료로 간주하지 않는다. 전용 trusted Source 준비, 선언 산출물 전달, runtime/version/child policy 계약과 성공한 production 격리 명령/Core/Godot/Native GUI 검증은 남아 있다. 2단계 진행 중/3~7 대기, 기존 다국어 next 원고 보존(미공개 내부 경로 보호·연결이며 신규 사용 가능 기능으로 광고하지 않음), 패키징·설치·배포·커푸 없음. 정본: resources/verification/dev-01/orchestration-completion-20261101/checkpoint.json의 stage2CommandOutputBroker.
+
+## 2026-11-01 — 2단계 선언 산출물 전달·Step 소유권
+
+private 자식 종료 후 명령 cwd 기준 선언 파일만 단일-link/no-reparse·바이트/hash·민감값·모든 전송 grant token 검사를 거쳐 수집한다. 모든 파일의 검사가 끝나기 전 HTTP 요청이나 복구 staging을 시작하지 않는다. Source8MiB/file·100MiB 전체 제한은 유지하고, 빌드 결과는 기존 Artifact128MiB/file 기준과 captured batch128MiB resident-byte 제한으로 분리했다. 원본 Source를 결과 경로로 다시 읽거나 덮어쓰지 않는다.
+
+부모 전용 Job/Step별 디렉터리에 번호 binary와 immutable manifest를 sync·공개한다. project/run/job/step/cwd·입력 Snapshot/Source/program identity·Graph identity·선언 artifact ID/name/mode/size/hash를 보관하고 credential/URL은 기록하지 않는다. 불완전 staging은 성공이 아니며 기존 자료를 덮거나 자동 실행 재개하지 않는다. private profile/journal 정리 후 기존 인증/no-proxy/no-redirect 업로더를 재사용한다. 격리 pipeline은 host input 설치와 원본 output 재읽기를 건너뛰며, 자격 확인 전 session/workspace/network 동작을 막는다. input 전달은 아직 거부한다.
+
+Graph metadata를 실제 sealed Snapshot/project와 대조하고 child env에서 제외한다. Snapshot Source 준비는 live-context의 고정 data-only broker로 분리해 Source executable/args 권한과 혼동하지 않는다. 미구현 Git/다른 실행·runtime-version/child-policy 조합은 완료로 간주하지 않는다.
+
+Job-only owner/reservation 파일명이 후속 Step과 충돌하는 문제를 Step별 경로로 수정했다. 기존 Job-only closed 기록은 보존·읽기 지원하고 같은 Step replay를 거부한다. 복구는 header의 정확한 Step identity까지 비교하며, 불명확한 이전 예약을 자동 삭제하지 않는다.
+
+최종 전체 Agent Debug114 PASS/11 기본 ignored, 관련 Release54 PASS/11 기본 ignored, 실제 준비·새 Agent 시작/재시작·중단/결과대기/ACK/생성검토 복구3개 별도 PASS(기본 ignored 중3 실행,8 미실행). 실제 loopback HTTP captured-byte 인증 전송·뒤 파일의 다른 grant token 발견 시 전 요청 차단·Source보다 큰 Artifact 허용/Source 제한 유지·cwd mapping·Step 충돌/legacy/replay·credential 없는 manifest·Source 보존을 확인했다. 이는 컴포넌트 전송 근거이며 private 자식→실제 Core/Godot 성공 E2E로 확대하지 않는다. 초기 Debug의 기존 Node 검사1건5s timeout은 같은 이미지 단독 재개에서 통과했고 원인은 미확정이다. timeout 변경 없이 로그를 보존했다. Artifact 제한 수정으로 이전 후보를 무효화한 뒤 최종 전체114/관련54가 통과했다. 최초 타입/fixture 접근/모듈 배치 검사 실패도 보존했다.
+
+최종 test-target source Clippy -Dwarnings PASS(cache hardlink fallback 별도), Release Agent 컴파일 성공/진단 경고4개. 기존 일반 산출물에도 적용되는 민감값 검사·검사 중 취소/시간 제한 확인만25개 언어 next 원고에 추가했다. 격리 기능 전체를 출시 완료로 광고하지 않는다. capability는 계속 비활성이고 양성 production private command/Source/result/Core/Godot·runtime/child/input 계약·전송 복구 UI·Native GUI가 남아 있다. 2단계 진행 중/3~7 대기, 패키징·설치·배포·커푸 없음. 정본: resources/verification/dev-01/orchestration-completion-20261101/checkpoint.json의 stage2DeclaredResultTransfer.
+
+### Stage2 private artifact inputs — 2026-11-01
+
+Declared artifact inputs now use the existing authenticated/checksummed transfer broker with a parent-owned private destination. Original Source is not an installation destination. The private installation is checked for size/hash/single-link/path identity before child launch; collision, outside-owner cwd, hard-link and corrupt-payload cases fail closed. Installation metadata is recorded after actual installation, and durable result manifests retain explicit input lineage without grant tokens/URLs. Full Agent Debug117 PASS, related Release57 PASS, test-target source Clippy PASS; production Release compiled with4 existing diagnostic-helper warnings. Eleven default ignored tests were not rerun; historical administrator2-test success is pinned mechanism evidence, not current production/Core/Godot E2E. Isolated capability remains None. Registered runtime/version and bounded child/runtime-bundle contracts, positive current production integration, Native GUI and stages3-7 remain incomplete. See checkpoint gate `stage2PrivateArtifactInputs` and its immutable input/binary/log hashes. No packaging or unchanged Node/Web/Tauri gates ran. No new user-facing feature is advertised by this internal plumbing; existing25-language release notes are preserved.
+
+### Stage2 registered runtime version facts — 2026-11-01
+
+Operator catalogs can optionally pin a runtime name, exact numeric-triplet version, probeArgs and timeoutMs. After live OS-boundary qualification, the trusted broker copies registered SHA-pinned programs into separate locked private directories and invokes only the registered version command in an empty private cwd. No Source args/config, parent PATH version or prior receipt supplies a version fact. Probes use an empty application environment, at most10s each/30s total and16KiB captured output; overflow/loss/error/mismatch/cancel/timeout reject qualification. Process-local facts are keyed by executable ID. Executable Steps may satisfy runtime requirements only with their selected program; data-only Snapshot preparation checks actual registered facts.
+
+Full Agent Debug121 PASS, related Release61 PASS, source test-target Clippy PASS; production Release compiled with4 existing diagnostic-helper warnings. Two explicit actual Release checks pass: multiple private runtime copies retain file/directory locks and clean their profile, and two production Agent starts requalify in distinct contexts rather than trust a previous result. Both actual ordinary-context starts remain unqualified with exact cleanup; this is negative admission evidence, not successful private version execution. Nine remaining default-ignored actual tests were not rerun. Positive private runtime version/production/Core/Godot E2E, approved dependency bundles and bounded confined children remain incomplete; capability stays None. Packaging and unchanged Node/Web/Tauri gates were not run. This is internal unqualified plumbing, so existing25-language release notes are preserved without a new user-facing completion claim. Immutable hashes and logs: checkpoint `stage2RegisteredRuntimeVersions`.
+
+### Stage2 runtime dependency bundles — 2026-11-01
+
+Operator catalogs now support explicit local dependency files with relative destination, declared size and exact SHA256. No recursive runtime-directory copy is performed. Limits are256 files,128MiB per dependency,512MiB aggregate dependency bytes and256KiB catalog. Project Source, secret/credential paths, path escape, case/parent collisions, stale bytes and existing destinations are rejected. Bundled programs retain the native executable filename. Main/dependency files and nested directories are locked for execution; original files/ACLs are not changed. Chunk copying and private lock preparation use cancellation/deadline checks, and version probes use the budget remaining after copying. Optional bundleChecksum binds the dependency manifest and executable filename in journal/result identity; old records without it remain readable and unchanged on serialization. Child-process denial remains unchanged.
+
+Final full Agent Debug127 PASS, related Release67 PASS, source test-target Clippy PASS; production Release compiled with4 existing diagnostic-helper warnings. Three explicit actual Release checks pass: controlled dependency copies/file-directory locks/profile cleanup, production negative live requalification on two starts, and startup recovery without work replay. These controlled dependency bytes do not prove Python DLL loading or a successful private version/command/Core/Godot run. Eight other default-ignored actual tests were not rerun. The initial full Debug126/1FAIL found a normal/verbatim Windows path boundary comparison; both sides are now canonicalized and the final corrected candidate passes. Earlier compile/test failures are preserved. Capability remains None; bounded confined children, positive production integration and stages3-7 remain incomplete. No packaging or unchanged Node/Web/Tauri gates ran. Internal unqualified plumbing adds no user-facing release claim; existing25-language notes are preserved. Exact evidence: checkpoint `stage2RuntimeDependencyBundle`.
+
+### Stage2 owned process-tree completion — 2026-11-01
+
+Private execution now uses the validated isolated Tree API with count1, unchanged child denial, UI restrictions and no breakaway. Normal/cancel/timeout/observation-error paths explicitly terminate owned work, observe root exit, close owned process/thread handles and require Job active count0 before output/profile completion. Failure to observe zero remains an error. The kernel primitive accepts only1..4 root-inclusive processes; this is not a public child-execution approval contract. Legacy normal execution keeps its existing semantics.
+
+Actual Node Job tests verify a child enters, an additional child is rejected without executing its marker, configured limit2 and absent breakaway flags, then whole-tree termination and accounting0 after handle closure. This is kernel lifecycle evidence, not private AppContainer descendant confinement or approved-child executable allowlisting. Initial Debug128/1FAIL exposed an immediate-count assumption: a rejected/terminated association can remain counted while handles exist. The exact reference holder was not independently traced; original failure is preserved. The final test checks configured enforcement and actual child denial, then requires zero after termination/closure. Windows private cleanup order was corrected accordingly. [Microsoft active-process accounting rules](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_limit_information) explain the distinction.
+
+Final Agent Debug129 PASS, related Release71 PASS, explicit actual Release3 PASS (preparation/locks/cleanup, negative live requalification and startup recovery), source test-target Clippy PASS; production Release compiled with4 existing diagnostic-helper warnings. Eight other default-ignored tests including administrator private execution were not rerun. Capability remains None. Reviewed bounded-child Protocol/Core/Agent policy, positive private runtime/version/command/Core/Godot, Native GUI and stages3-7 remain incomplete. No packaging or unchanged Node/Web/Tauri gates ran; existing25-language release notes are preserved because this internal unqualified work introduces no new public child support. Exact current input/binary/log hashes: checkpoint `stage2OwnedTreeCompletion`.
+
+## Stage2 reviewed descendants and actual private runtimes — 2026-11-01
+
+Protocol/Core/Agent now preserve a separately reviewed root-inclusive process bound2..4. The default remains one process and child denial. Task/profile/project intersection keeps the strictest bound; the operator catalog must separately allow the selected program's bound. Published execution review displays the exact policy before start. Live qualification probes same-AppContainer-SID descendant chains, outside files/network/UI/credentials, registered runtime hashes/versions and exact cleanup. Only the current process's live Runtime lease can activate capability; catalogs and historical receipts cannot. Unsupported OS/workflow combinations still fail closed.
+
+Actual administrator evidence is separated by immutable image: `4ba129fc` passed private root, same-SID chains2..4 and ready-before-timeout/cancel (3 tests); `54e677bc` passed actual Node24.22.1 entry/local-module and Godot4.7.2 headless saved-Snapshot commands (1 test), unchanged Source/result hashes and profile removal. The first command failure is retained: Node realpath attempted lstat C:\ outside its allowed private tree. Registered Node now uses preserve-symlinks and preserve-symlinks-main, both bound into runtime identity, without changing host ACLs. This does not claim arbitrary Node IPC/native-module/ESM compatibility. Private screen DC acquisition was possible; host screen-pixel reading was not performed or claimed.
+
+Latest production candidate `c986f6c8745ff15ca03d054621f39a84970487c96adf987587396d313503945b` adds live capability activation and an exact data-only cleanup exception. Agent Debug135 PASS/13 ignored, directly related Release55 PASS/13 ignored/80 filtered, test-target Clippy PASS (cache hardlink fallback warning), production Release compile PASS with4 diagnostic-helper warnings. Earlier Node1181/typecheck/lint remain scoped prior results; the only subsequent application TypeScript change explicitly types a default string identifier without changing emitted behavior. Full Release phase completion has not run.
+
+A dedicated harness uses production Core/Graph/Queue/Matcher/Agent/Snapshot/artifact services; it is not a replacement test runner. Dummy saved Snapshot creation, secret-file exclusion, authenticated Source upload/checksum and harness typecheck passed. Actual qualified production Core flow is WAITING_FOR_ADMIN_EXECUTION through `Verify-IsolatedCore.ps1`, with310 pinned inputs and fixed production/Node/Godot images. Passing standalone native components does not pass this integration gate. Existing Web build PID197640 remains observed in compile wait; no successful Web build or duplicate restart is claimed. Stage2 and stages3-7 remain incomplete. No packaging/install/deployment/version/tag/commit/push.
+
+Detailed evidence and current gates: `resources/verification/dev-01/orchestration-completion-20261101/STAGE-2-APPROVED-EXECUTION.ko.md` and `checkpoint.json`; older sections above are historical candidate-specific results.
+
+## Actual production Core gate — 2026-11-01
+
+The administrator run at08:54UTC completed both real production jobs: Node6e9d98ae-9197-4b25-96e3-31535f97710e and Godot65433355-569d-45eb-8a7d-8b1f26bb7fec. Agentc986f6c8 performed current-context live qualification, advertised isolation1/child2 and executed saved Snapshot88089d6a-ce31-45e1-85bd-26ad934ad200 through existing Core/Graph/Queue/Matcher/Source/artifact services. All six Source/test/cleanup steps passed. Authenticated artifact receipts match independently re-read bytes, graph/run/step/Agent/Source identities and checksums. Original saved files, excluded Dummy .env and outside canary remain unchanged; owned Agent exited.
+
+The reported FAILED was the harness's final read-only assertion using `artifacts` instead of Core's `artifacts-builds` store. The original failing verifier/result/log are preserved. Corrected only that resource script, then resumed final assertions against existing real outputs via `verify-isolated-core-existing.mjs`; no Administrator/native/Core/Agent rerun or product source change was needed. Original310-pin candidate is immutable, its old verifier bytes are retained, and remaining309 pins match. The recovery receipt includes original evidence hashes. This is successful actual production execution, not a fake Agent; it remains distinct from Provider/Native GUI/rendered game and later stages.
+
+Full Agent Release coverage is135 PASS composed of unchanged disjoint55 isolation and80 remaining tests; default13 ignored actual tests retain their individually recorded scope. Debug135, Clippy and production Agent compile remain valid. Existing Web build input was invalidated by resolver.ts changing after its start; only its confirmed owned PID197640 was stopped, no caches/logs removed. Latest-input Web compilation, TypeScript and9-page generation passed; exit gate was still pending at this record. No package/install/deploy/version/tag/commit/push.
+
+Authoritative result: `resources/verification/dev-01/orchestration-completion-20261101/core-runs/30e53f2e-f4b5-40f3-b9b1-ec26ec741945/verification-resume-1793523426972.json`.
+
+## Stage3 node-centered observability — 2026-11-01
+
+DEV_VERIFIED: selected-node read-only Agent/work/Run/step/Source/wait/history/AI route/approval/schedule projection is wired to existing production GUI and services. Cross-project/Agent/context/source mismatches and dirty/disconnected/stale graph state cannot become current verified Run states. A Run retains its own captured Snapshot after later Source adoption. Graph schedules show a readonly entry node instead of an empty Protocol Test selector.
+
+Actual historical production Core records were served from an independent copy; original DB hash and two real Run identities stayed unchanged. Browser light/dark, exact Run/Source navigation, pending approval protection, dirty-state hiding, disabled schedule navigation and readonly entry were checked. No new Agent/Provider run or Source write; controlled approval cancelled, schedules disabled, owned browser/Core closed. This is separate from actual Native lifecycle stage4.
+
+Node1192 PASS composed of disjoint retained/resumed gates, lint/typecheck PASS, Web compile plus corrected test-type gate and official generate resume exit0. Exact compiler Build ID recovered from its emitted manifest;348 app JS hashes unchanged, one expected SSG manifest checked against actual prerender routes. Not a clean default build claim. Rust unchanged and reused. Failures/tooling/fixture limitations remain explicit in `resources/verification/dev-01/orchestration-completion-20261101/STAGE-3-RESULT.ko.md` and `stage-3-final-gates.json`. Existing25-language notes preserved/updated. Stage4 actual Native GUI is next; stages5-7 retained. No packaging/install/deploy/version/tag/commit/push.
+
+## Stage4 actual Native foundation and command registration — 2026-11-01
+
+Stages1-3 retain their audited scopes. Stage4 Native foundation and11-command registration defect fix are verified; full stage4 remains IN_PROGRESS. Resume existing pinned live Core/Agent candidate and disposable Native project after user login/admin environment/screen resume, not the old completed Stage2 standalone tests. Verify actual Provider→approval→Patch→validation→integration→actual Agent retest→revert/history/successor Source through the real product. Then proceed sequentially to actual six-skill CCGS/Godot rendered gameplay, fault recovery and real TASTEFILES work. Packaging/install/release remain user-owned.
+
+Evidence: `resources/verification/dev-01/orchestration-completion-20261101/STAGE-4-RESULT.ko.md` and `stage-4-native-foundation.json` pin55 Native inputs, both executables, logs and5 actual GUI images. Version0.2.8 unchanged;25-language next-release draft updated. No package/install/sign/deploy/product commit/push.
+
+
+## 2026-11-02 — 실제 Native 재시험 진행 기록
+
+4단계는 PARTIAL이다. 실제 ChatGPT Pro 분석(9e7dfdb2, gpt-6.1-sol)의 제안을 Native GUI에서 별도 범위 승인으로 적용·Git Diff 확인·되돌리기했다. 제출이 거부된 시도의 in-flight 상태는 실제 Core queue 확인과 durable admission 폐쇄 후 실패로 복구하며, 알 수 없는 네트워크 결과는 기존 job을 찾아 중복 생성하지 않는다. 승인된 Fix 재시험의 산출물 전송은 저장된 Proposal/실행 승인 hash/Snapshot을 확인하는 서버 권한 경로를 사용한다. Graph 전용 prefix 위조나 일반 job의 권한 완화는 하지 않는다.
+
+실제 Rust Agent의 재시험 aed19568,887c2ac7는 Snapshot·구문 Build·Cleanup 통과 후 Test 단계에서 각각 신원 필드 누락/엄격한 격리 context 해석 문제로 실패했다. 최종 수정은 기존 7필드 TASTEDEV_GRAPH_CONTEXT wire 계약에 실제 FixAttempt ID·Protocol Test·attempt·Snapshot 신원을 담으며, 원본 Graph 실행 승인으로 간주하지 않는다. Agent/격리 정책은 변경하지 않았다. 최종 compile/generate 정상 종료, 직접 영향 검사4건 통과. 이전 전체 Node1200건 결과는 후속 UI/wire 변경 전 기록이며 현재 전체 PASS로 재포장하지 않는다. 이전 기본 Web build의 마지막 memory-allocation 실패도 보존했다.
+
+필수 격리를 수행할 수 없는 Native 로컬 검증은 실행 전 차단된다. 사용자 메모 hash 보존과 원본 Source hash 복원을 확인했다. 기본3회 RETRY_LIMIT은 Native 화면에서 실제 차단했다. 검증 프로젝트4회 설정 변경은 자동 승인 검토가 안전 통제 완화로 거부해 적용하지 않았으며, 구체적1회 추가 승인을 기다린다. Source/Patch 승인과 테스트 실행 승인은 계속 별개다. 실제 Test PASS·산출물·원본 반영·후속 Source·Native 전체 오류 검증은 남아 있다. 한 차례 Native 창 종료 원인은 아직 확정하지 않았다. 5~7단계 및 패키징은 시작하지 않는다.
+
+정본: resources/verification/dev-01/orchestration-completion-20261101/stage-4-native-retest-progress-20261102.json 및 stage4-runs/efb23c54-c997-48ef-9e96-69a95b6d99ff/native-*.json. Native Rust 입력55개는 이전 manifest와 차이0으로 확인해 기존 Native 테스트/Clippy/빌드 근거를 재사용한다. 검증용 Core51658/Agent는 소유 세션이며 운영 배포·버전·패키징·커밋·푸시를 수행하지 않았다.
+
+
+## 2026-11-02 — 승인된 4번째 실제 재시험 PASS 및 Native 보호 검증
+
+앞선3→4회 설정 변경은 사용자가 구체적으로 승인한 뒤 GUI에서 적용했다. 기존3개 시도 이력은 보존했다. 실제 Provider 분석9e7dfdb2의 제안을 새 Proposal28302b1f로 별도 승인·적용하고, remote-test 실행도 별도 승인했다. 실제 Rust Agent d432e2ea의 Run731673e4가 Snapshot/Build/Test/Cleanup4단계 모두 종료0으로 PASS했다. Test 로그 MOVEMENT_PASS, Snapshot d115b41d, manifest7c2eadaf와 실제 산출물 checksum6d0fe094를 대조했다. 원래 실패 Snapshot의 Source/Test와 실제 AI originals hash가 같고, 재시험 Snapshot에는 승인된 Source2와 기존 사용자 메모가 포함됨을14회 blob hash 검사로 확인했다. .env/.git은 제외됐다. 정본 stage-4-native-fix-pass-audit.json.
+
+Native 미저장 편집에 대한 Revert 거부는 디스크·버퍼를 보존했지만 불필요한 recovery-required 상태로 바꾸는 결함을 실제 GUI에서 발견했다. preflight 거부 전에는 상태·완료 journal을 변경하지 않도록 수정했다. 관련29건, 이를 포함한 AI/Fix/Snapshot/통합/프레임워크217건 통과, 관련 lint 및 공식 Web compile/generate exit0. 같은 입력의 Rust/Agent 검사·빌드는 반복하지 않았다. 수정 후 실제 Native에서 DIRTY_EDITOR 거부와 저장된 사용자 변경의 PATCH_CONFLICT 거부가 applied 상태·내용을 보존함을 확인했다. 검증용 추가 편집을 제거하고 Revert하면 Source는 원래 b6f26b42 hash로 복원되며 열린 Editor도 return1/dirty0으로 동기화됐다. 사용자 메모 aa3a4390 hash와 과거 실제 PASS Run은 보존했다. 이는 되돌린 현재 Source의 테스트 PASS를 주장하는 것이 아니다.
+
+4단계 전체는 여전히 PARTIAL이다. 별도 Native 격리 작업공간·원본 반영·후속 Source 흐름은 아직 완료하지 않았다. 기존 Git worktree 경로는 명시된 committed-head 계약을 사용하며 현재 disposable fixture에 HEAD가 없어 실제 GUI 기준 검사가 보존된 오류로 종료됐다. staged7개 파일의 검증용 초기 기준 커밋 미리보기를 native-integration-baseline-preview.json에 준비했으며 제품 자동 Commit 금지와 구분해 별도 승인 대기 중이다. 커밋/푸시를 실행하지 않았다. 이 기존 worktree 경로를 CCGS의 saved-Working-Tree Snapshot 실행 완료로 대신 기록하지 않는다. 5~7단계는 시작하지 않았다. 현재 세션 stage4-runtime.json의 Core/Agent 만료 시각을 따른다.
+
+
+### 2026-11-02 — Native 격리 작업 공간·원본 통합 검증 진행
+
+사용자가 승인한 검증용 초기 커밋 `28c480d258310a5e73adc969b61933f0b44803e1`을 disposable 프로젝트에만 생성했다. 기존 원본 메모 변경은 보존했다. 별도 Native 작업 창에서 수정한 Source의 실제 Rust Agent Run `3672f453-80f6-4a83-a0ac-bc2c74636583`은 PASS다. 부모 원본 반영 완료를 의미하지 않는다. 실제 검수에서 독립 작업 계약 선택 누락과 입력 없는 제출 확인창의 무응답을 수정했고, 자식 Snapshot에 부모 기준 커밋을 보존하도록 보강했다. 관련 workspace 7건·통합 계약 23건, 변경 범위 lint 및 typecheck는 통과했다. 웹 compile/generate는 실패 단계 재개 후 exit 0이다. 실제 Native 확인창 응답과 stale Source 거부를 확인했고, child Graph v2에 올바른 부모 기준 커밋 Snapshot을 게시했다. Turbopack IPC 오류·Webpack EPERM과 기존 import 경고는 보존했다. 기존 2시간 세션은 정상 종료됐고 동일 DB의 새 Core를 준비했으며 관리자 Agent 재실행을 기다린다. 올바른 기준 신원의 자식 재시험·원본 반영·원본 재시험·독립 검토·후속 Source 확인이 남아 4단계는 PARTIAL이다. 초기 Git 승인 대기는 해소됐다. 패키징·제품 커밋/푸시는 하지 않았다. 정본: `resources/verification/dev-01/orchestration-completion-20261101/stage-4-native-integration-progress-20261102.json`.
+
+
+### 2026-11-02 — 원본 통합 및 실제 Agent 재시험 PASS
+
+올바른 부모 기준 커밋을 보존한 child Graph v2의 실제 Run `88105d8b-fb66-4157-91e5-a1b90349b162`이 PASS해 통합 요청을 제출했다. Native Diff 검토와 별도 승인으로 `src/service.cjs`만 원본에 적용했다. 원본 Run `71445a7d-a596-4884-b71a-a3201abc02e2`는 실제 Rust Agent의 Snapshot/Build/Test/Cleanup 모두 exit 0이다. 원본 Snapshot `f30d94bb-753d-41dd-b314-c7272d80b1f6` checksum `69775936458a7956d340fe277373e5f84f57caa20b60de590986bd1b57cfa12c` 및 Source/산출물 해시를 검증했다. Source는 승인된 result hash, 기존 사용자 메모는 aa3a4390 hash를 유지한다. child/parent 14개 blob과 결과 산출물 actual=2/expected=2를 대조했다. 실제 Native Editor return2/dirty0 및 밝은/어두운 실제 Git Diff를 확인했다. 정본 `stage-4-parent-integration-audit.json`, `stage-4-parent-actual-git-diff.patch`, `stage-4-native-integrated-*.jpg`.
+
+4단계 전체는 PARTIAL이다. 독립 실제 AI 검토는 자동 승인 검토가 새 전송 범위의 명시적 승인 부족으로 거부해 **WAITING_FOR_USER_APPROVAL**이며 전송하지 않았다. 최소 범위 미리보기는 `INTEGRATION-REVIEW-TRANSMISSION-PREVIEW.json`이다. 독립 검토·통합 완료·후속 Source 검증을 마치기 전 다음 단계로 넘어가지 않는다. 기존 2시간 Core/Agent는 정상 종료했고 같은 DB의 새 Core를 준비했다. 관리자 Agent 재실행 요청은 권한 재승인이 아닌 실행 환경 확보다. 이번 추가 작업은 검증·문서뿐이며 현재 6개 품질 입력 해시가 이전과 같아 기존 검사를 재사용했다. 앱 재컴파일·패키징·제품 커밋/푸시는 하지 않았다.
+
+
+### 2026-11-02 — 4단계 실제 Native 라이프사이클 완료
+
+결과: **DEV_VERIFIED_NATIVE_LIFECYCLE**. 실제 Provider `gpt-6.1-sol`의 독립 검토 `36a9f23c-10ef-495e-bff1-dfda328108b7`는 승인된 두 파일과 실제 원본 PASS Run을 읽었고, 제외한 사용자 메모 내용·Dummy secret 전송 0을 확인했다. Provider 4회·도구 9회, 완료 조건과 실제 파일/Run 근거가 일치한다. 통합 요청 `e7c30c53-5093-4d6c-a322-4285eadec2a5`를 Native에서 별도 확인해 completed 처리했다. 후속 계약은 이전 Source에서 새 Source로 명시적으로 재검토했고 draft로 유지해 자동 AI 실행을 만들지 않았다. Graph v3의 기존 Protocol/Queue/실제 Rust Agent 후속 Run `63361daa-e3ea-49a1-8cbf-21dc342428d2`가 PASS했다. 후속 Snapshot과 수락한 원본 Snapshot은 신원은 다르지만 실제 contentChecksum `97deedc837b1471f40a899564e2c052a2b8533e4483dfc1a2b3e4a684f25742a` 및 7개 파일 신원이 같다. 실제 렌더링 게임 검증은 5단계 범위이며 이 Node 테스트로 대신하지 않는다.
+
+마감 Node 1,205건 중 1,196건 통과 후 PowerShell PATH가 없어 실패한 DPAPI 9건만 같은 소스·정상 경로로 재개해 9건 모두 통과했다. **1,205 unique PASS**이며 단일 전체 green 실행이라고 기록하지 않는다. 전체 lint exit0, Native 입력55개·Agent Rust 입력은 해시 일치로 기존 Debug/Release/Clippy/빌드를 재사용했다. JS에 별도의 Debug/Release 테스트 모드가 없어 중복 구성을 만들지 않았고, 최적화 웹 compile/generate는 별도 근거로 유지했다. 후속 실행의 owner journal2개 CLOSED, 작업 자식 orphan0을 확인했고 실행 중 Agent의 conhost1개는 정상 수명으로 보존했다. 정리 경고는 과거 Run887c2ac7의 prelaunch CAPABILITY_MISMATCH로 owner/reservation을 만들기 전에 거부된 기록이며 현재 PASS Run과 분리했다. 과거 불명 Native 종료 기록은 보존하되 현재 재시작/연결/실행 성공과 섞지 않는다.
+
+정본: `stage-4-final-audit.json`, `stage-4-native-follow-on-run-passed.jpg`. 5단계를 시작한다. 패키징·설치·서명·운영 배포·제품 커밋/푸시 없음.
+
+## 오케스트레이션 완성 5단계 마감 — 2026-11-02
+
+상태: **DEV_VERIFIED_NATIVE_GODOT_MINIMAL**. 원본 minimal 여섯 스킬을 실제 Claude Code 2.1.296와 실제 framework Rust Agent에서 실행했다. 부족했던 화면 증거·행동 검증은 강화된 실제 테스트와 보관된 게임 PNG로 보완한 뒤 원본 story-done이 스토리를 Complete로 변경했다. 엔진 설정은 실제 Agent Run 및 원본 coherence 5항목 일치/차이0/미검사0, 기존 Godot 역할5개의 Version Awareness로 추가 확인했다. 수출 preset·gdUnit4 설치는 이 최소 경로의 범위가 아니다.
+
+프레임워크 Source 준비는 빠졌던 공개 엔진 참조46개를 고정 commit에서 별도 package로 가져온다. 원본439개 정의 bundle과156개 카탈로그 항목은 바꾸지 않았다. 기존 프로젝트 문서는 보존하고 없는 문서만 검토 Snapshot에 보충한다. 원본 바이트/SHA는 보존하며 Snapshot의 표시 사본은 공개 URL query/fragment를 명시적으로 생략한다. 비밀 제외 정책을 완화하지 않았고 사용자 문서의 비밀 값은 공용 문서로 바꿔치기하지 않는다. 이 데이터도 desktop compile cache 입력에 포함했다.
+
+엔진 설정4개와 게임·기획·검증8개 파일은 다른 task/proposal의 별도 Diff/승인으로 반영했다. 각 제안의 기존8파일 제한을 유지했다. 원본 재시험 **62788538-0176-40e0-96fb-1fbad0994113 PASS**, 후속 실제 Graph **5e6f1c54-4b73-47f0-b752-b568c5d89e39 PASS**이며 수락한 Source 바이트 내용 해시가 같다. 실제 Agent에 전달된64개 파일의 크기/SHA를 검증했고 Dummy .env는 원본에서 보존/전송에서 제외했다. PNG는 실제 Core/검증 근거로 보관하고 원본 바이너리 자동 병합은 하지 않았다.
+
+Studio Provider는 별도로 실제 OpenAI의 producer·godot-specialist·qa-lead3개 역할을 실행했다. 승인된 두 파일/선택 Run·로그/공개 역할만 읽었으며 이미지 본문은 전송하지 않았다. QA가 접근하지 못한 초기 Run·장면 파일과 미검증 행동을 불확실성으로 남긴 점도 원문에 보존했다. 실제 추가 행동 검증과 Source 비교는 별도 운영자/Agent 근거이며 AI가 수행했다고 쓰지 않는다.
+
+품질: 최종 Node1215/1215·lint·typecheck·운영 webpack compile/generate PASS. JS에는 별도 Debug/Release 테스트 구성이 없어 중복 구성을 만들지 않았다. 불변 Rust입력33개와 고정 Agent SHA를 확인해 기존 범위의 native 근거만 재사용했다. 물리 held-key 검증은 미판정이며 엔진 action 주입 PASS를 물리 키보드 PASS로 대체하지 않는다. 정제된 Agent 환경의 shader cache 경고, 미지원 Unix/Unity/Unreal 실전 검증과 전체 원본 Shell/rigor 호환은 제한으로 남는다.
+
+정본: `resources/verification/dev-01/orchestration-completion-20261101/{stage-5-final-audit.json,stage-5-qualification-inputs.json,STAGE-5-RESULT.ko.md,EVIDENCE-INDEX.md}`. 단계6 장애 복구를 이어간다. 패키징/설치/배포/버전·태그/커밋·푸시는 수행하지 않았다.
+
+
+
+## 오케스트레이션 완성 6단계 — 장애 복구·반복 실행
+
+상태 **DEV_VERIFIED_RECOVERY**. 완료된 모델 작업과 검증 실패를 분리했다. Core/GUI는 완료된 턴의 resume을 거부하고 저장된 정확한 중단 세션만 재개한다. 전체 이벤트를 축약해도 완료 여부가 유지된다. 봉인된 변경과 기존 Protocol Godot 계획만 사용해 검증을 재시도하며 새 모델/Shell을 실행하지 않는다. 원본 검증1회+최대2회 재시험, 요청 ID별 승인·Source·Job·Run 이력을 영속화한다. Job 생성/연결 사이 중단 복구와 Core 정규화 후 중복 요청도 같은 Job을 재사용한다.
+
+실제 Claude /start가 완료되고 봉인 Source 검증 승인을 기다릴 때 소유 Core/Agent를 종료한 뒤 동일 DB로 재시작했다. 기존 승인 만료·세션/Source 보존·모델 재실행 거부를 확인했고 실제 Agent Godot Run **05cede37-7d35-4222-bb1a-f43aa5b0d69e PASS**, 렌더링 증거1개와64개 Source 바이트/SHA를 검증했다. 원본12개 반영 파일과 Dummy .env는 그대로이고 비밀 전송0이다. 보존된 실패 fixture의 검증 전용 Run2818d69c는 예상대로 FAIL, Source/cleanup은 PASS이며 과거 모델/실패 이력은 유지된다. 실제 Node timeout/cancel·소유 프로세스 종료, Source 전송 응답 유실 후 재개, 중복 요청·만료 승인·다른 Source·잘못된 Dummy Core 인증 차단도 확인했다. 실제 Provider credential을 폐기하거나 auth 장애를 유도하지 않았다.
+
+실제 Native 검증 창에서 완료 턴의 재개 버튼 부재, 별도 재시험 PASS 이력, 밝게/어둡게 화면과 Diff 기반 재시험 승인 범위를 확인했다. 승인 대화상자 취소가 새 시도를 예약하지 않는다. 실행 자체의 실제 검증은 production RPC/Agent로 별도 수행했으며 GUI 클릭 실행으로 바꿔 쓰지 않는다. 검증 프로필의 프로젝트 메타데이터만 seed했고 새 프로젝트 생성/폴더 연결 완료를 주장하지 않는다.
+
+품질: 전체 Node1225 중1224 PASS/번역1 FAIL 후 해당 i18n9 PASS, 변경 retry7 PASS(신규1), 최종 UI 키 검사1 PASS로 **고유1226건 PASS**다. 단일 전체 green run으로 표현하지 않는다. 전체 lint/typecheck 및 변경 파일 후속 검사 PASS. 최종 웹 compile/generate 후 실제 index/workspace/404 HTML까지 확인했다. split generate의 성공0만으로는 HTML 내보내기를 보장하지 않는 문제가 발견돼 고정 Next 자체 export를 새 프로세스/App Router 모드로 재개했다. 이전5단계 export 로그/해시는 보존하되 그 기록만으로 완전한 HTML export를 주장하지 않는다. Rust입력33개는 고정 후보와 일치해 기존 범위 근거만 재사용했다. 패키징/설치/배포/버전·태그/제품 커밋·푸시는 없다.
+
+정본: `resources/verification/dev-01/orchestration-completion-20261101/{stage-6-final-audit.json,stage-6-qualification-inputs.json,STAGE-6-RESULT.ko.md}`. 다음은7단계 실제 제품의 작은 격리 작업이다.
+
+
+## 오케스트레이션 완성 7단계 — 실제 TASTEFILES 작업 완료
+
+상태 **DEV_VERIFIED_REAL_PRODUCT**. 승인된 두 파일의 실제 ChatGPT/OpenAI 분석·독립 검토, 격리 Patch와 실제 Rust Agent 회귀, 별도 원본 반영 승인, 원본 재시험, 게시 Graph 후속 Source 검증까지 완료했다. 초기 Run cc549603은 잘못된 크기 단위를 실제로 재현했고, 원본 Run29fa7bba 및 최종 Agent Run **d5910ae3-d5c2-48b0-900c-a04ec2662436 PASS**에서 회귀2건이 통과했다. 최종 Agent SHA는 **e5c6dcc23196f45762054b2ef4a9f923169a38ce71ba8a71a6099482808bb9c0**다. 두 Source 파일과 지원 언어별 변경 원고만 원본에 반영했으며 무승인 변경0이다.
+
+승인 전 원본 target hash를 확인했다. 분석 기준 e86ab92 이후 다른 세션의 UI-kit 커밋032e114가 생겨 최초 반영을 중단했다. 승인 대상 파일이 동일하고 관련 없는 UI 변경임을 확인한 별도 preflight를 기록한 뒤 같은 파일 내용 승인으로 반영했다. 승인/제안 이력을 다시 쓰지 않았으며 실제 Snapshot 기준은032e114, 분석 기준은e86ab92로 구분한다. 후속 Source913개 파일의 바이트/SHA와 checksum f9569c073e061be412bc3b397e1fe4369b721c06038967217119e4f59675ce8e을 실제 Agent 작업 공간에서 확인했다. 일반 작업 트리 격리이며 이 실행을 OS sandbox로 표현하지 않는다.
+
+실제 검사에서 v2 vendor 경로의 History 저장 오류와 대량 출력 연결 손실을 수정했다. Core/Agent의 선택적32개 output receipt,64개 채널+1개 대기 프레임, 정확한 Run/Job/Step/sequence 검사와 결과 전 출력 drain을 적용한다. 제어 이벤트는 출력 창을 소비하지 않는다. timeout을 늘리거나 출력/실패를 숨기지 않았다. cargo/rustc에만 공개 CARGO_TARGET_DIR을 전달해 기존 컴파일 캐시를 재사용한다. 모델 도구·자동 승인·Shell 권한은 확장하지 않았다.
+
+품질: Node 고유1227건 PASS는 전체1226 PASS/heartbeat fixture1 FAIL 후 해당1건 수정·재검증한 **합성 결과**다. 단일 전체 green run은 아니다. Rust Agent Debug/Release 각각140 PASS·13 ignored, strict Clippy·Release build·변경 파일 format PASS. TASTEFILES 영향 라이브러리는 Debug/Release 각각327 PASS·5 ignored, 크기 단위 회귀2 PASS, Core all-target Clippy·최적화 library build PASS다. 넓은 Debug package 검사는 기존 extraction_names의 빈 한글 디렉터리 복원 실패가 있었고 수정 전 원본에서도 동일하게 재현했다. 해당 Run은 FAILED로 보존하며 전체 TASTEFILES suite PASS를 주장하지 않는다.
+
+55개 Native 입력과 기존 실제 EXE,217개 최적화 Web 산출물의 SHA를 확인했다. 프런트엔드 입력은 같아 기존 Native/HTML export 근거를 재사용하고 불필요한 재빌드·화면 반복 검사는 하지 않았다. 7단계 실행은 production Core/API/Agent 검증이며 실제 Native GUI 수명주기는4단계 근거로 구분한다. 소유 검증 Core/Agent는 종료했고 잔류0, 사용자 Native 창은 보존했다. 패키징·설치·배포·버전/태그 변경·commit/push는 수행하지 않았다.
+
+마감 중 다른 세션이0.2.35 출시 준비 커밋에 수정·테스트를 포함하고 원고를 docs/releases/v0.2.35.md로 옮겼다. 해당 변경은 보존했다. 이번 actual Run은 저장된0.2.34 Snapshot에 대한 근거이며 새 버전/패키지 검증으로 재사용하지 않는다. 이 세션은 버전 변경·commit/push를 수행하지 않았다.
+
+현재 정본: `resources/verification/dev-01/orchestration-completion-20261101/{stage-7-final-audit.json,stage-7-qualification-inputs.json,STAGE-7-RESULT.ko.md,FINAL-RESULT.ko.md,EVIDENCE-INDEX.md}`. 이전 승인 대기·실패·후보 기록은 보존하며 현재 상태와 혼합하지 않는다.
+
+
+## 다중 장비 오케스트레이션 — 2026-11-03
+
+1단계 실행 준비 진단 DEV_VERIFIED. 실제 게시 요구사항과 지정 Agent matcher, 인증 확인의 세션 범위, 미검증 Source/구버전 capability 표시를 추가했다. 전체 Node1232 및 변경 테스트 타입 재검증, lint/tsc, production HTML export 확인. 브라우저 밝게/어둡게의 연결 끊김 진단과 설정 이동을 검증했다. 실제 다중 장비 실행은7단계에서 별도로 검증하며 현재는 주장하지 않는다. 2단계 장비별 작업 공간 진행 중. 103 접근 금지; 102/109는 Linux이며 109 임시 경로 권한 부족. 정본 resources/verification/multi-device-orchestration-20261103/checkpoint.json 및 STAGE-1-RESULT.ko.md. 패키징·설치·배포는 사용자 담당.
+
+
+### 다중 장비 2·3단계 완료
+
+2단계 장비별 workspace Source/OS/Agent 바인딩과 실제 배정 차단, 3단계 의존 순서 미리보기·정확한 실행 검토 신원 DEV_VERIFIED. 전체 Node1236→1240 PASS 및 각 단계 lint/tsc/production Web export 확인. 실제 브라우저/Core/Windows Agent에서 정책 취소·승인·Source 없는 Job 차단, 새 Snapshot 게시 후 검토 해제·시간 변경 후 재검토를 확인했다. 4단계 진행 중, Linux 실제 실행은7단계 예정. 103 접근 금지, 설치/배포/패키징 없음. 정본 resources/verification/multi-device-orchestration-20261103/checkpoint.json.
+
+
+### 다중 장비 4·5단계 완료 — 2026-11-03
+
+4단계 저장된 Run/Job/Source 복구 무결성과 실제 SQLite Core 재시작·중간 승인 후 Windows Run2 PASS를 확인했다. 5단계는 기존 통합함의 기준/검토 신원 및 파일 중복 가능성 안내다. 전체 Node1249 PASS, 타입·린트 실패 단계 수정 재검증과 production Web export PASS. 실제 중복 데이터는 자동 테스트 범위이며 새 Provider/Native 반영 완료를 주장하지 않는다. 6단계 진행 중; 실제 Linux102는7단계에서 별도 확인한다. 103 사용 금지. 정본 resources/verification/multi-device-orchestration-20261103/checkpoint.json. 패키징·설치·배포 없음.
+
+
+### 다중 장비 1~7단계 최종 완료 — 2026-11-03
+
+1~7단계 DEV_VERIFIED. 기존 Core/Agent/Graph/통합/Scheduler 경로를 재사용했고 실행 준비·장비 workspace binding·정확한 실행 검토·저장 Run 복구 무결성·통합 중복 안내·예약 대상 진단을 추가했다. 마지막으로 Team Viewer의 복구 읽기 전용 RPC 분류를 바로잡았다. 최종 전체 Node1253/1253 PASS, 타입·린트 PASS. 최종 Web compile/generate/export의 source/HTML SHA를 확인해 backend-only 변경 뒤 재사용했다.
+
+실제 Windows DEV01 Run→Web 별도 승인→Linux102 Run 모두 PASS이며 동일 Snapshot의 Source6개 디스크 hash 일치, .env 제외, Scheduler PASS를 확인했다. 소유 Core/Agent/SSH/Web/브라우저 종료, orphan0. 103은 접근하지 않았다. 109는 임시 경로 권한 부족으로 제외했다. Linux Node22는 합성 Protocol >=22 검증으로 Studio Core Node24 패키지 검증을 대신하지 않는다. 기존 binary를 사용했고 설치·배포·패키징·버전/태그 변경·커밋/푸시 없음. 새 실제 Provider 호출·Native 설치 GUI·실제 겹치는 사용자 Proposal UI는 이번 검증으로 주장하지 않는다.
+
+정본 resources/verification/multi-device-orchestration-20261103/FINAL-RESULT.ko.md 및 EVIDENCE-INDEX.md. 안내 docs/TASTESTUDIO_MULTI_DEVICE_ORCHESTRATION.md. 다음 고도화나 패키징을 자동 시작하지 않는다.

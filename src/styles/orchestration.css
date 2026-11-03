@@ -138,3 +138,38 @@
 .orch-edge[data-relation="escalates"]{color:var(--studio-accent)}
 .orch-edge[data-relation="escalates"]>path{stroke-dasharray:10 3 2 3}
 .orch-node[data-execution-state="framework-review"]{box-shadow:0 0 0 2px var(--studio-accent)}
+
+.project-preparation { border-block: 1px solid var(--studio-line); padding: 10px 0; }
+.project-preparation > summary { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.project-preparation > p { color: var(--studio-muted); margin: 8px 0; }
+.project-preparation ul { list-style: none; padding: 0; margin: 8px 0; }
+.project-preparation li { display: flex; align-items: center; gap: 8px; padding: 4px 0; min-width: 0; }
+.project-preparation li > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.project-preparation li small { display: block; color: var(--studio-muted); }
+.project-preparation li[data-preparation-state="ready"] > svg { color: var(--studio-success, var(--studio-accent)); }
+.project-preparation li:not([data-preparation-state="ready"]) > svg { color: var(--studio-muted); }
+.project-preparation .orch-toolbar { align-items: end; flex-wrap: wrap; }
+.orch-device-workspaces { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.orch-device-workspaces legend { padding: 0; font-size: inherit; font-weight: 600; }
+.project-template-preview pre { max-height: 220px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.orch-node-observation{border-top:1px solid var(--studio-line);padding:10px 0;margin:10px 0;font-size:12px;overflow-wrap:anywhere}
+.orch-node-observation h3,.orch-observed-agents li,.orch-observed-schedule>p{display:flex;align-items:center;gap:6px}
+.orch-node-observation h3{font-size:13px;margin:0 0 8px}
+.orch-node-observation ul{list-style:none;margin:0;padding:0}
+.orch-node-observation dl{display:grid;grid-template-columns:minmax(0,1fr);gap:3px;margin:8px 0}
+.orch-node-observation dt,.orch-node-observation small{color:var(--studio-muted)}
+.orch-node-observation dd{margin:0 0 5px;font-family:var(--font-mono,monospace);overflow-wrap:anywhere}
+.orch-observed-agents li{flex-wrap:wrap;padding:4px 0}
+.orch-observed-agents small{flex-basis:100%}
+.orch-observed-work>li{border-top:1px solid var(--studio-line);padding:8px 0}
+.orch-observed-work header{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.orch-observed-work header strong{min-width:0;overflow-wrap:anywhere}
+.orch-observed-work header span{flex-shrink:0;color:var(--studio-muted)}
+.orch-observed-work p{margin:6px 0}
+.orch-observed-work>li[data-conflict] [role=alert]{color:var(--studio-danger)}
+.orch-node-observation .fs-button{display:inline-flex;align-items:center;gap:5px;margin:5px 0}
+
+.orch-execution-preview code, .orch-execution-preview li { overflow-wrap: anywhere; }
+
+.orch-recovery-audit code, .orch-recovery-audit small { overflow-wrap: anywhere; white-space: normal; }

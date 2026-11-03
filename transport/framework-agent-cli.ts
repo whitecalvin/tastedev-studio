@@ -3,6 +3,12 @@ import runtimeBundle from '../resources/integrations/ccgs/05ad7c8a5b8aa2aa86bbd3
 import {readFile,mkdir,writeFile,realpath,lstat} from 'node:fs/promises';import path from 'node:path';import {spawn} from 'node:child_process';
 import {createHash,randomUUID} from 'node:crypto';import {runNativeFramework,executableVersion} from './claude-framework-runner.ts';import {bundleManifest,catalog} from '../src/features/frameworks/catalog.ts';import {frameworkOperation} from '../src/features/frameworks/operation.ts';import {snapshotHasSecret} from '../src/features/ai/snapshot-content-policy.ts';
 import {aiPath,sanitize} from '../src/features/ai/security.ts';
+import {fileURLToPath} from 'node:url';
+// BEGIN FRAMEWORK POLICY PINS
+const policyPins:Record<string,string>={"claude-framework-runner.ts":"fc7931dbae763a95e08e93ad8e8319001f9f9d1b5f2196e0114cd3d8d2adc9fd","framework-state-commands.ts":"10980fef65d81e3e2386b8084d1632462cbf20cd80c7d5011d394d1548501bcf"};
+// END FRAMEWORK POLICY PINS
+if(Object.keys(policyPins).length!==2)throw Error('Framework execution policy pins missing.');
+for(const [name,expected]of Object.entries(policyPins))if(createHash('sha256').update(await readFile(path.join(path.dirname(fileURLToPath(import.meta.url)),name))).digest('hex')!==expected)throw Error('Framework execution policy changed; review runtime configuration.');
 const grant=JSON.parse(process.env.TASTESTUDIO_FRAMEWORK_RUN??''),runtime=JSON.parse(await readFile(process.env.TASTESTUDIO_FRAMEWORK_RUNTIME??'','utf8')),endpoint=new URL(grant.url),initialCwd=await realpath(process.cwd()),hash=(bytes:string|Uint8Array)=>createHash('sha256').update(bytes).digest('hex');
 if(!['http:','https:'].includes(endpoint.protocol)||endpoint.username||endpoint.password||endpoint.search||endpoint.hash||endpoint.pathname!=='/framework/agent/'+grant.sessionId)throw Error('Invalid Core framework endpoint.');
 const signal=AbortSignal.timeout(900000);async function request(method:string,suffix='',body?:unknown){const response=await fetch(endpoint.href+suffix,{method,headers:{Authorization:'Bearer '+grant.token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),redirect:'error',signal:AbortSignal.any([signal,AbortSignal.timeout(15000)])});if(!response.ok)throw Error('Core framework control failed.');return response.json();}

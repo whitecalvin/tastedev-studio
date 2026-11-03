@@ -214,3 +214,20 @@ Scheduler 추가 retry는 Protocol Test0–2회에 한정한다. Graph/AI/배포
 원본 Claude 작업은 저장된 Working Tree Snapshot과 고정 공개 bundle에서 격리 실행한다. 실제 Godot 검증이 통과한 Source diff만 기존 proposeIntegration/approve/apply_patch로 연결한다. 새 디렉터리 경로도 승인 hash에 포함하며 write-ahead journal로 소유권을 기록한다. Revert는 hash precondition과 빈 디렉터리의 비재귀 제거로 기존 사용자 파일·폴더를 보존한다. 바이너리는 수동 검토다.
 
 반영된 원본은 frameworkGameSnapshot으로 재시험한다. Graph의 framework-review는 실제 원본 재시험 Run/Protocol Test/Proposal/Snapshot과 일치하는 승인 기록을 요구한다. 새 Source는 별도 승인 후 후속 노드에 전달한다. 모델의 completed나 초기 Git SHA만으로 변경된 Working Tree의 성공을 판정하지 않는다. 상세 사용법과 실제 E2E: `TASTEDEV_GAME_STUDIOS.md`.
+
+
+## 실제 제품 원본 반영 검증 — 2026-11-02
+
+상태 **DEV_VERIFIED_REAL_PRODUCT**. 승인된 두 파일의 실제 ChatGPT/OpenAI 분석·독립 검토, 격리 Patch와 실제 Rust Agent 회귀, 별도 원본 반영 승인, 원본 재시험, 게시 Graph 후속 Source 검증까지 완료했다. 초기 Run cc549603은 잘못된 크기 단위를 실제로 재현했고, 원본 Run29fa7bba 및 최종 Agent Run **d5910ae3-d5c2-48b0-900c-a04ec2662436 PASS**에서 회귀2건이 통과했다. 최종 Agent SHA는 **e5c6dcc23196f45762054b2ef4a9f923169a38ce71ba8a71a6099482808bb9c0**다. 두 Source 파일과 지원 언어별 변경 원고만 원본에 반영했으며 무승인 변경0이다.
+
+승인 전 원본 target hash를 확인했다. 분석 기준 e86ab92 이후 다른 세션의 UI-kit 커밋032e114가 생겨 최초 반영을 중단했다. 승인 대상 파일이 동일하고 관련 없는 UI 변경임을 확인한 별도 preflight를 기록한 뒤 같은 파일 내용 승인으로 반영했다. 승인/제안 이력을 다시 쓰지 않았으며 실제 Snapshot 기준은032e114, 분석 기준은e86ab92로 구분한다. 후속 Source913개 파일의 바이트/SHA와 checksum f9569c073e061be412bc3b397e1fe4369b721c06038967217119e4f59675ce8e을 실제 Agent 작업 공간에서 확인했다. 일반 작업 트리 격리이며 이 실행을 OS sandbox로 표현하지 않는다.
+
+실제 검사에서 v2 vendor 경로의 History 저장 오류와 대량 출력 연결 손실을 수정했다. Core/Agent의 선택적32개 output receipt,64개 채널+1개 대기 프레임, 정확한 Run/Job/Step/sequence 검사와 결과 전 출력 drain을 적용한다. 제어 이벤트는 출력 창을 소비하지 않는다. timeout을 늘리거나 출력/실패를 숨기지 않았다. cargo/rustc에만 공개 CARGO_TARGET_DIR을 전달해 기존 컴파일 캐시를 재사용한다. 모델 도구·자동 승인·Shell 권한은 확장하지 않았다.
+
+품질: Node 고유1227건 PASS는 전체1226 PASS/heartbeat fixture1 FAIL 후 해당1건 수정·재검증한 **합성 결과**다. 단일 전체 green run은 아니다. Rust Agent Debug/Release 각각140 PASS·13 ignored, strict Clippy·Release build·변경 파일 format PASS. TASTEFILES 영향 라이브러리는 Debug/Release 각각327 PASS·5 ignored, 크기 단위 회귀2 PASS, Core all-target Clippy·최적화 library build PASS다. 넓은 Debug package 검사는 기존 extraction_names의 빈 한글 디렉터리 복원 실패가 있었고 수정 전 원본에서도 동일하게 재현했다. 해당 Run은 FAILED로 보존하며 전체 TASTEFILES suite PASS를 주장하지 않는다.
+
+55개 Native 입력과 기존 실제 EXE,217개 최적화 Web 산출물의 SHA를 확인했다. 프런트엔드 입력은 같아 기존 Native/HTML export 근거를 재사용하고 불필요한 재빌드·화면 반복 검사는 하지 않았다. 7단계 실행은 production Core/API/Agent 검증이며 실제 Native GUI 수명주기는4단계 근거로 구분한다. 소유 검증 Core/Agent는 종료했고 잔류0, 사용자 Native 창은 보존했다. 패키징·설치·배포·버전/태그 변경·commit/push는 수행하지 않았다.
+
+마감 중 다른 세션이0.2.35 출시 준비 커밋에 수정·테스트를 포함하고 원고를 docs/releases/v0.2.35.md로 옮겼다. 해당 변경은 보존했다. 이번 actual Run은 저장된0.2.34 Snapshot에 대한 근거이며 새 버전/패키지 검증으로 재사용하지 않는다. 이 세션은 버전 변경·commit/push를 수행하지 않았다.
+
+현재 정본: `resources/verification/dev-01/orchestration-completion-20261101/{stage-7-final-audit.json,stage-7-qualification-inputs.json,STAGE-7-RESULT.ko.md,FINAL-RESULT.ko.md,EVIDENCE-INDEX.md}`. 이전 승인 대기·실패·후보 기록은 보존하며 현재 상태와 혼합하지 않는다.

@@ -197,3 +197,11 @@ Declare `executable: true|false` on every input/output of a v2 artifact step; pr
 ## Claude-Code-Game-Studios native runtime
 
 프로젝트 요구사항 `tools.claudeCodeFramework: true`는 실행 capability `frameworkRuntime:1`로 해석한다. SDK 실행은 고정 `internal-framework-runner`, Godot 검증은 `internal-framework-godot`이며 일반 Shell fallback은 없다. Protocol의 검증 정의는 실제 Snapshot blob과 일치해야 한다. 플레이어 표시 변경은 headless가 아닌 e2e와 실제 PNG 증거를 요구한다. 예제·Agent 로컬 runtime 구성은 `TASTEDEV_GAME_STUDIOS.md`에 있다.
+
+## Bounded live-output receipts
+
+An updated Agent registers with optional `outputAck: 1`. Core advertises `outputWindow: 32` only for that connection. After authenticated output is validated and stored, Core returns `output_ack` with the exact Run, Job, optional Step and sequence. Agent keeps at most 32 receipts outstanding, alongside its existing 64-event channel and one unsent WebSocket event. A receipt for another scope, an invented future sequence or a duplicate cannot release unrelated output. Reconnection clears only this volatile transport window; durable execution claims/results retain their existing authority.
+
+This limits data backlog without increasing message size, write-buffer size, heartbeat or execution deadlines. WouldBlock and a full write buffer are temporary pressure, not evidence of a lost connection. Live output remains bounded and may be marked partial under pressure; it is not an unbounded artifact archive. Existing non-negotiating Core/Agent versions retain the legacy path, so the new bounded receipt behavior requires both updated components. No write, shell, authentication or approval permission is granted by this negotiation.
+
+Final execution results wait for the live-output channel and receipt window to drain, so a result cannot overtake its remaining output. For an already terminal owned Run, Core may return an exact receipt with `discarded: true`; that closes transport bookkeeping without storing late text or changing the Run result.

@@ -74,7 +74,7 @@ export class RemoteCoreClient {
   }
   async uploadSnapshot(snapshot:ProjectSnapshot,signal?:AbortSignal,onProgress?:(progress:SourceUploadProgress)=>void){if(!this.connected||this.project?.id!==snapshot.projectId)throw Error('Connect to Core before transferring a workspace snapshot.');const key=this.connectionKey,token=this.token,base=new URL(this.endpoint);base.protocol=base.protocol==='wss:'?'https:':'http:';base.search='';return uploadProjectSnapshot(snapshot,(path,init)=>{if(!this.connected||this.connectionKey!==key||this.token!==token)throw Error('Core connection changed; Source transfer stopped.');const url=new URL(base);url.pathname=path;return fetch(url,{...init,headers:{...init.headers,Authorization:'Bearer '+token,'X-Project-Id':snapshot.projectId}});},signal,onProgress);}
   teamWorkRequest<T>(action:string,input?:unknown){return this.call<T>('team-work',[action,input]);}
-  frameworkRequest<T>(action:'list'|'respond'|'cancel'|'start'|'get-by-run'|'resume',input?:unknown){return this.call<T>('framework',[action,input]);}
+  frameworkRequest<T>(action:'list'|'respond'|'cancel'|'start'|'get-by-run'|'resume'|'retry-validation',input?:unknown){return this.call<T>('framework',[action,input]);}
   factoryRequest<T>(action:string,input?:unknown){return this.call<T>('factory',[action,input]);}
   graphRequest<T>(action:string,input?:unknown){return this.call<T>('graph',[action,input]);}
   recordsRequest<T>(action:string,input?:unknown){return this.call<T>('records',[action,input]);}
@@ -85,6 +85,7 @@ export class RemoteCoreClient {
   async issueRequest<T>(body:unknown,projectId:string):Promise<T>{if(!this.connected||this.project?.id!==projectId)throw new IssueError('unavailable');const url=new URL(this.endpoint);url.protocol=url.protocol==='wss:'?'https:':'http:';url.pathname='/issues/request';url.search='';try{const response=await fetch(url,{method:'POST',headers:{Authorization:'Bearer '+this.token,'X-Project-Id':projectId,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(65000)});const result=await response.json();if(result.error)throw new IssueError(result.error as IssueErrorCode);if(!response.ok)throw new IssueError('unavailable');return result.value as T;}catch(e){if(e instanceof IssueError)throw e;throw new IssueError('unavailable');}}
   registerAgent(input:Pick<Agent,'name'|'platform'|'architecture'|'capabilities'>){return this.call<Agent>('registerAgent',[input]);}
   removeAgent(id:string){return this.call<void>('removeAgent',[id]);}
+  recoverFixRetest(id:string){return this.call<{job:CoreSnapshot['jobs'][number]|null;row:{version:number;value:import('../ai/fix-service.ts').FixAttempt}}>('fix-retest-recover',[id]);}
   createJob(_projectId:string,input:CreateJob){return this.call<CoreSnapshot['jobs'][number]>('createJob',[input]);}
   cancelJob(_projectId:string,id:string){return this.call<CoreSnapshot['jobs'][number]>('cancelJob',[id]);}
   retryJob(_projectId:string,id:string){return this.call<CoreSnapshot['jobs'][number]>('retryJob',[id]);}

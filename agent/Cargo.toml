@@ -16,7 +16,7 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "serd
 ctrlc = { version = "3", features = ["termination"] }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security", "Win32_Security_Isolation", "Win32_Security_Authorization", "Win32_System_Com", "Win32_System_Console", "Win32_Storage_FileSystem", "Win32_System_StationsAndDesktops", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging"] }
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 [dev-dependencies]

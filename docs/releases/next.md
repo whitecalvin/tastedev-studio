@@ -1,604 +1,356 @@
 # 다음 판에서 달라진 것
 
-## 이번 판에서 달라진 것
-
-- 원본 Claude 스킬을 격리 공간에서 실행하고, 변경을 검토·승인한 뒤 Godot 수정 결과를 Agent 테스트로 확인할 수 있습니다. 중단된 원본 세션 재개와 프레임워크 모드 설정을 지원합니다.
-
-- Claude-Code-Game-Studios의 고정 역할·스킬 카탈로그와 게임 엔진별 템플릿 연결을 추가했습니다. 선택한 팀을 노드로 배치하고 원문 프롬프트와 설정 출처를 확인할 수 있습니다.
-
-- 오래 걸린 빌드의 산출물도 승인된 작업·실행 기한 안에서 전달할 수 있습니다.
-
-- 후속 작업·장비 준비 상태·산출물 전달·복구 지점을 함께 확인하고, 놓친 실행과 제한된 재시도 정책 및 TASTEFILES 전달 초안을 설정할 수 있습니다.
-
-- 겹치는 통합 요청의 순서를 관리하고 장비별 실행 정책을 설정할 수 있습니다. 선행 작업 성공 스케줄, 실행 단계·이력 확인, 대기 작업 재배정을 추가했습니다.
-
-- 통합 검토함에서 변경을 검토하고 파일 생성·삭제·이름 변경을 승인해 적용할 수 있습니다. 충돌 해결과 후속 작업의 소스 재검토를 지원합니다.
-
-- 기존 Windows·Linux 배포를 유지하면서 macOS 패키지만 추가하는 출시 명령을 추가했습니다.
-
-- macOS Apple Silicon용 DMG 설치 패키지와 Homebrew 배포 경로를 추가했습니다.
-
-
-- 첫 실행 시 창을 해당 모니터의 가운데에 배치합니다.
-- Windows 업데이트 후 앱 준비가 확인되면 상태 창을 바로 닫도록 고정 대기를 제거했습니다. 여러 창의 미저장 작업 보호는 유지됩니다.
-
-
 <!-- 출시 도구가 다음 출시 때 아래 목록을 docs/releases/vX.Y.Z.md 의 "## 이번 판에서 달라진 것" 절로 옮기고 이 파일을 비운다.
      한 줄 = 쓰는 사람이 알아챌 변화 하나("- " 로 시작). **굵게** · `코드` 표시는 사이트에서 떼어 낸다.
      내부 호스트 · IP · 경로 · 계획 번호 · chore/docs/test 류는 적지 않는다(적어도 출시 도구가 뺀다). 비어 있으면 절을 넣지 않는다. -->
 
+
+## 이번 판에서 달라진 것
+
+- 예약 대상 검토에서 게시된 관계도·Source 신원과 중복 실행 대기 상태를 확인할 수 있습니다.
+
+- 통합함에서 진행 중인 요청의 파일 중복 가능성과 기준 버전·제안 내용 차이, 검토 신원을 함께 확인할 수 있습니다.
+
+- 재개 전 저장된 Run·Job·Source 신원을 검사하고, 불일치 기록은 Core에서 차단합니다. 복구 검토는 Source·기한·다른 노드의 진행이 바뀌면 다시 받아야 합니다.
+
+- 실행 전 의존 순서·병렬 가능 단계·승인·실패 경로를 검토할 수 있으며, 게시 버전이나 Source·시작 노드·시간 제한이 바뀌면 실행 검토를 다시 받아야 합니다.
+
+- 장비별 Agent 작업 공간에 OS와 Source 종류를 연결하고, 승인한 연결과 다른 작업 배정을 차단할 수 있습니다.
+
+- 노드별 실행 준비 진단에서 지정 Agent의 실행 기능과 게시된 작업 요구사항, Source 및 인증·승인 검토 상태를 확인할 수 있습니다.
+
 ## What's new [en]
 
-- Run original Claude skills in isolation, review and approve changes, and verify Godot fixes with Agent tests. Resume interrupted native sessions and adjust framework modes.
+- Scheduled target review shows the published graph and Source identity and active execution overlap.
 
-- Added a pinned Claude-Code-Game-Studios role and skill catalog with game engine template bindings. Place selected teams on the canvas and inspect complete original prompts and configuration sources.
+- The integration inbox shows potential file overlaps, base revision and proposed content differences, and review identities.
 
-- Outputs from longer builds remain transferable within the approved step and execution deadlines.
+- Inspect saved Run, Job and Source identities before resuming; Core blocks inconsistent records and requires renewed review when Source, deadline or other node progress changes.
 
-- Inspect dependent work, device readiness, artifact delivery and recovery steps, with bounded missed-run/retry policies and TASTEFILES delivery drafts.
+- Preview dependency order, potential parallel steps, approvals and failure paths; execution review must be renewed when the published version, Source, entry node or timeout changes.
 
-- Manage overlapping integrations and device execution policies, trigger schedules after successful dependencies, inspect steps and history, and review queued reassignment.
+- Bind each device’s Agent workspaces to an OS and Source type, and block assignments that do not match the approved bindings.
 
-- Review changes in the integration inbox and approve file creation, deletion and renames, with conflict resolution and Source re-review for dependent work.
-
-- Added a release command to add macOS packages while preserving existing Windows and Linux releases.
-
-- Added DMG packaging and Homebrew distribution for macOS Apple Silicon.
-
-
-- On first launch, the window is centered on its monitor.
-- Removed fixed waits after Windows updates: the status window closes as soon as the app is ready. Protection for unsaved work across multiple windows is preserved.
-
-- Submit tested task changes to the original work and complete it after integration retests, independent review and acceptance.
-
-## What's new [ja]
-
-- 元のClaudeスキルを隔離環境で実行し、変更を確認・承認してからAgentテストでGodotの修正を検証できます。中断したセッションの再開とフレームワークモード設定に対応しました。
-
-- Claude-Code-Game-Studiosの固定された役割・スキルカタログとエンジン別テンプレート連携を追加しました。選択チームのノード配置、元のプロンプト全文、設定の出典を確認できます。
-
-- 長時間のビルドでも、承認されたステップと実行の期限内で成果物を転送できます。
-
-- 後続作業、装置の準備状態、成果物転送、復旧箇所を確認でき、未実行分と再試行の制限付きポリシーやTASTEFILES転送下書きを設定できます。
-
-- 重複する統合と装置の実行ポリシーを管理し、依存先の成功によるスケジュール、ステップと履歴の確認、待機作業の再割り当てに対応しました。
-
-- 統合レビュー一覧で変更を確認し、ファイルの作成・削除・名前変更を承認できます。競合解決と後続作業のソース再確認に対応しました。
-
-- 既存のWindows・Linux配布を維持してmacOSパッケージのみ追加するリリースコマンドを追加しました。
-
-- macOS Apple Silicon 向けの DMG パッケージと Homebrew 配布経路を追加しました。
-
-
-- 初回起動時にウィンドウを対象モニターの中央に配置します。
-- Windows 更新後の固定待機を削除し、アプリの準備完了を確認すると状態ウィンドウをすぐ閉じます。複数ウィンドウの未保存の作業は引き続き保護されます。
-
-- 検証済みの作業変更を元の作業へ提出し、統合後の再テスト・独立レビュー・受け入れ後に完了できます。
-
-## What's new [zh]
-
-- 可在隔离空间运行原始 Claude 技能，审查并批准更改后，通过 Agent 测试验证 Godot 修复。支持恢复中断的原生会话和调整框架模式。
-
-- 新增固定版本的 Claude-Code-Game-Studios 角色与技能目录及游戏引擎模板关联。可放置所选团队节点，并查看完整原始提示词及配置来源。
-
-- 耗时较长的构建也可在已批准的步骤及执行期限内传输产物。
-
-- 可查看后续工作、设备准备状态、产物交付与恢复步骤，并设置受限的错过执行及重试策略和 TASTEFILES 交付草稿。
-
-- 支持管理重叠集成和设备执行策略、依赖成功触发计划、查看步骤和历史，以及审核队列重新分配。
-
-- 在集成审核箱中审核并批准文件创建、删除和重命名，支持冲突解决及后续任务的源码重新审核。
-
-- 新增仅添加macOS软件包的发布命令，保留现有Windows和Linux发布。
-
-- 新增 macOS Apple Silicon 的 DMG 打包和 Homebrew 分发支持。
-
-
-- 首次启动时，窗口会居中显示在所在显示器上。
-- 移除了 Windows 更新后的固定等待；确认应用就绪后立即关闭状态窗口。仍会保护多个窗口中未保存的工作。
-
-- 可向原始工作提交已测试的任务更改，并在集成重测、独立审核和接受后完成原始工作。
-
-## What's new [zh-hant]
-
-- 可在隔離空間執行原始 Claude 技能，審查並核准變更後，透過 Agent 測試驗證 Godot 修正。支援恢復中斷的原生工作階段與調整框架模式。
-
-- 新增固定版本的 Claude-Code-Game-Studios 角色與技能目錄及遊戲引擎範本連結。可放置所選團隊節點，並查看完整原始提示詞與設定來源。
-
-- 耗時較長的建置也可在已核准的步驟及執行期限內傳送產物。
-
-- 可檢視後續工作、裝置準備狀態、產物交付與復原步驟，並設定受限的錯過執行及重試政策和 TASTEFILES 交付草稿。
-
-- 支援管理重疊整合與裝置執行政策、相依成功觸發排程、檢視步驟與歷程，以及審查佇列重新指派。
-
-- 在整合審查匣中審查並核准檔案建立、刪除與重新命名，支援衝突解決及後續工作的原始碼重新審查。
-
-- 新增僅加入macOS套件的發布指令，保留現有Windows與Linux發布。
-
-- 新增 macOS Apple Silicon 的 DMG 打包與 Homebrew 發佈支援。
-
-
-- 首次啟動時，視窗會置中顯示於所在螢幕。
-- 移除了 Windows 更新後的固定等待；確認應用程式就緒後立即關閉狀態視窗。仍會保護多個視窗中未儲存的工作。
-
-- 可向原始工作提交已測試的工作變更，並在整合重測、獨立審查與接受後完成原始工作。
+- Inspect assigned Agent capabilities, published task requirements, Source, and authentication and approval review status in node execution preflight.
 
 ## What's new [de]
 
-- Originale Claude-Skills isoliert ausführen, Änderungen prüfen und genehmigen und Godot-Korrekturen mit Agent-Tests verifizieren. Unterbrochene native Sitzungen fortsetzen und Framework-Modi einstellen.
+- Die Zielprüfung zeigt veröffentlichten Graph, Source-Identität und aktive Überschneidungen.
 
-- Ein versionierter Claude-Code-Game-Studios-Katalog für Rollen und Skills mit Engine-Vorlagen wurde ergänzt. Gewählte Teams lassen sich als Knoten platzieren; vollständige Originalprompts und Konfigurationsquellen sind einsehbar.
+- Der Integrationseingang zeigt mögliche Dateiüberschneidungen, Unterschiede bei Basisrevision und Inhalt sowie Prüfidentitäten.
 
-- Auch Ergebnisse längerer Builds lassen sich innerhalb der genehmigten Schritt- und Ausführungsfristen übertragen.
+- Gespeicherte Run-, Job- und Source-Identitäten werden vor der Fortsetzung geprüft; Abweichungen blockieren die Wiederaufnahme.
 
-- Abhängige Arbeit, Gerätebereitschaft, Artefaktlieferung und Wiederherstellung prüfen sowie begrenzte Nachhol-/Wiederholungsregeln und TASTEFILES-Auslieferungsentwürfe konfigurieren.
+- Prüfen Sie Reihenfolge, mögliche Parallelität, Freigaben und Fehlerpfade. Geänderte Versionen, Source, Startknoten oder Zeitlimits erfordern eine neue Prüfung.
 
-- Überlappende Integrationen und Geräterichtlinien verwalten, Zeitpläne nach erfolgreichen Abhängigkeiten auslösen, Schritte und Verlauf prüfen und wartende Arbeit neu zuweisen.
+- Agent-Arbeitsbereiche lassen sich an OS und Source-Typ binden; abweichende Zuweisungen werden blockiert.
 
-- Änderungen im Integrationspostfach prüfen und Dateierstellung, Löschung und Umbenennung freigeben; mit Konfliktlösung und erneuter Quellprüfung für Folgeaufgaben.
-
-- Neuer Release-Befehl zum Ergänzen von macOS-Paketen unter Beibehaltung vorhandener Windows- und Linux-Veröffentlichungen.
-
-- DMG-Paketierung und Homebrew-Verteilung für macOS Apple Silicon hinzugefügt.
-
-
-- Beim ersten Start wird das Fenster auf seinem Monitor zentriert.
-- Feste Wartezeiten nach Windows-Updates entfallen: Das Statusfenster schließt, sobald die App bereit ist. Ungespeicherte Arbeit in mehreren Fenstern bleibt geschützt.
-
-- Getestete Änderungen beim Originalauftrag einreichen und ihn nach Integrationstests, unabhängiger Prüfung und Annahme abschließen.
+- Die Knotenvorprüfung zeigt Agent-Fähigkeiten, veröffentlichte Aufgabenanforderungen, Source sowie Authentifizierungs- und Freigabestatus.
 
 ## What's new [es]
 
-- Ejecute habilidades originales de Claude en aislamiento, revise y apruebe cambios y verifique correcciones de Godot con pruebas del agente. Reanude sesiones nativas interrumpidas y ajuste los modos del framework.
+- La revisión del destino muestra el grafo publicado, la identidad Source y las ejecuciones solapadas.
 
-- Se añadió un catálogo de roles y habilidades de Claude-Code-Game-Studios con versión fija y plantillas por motor. Coloque equipos seleccionados y consulte prompts originales completos y fuentes de configuración.
+- La bandeja de integración muestra posibles coincidencias de archivos, diferencias de base y contenido, e identidades de revisión.
 
-- Los resultados de compilaciones largas pueden transferirse dentro de los plazos aprobados de etapa y ejecución.
+- Inspecciona las identidades Run, Job y Source antes de reanudar; Core bloquea registros incoherentes y exige nueva revisión si cambia el contexto.
 
-- Consulte trabajo dependiente, preparación de equipos, entrega de artefactos y recuperación, con políticas limitadas de ejecuciones perdidas/reintentos y borradores TASTEFILES.
+- Revisa dependencias, paralelismo, aprobaciones y rutas de fallo; los cambios de versión, Source, inicio o tiempo exigen nueva revisión.
 
-- Gestione integraciones superpuestas y políticas de equipos, active horarios tras dependencias exitosas, consulte pasos e historial y revise reasignaciones pendientes.
+- Vincula los espacios Agent a un SO y tipo de Source, y bloquea asignaciones fuera de los vínculos aprobados.
 
-- Revise los cambios en la bandeja de integración y apruebe la creación, eliminación y cambio de nombre de archivos, con resolución de conflictos y revisión de fuentes para tareas dependientes.
-
-- Añadido un comando para agregar paquetes de macOS conservando las versiones publicadas de Windows y Linux.
-
-- Se añadieron paquetes DMG y distribución mediante Homebrew para macOS Apple Silicon.
-
-
-- Al iniciar por primera vez, la ventana se centra en su monitor.
-- Se eliminaron las esperas fijas tras actualizar Windows: la ventana de estado se cierra cuando la aplicación está lista. Se mantiene la protección del trabajo sin guardar en varias ventanas.
-
-- Envíe cambios probados al trabajo original y complételo tras nuevas pruebas, revisión independiente y aceptación.
+- La comprobación de nodos muestra capacidades del Agent asignado, requisitos publicados, Source y estado de autenticación y aprobación.
 
 ## What's new [fr]
 
-- Exécutez les compétences Claude d’origine en isolation, examinez et approuvez les changements, puis vérifiez les corrections Godot avec les tests de l’agent. Reprenez les sessions interrompues et réglez les modes du framework.
+- La vérification de cible affiche le graphe publié, l’identité Source et les exécutions simultanées.
 
-- Ajout d’un catalogue de rôles et compétences Claude-Code-Game-Studios à version fixe, lié aux modèles de moteurs. Placez les équipes choisies et consultez les prompts complets et les sources de configuration.
+- La boîte d’intégration affiche les chevauchements possibles, les différences de base et de contenu et les identités de revue.
 
-- Les résultats des compilations longues restent transférables dans les délais approuvés de l’étape et de l’exécution.
+- Inspectez les identités Run, Job et Source avant reprise ; Core bloque les incohérences et exige une nouvelle revue si le contexte change.
 
-- Consultez les travaux dépendants, la préparation des appareils, la livraison des artefacts et la récupération, avec règles limitées de rattrapage et de nouvelle tentative et brouillons TASTEFILES.
+- Vérifiez dépendances, parallélisme, approbations et échecs ; toute modification de version, Source, départ ou délai exige une nouvelle revue.
 
-- Gérez les intégrations chevauchantes et les règles des appareils, déclenchez les horaires après une dépendance réussie, consultez les étapes et l’historique et vérifiez les réaffectations en attente.
+- Associez les espaces Agent à un OS et un type de Source, et bloquez les affectations non conformes.
 
-- Examinez les changements et approuvez les créations, suppressions et renommages, avec résolution des conflits et réexamen des sources des tâches dépendantes.
-
-- Ajout d’une commande de publication pour ajouter les paquets macOS en conservant les versions Windows et Linux existantes.
-
-- Ajout des paquets DMG et de la distribution Homebrew pour macOS Apple Silicon.
-
-
-- Au premier lancement, la fenêtre est centrée sur son écran.
-- Les délais fixes après une mise à jour sous Windows ont été supprimés : la fenêtre d’état se ferme dès que l’application est prête. Le travail non enregistré dans plusieurs fenêtres reste protégé.
-
-- Soumettez les modifications testées au travail original et terminez-le après retests, examen indépendant et acceptation.
+- La vérification des nœuds présente les capacités de l’Agent, les exigences publiées, Source et les états d’authentification et d’approbation.
 
 ## What's new [it]
 
-- Esegui le competenze Claude originali in isolamento, esamina e approva le modifiche e verifica le correzioni Godot con i test dell’agente. Riprendi le sessioni interrotte e regola le modalità del framework.
+- La verifica della destinazione mostra grafo pubblicato, identità Source ed esecuzioni sovrapposte.
 
-- Aggiunto un catalogo di ruoli e competenze Claude-Code-Game-Studios a versione fissa con modelli per motore. Posiziona i team scelti e consulta prompt originali completi e fonti della configurazione.
+- La casella integrazioni mostra possibili sovrapposizioni, differenze di base e contenuto e identità delle revisioni.
 
-- I risultati delle compilazioni lunghe restano trasferibili entro i limiti approvati di fase ed esecuzione.
+- Verifica le identità Run, Job e Source prima di riprendere; Core blocca incoerenze e richiede una nuova revisione se cambia il contesto.
 
-- Consulta lavoro dipendente, disponibilità dispositivi, consegna artefatti e ripristino, con regole limitate di recupero/ripetizione e bozze TASTEFILES.
+- Verifica dipendenze, parallelismo, approvazioni ed errori; modifiche a versione, Source, avvio o timeout richiedono una nuova revisione.
 
-- Gestisci integrazioni sovrapposte e regole dei dispositivi, attiva pianificazioni dopo dipendenze riuscite, consulta passaggi e cronologia e verifica riassegnazioni in coda.
+- Associa gli spazi Agent a un OS e tipo di Source e blocca le assegnazioni non approvate.
 
-- Verifica le modifiche e approva creazione, eliminazione e rinomina dei file, con risoluzione dei conflitti e nuova verifica delle sorgenti delle attività dipendenti.
-
-- Aggiunto un comando di rilascio per aggiungere pacchetti macOS mantenendo le versioni Windows e Linux esistenti.
-
-- Aggiunti pacchetti DMG e distribuzione tramite Homebrew per macOS Apple Silicon.
-
-
-- Al primo avvio, la finestra viene centrata sul monitor.
-- Eliminate le attese fisse dopo gli aggiornamenti su Windows: la finestra di stato si chiude quando l’app è pronta. Il lavoro non salvato in più finestre resta protetto.
-
-- Invia modifiche testate al lavoro originale e completalo dopo retest, revisione indipendente e accettazione.
+- Il controllo dei nodi mostra capacità dell’Agent assegnato, requisiti pubblicati, Source e stato di autenticazione e approvazione.
 
 ## What's new [pt]
 
-- Execute habilidades Claude originais em isolamento, revise e aprove alterações e verifique correções Godot com testes do agente. Retome sessões nativas interrompidas e ajuste os modos do framework.
+- A revisão do destino mostra o grafo publicado, a identidade Source e execuções sobrepostas.
 
-- Adicionado um catálogo de papéis e habilidades Claude-Code-Game-Studios com versão fixa e modelos por motor. Posicione equipes selecionadas e consulte prompts originais completos e fontes de configuração.
+- A caixa de integração mostra possíveis sobreposições, diferenças de base e conteúdo e identidades de revisão.
 
-- Resultados de compilações longas podem ser transferidos dentro dos prazos aprovados da etapa e da execução.
+- Inspecione as identidades Run, Job e Source antes de retomar; Core bloqueia inconsistências e exige nova revisão se o contexto mudar.
 
-- Consulte trabalho dependente, prontidão de dispositivos, entrega de artefatos e recuperação, com políticas limitadas de execuções perdidas/repetições e rascunhos TASTEFILES.
+- Revise dependências, paralelismo, aprovações e falhas; mudanças de versão, Source, início ou prazo exigem nova revisão.
 
-- Gerencie integrações sobrepostas e políticas de dispositivos, dispare agendas após dependências bem-sucedidas, veja etapas e histórico e revise reatribuições na fila.
+- Vincule espaços Agent a um SO e tipo de Source e bloqueie atribuições fora dos vínculos aprovados.
 
-- Revise alterações e aprove criação, exclusão e renomeação de arquivos, com resolução de conflitos e revisão da fonte para tarefas dependentes.
+- A verificação dos nós mostra capacidades do Agent atribuído, requisitos publicados, Source e estado de autenticação e aprovação.
 
-- Adicionado comando de publicação para incluir pacotes macOS preservando as versões Windows e Linux existentes.
+## What's new [ja]
 
-- Adicionados pacotes DMG e distribuição pelo Homebrew para macOS Apple Silicon.
+- 予約対象の確認で公開済み関係図・Source の識別情報と重複実行の待機状態を確認できます。
 
+- 統合一覧でファイル重複の可能性、基準リビジョンと提案内容の違い、レビューの識別情報を確認できます。
 
-- Na primeira inicialização, a janela é centralizada no seu monitor.
-- Removidas as esperas fixas após atualizações no Windows: a janela de estado fecha assim que o aplicativo está pronto. O trabalho não salvo em várias janelas continua protegido.
+- 再開前に保存済み Run・Job・Source の識別情報を確認し、不一致を Core で拒否します。Source、期限、他ノードの進捗変更時は再確認が必要です。
 
-- Envie alterações testadas ao trabalho original e conclua após retestes, revisão independente e aceitação.
+- 実行前に依存順序、並列実行の可能性、承認、失敗経路を確認できます。公開版、Source、開始ノード、制限時間の変更時は再確認が必要です。
+
+- 装置ごとの Agent 作業領域に OS と Source 種類を関連付け、承認済みの関連付けに合わない割り当てを拒否できます。
+
+- ノードの実行前確認で、割り当てた Agent の機能、公開済みタスク要件、Source、認証と承認の確認状態を表示します。
+
+## What's new [zh]
+
+- 计划目标审核显示已发布关系图、Source 标识和活动执行重叠。
+
+- 集成收件箱显示文件重叠风险、基准版本和提议内容差异及审查标识。
+
+- 恢复前检查保存的 Run、Job 和 Source 身份，Core 会阻止不一致记录；Source、期限或其他节点进度变化后须重新审核。
+
+- 执行前可预览依赖顺序、潜在并行步骤、审批和失败路径；发布版本、Source、入口节点或超时变更后须重新审核。
+
+- 可为每台设备的 Agent 工作空间绑定操作系统和 Source 类型，并阻止不符合已批准绑定的分配。
+
+- 节点执行前检查可显示指定 Agent 的能力、已发布任务要求、Source 以及认证和审批审核状态。
+
+## What's new [zh-hant]
+
+- 排程目標檢閱顯示已發布關係圖、Source 識別資訊和活動執行重疊。
+
+- 整合收件匣顯示檔案重疊風險、基準版本和提議內容差異及檢閱識別資訊。
+
+- 恢復前檢查儲存的 Run、Job 與 Source 身分，Core 會阻擋不一致記錄；Source、期限或其他節點進度變更後須重新審閱。
+
+- 執行前可預覽相依順序、可能平行步驟、核准與失敗路徑；發佈版本、Source、入口節點或逾時變更後須重新審閱。
+
+- 可為各裝置的 Agent 工作空間綁定作業系統與 Source 類型，並阻擋不符合核准綁定的指派。
+
+- 節點執行前檢查可顯示指定 Agent 的能力、已發佈工作要求、Source，以及驗證與核准審閱狀態。
 
 ## What's new [ru]
 
-- Запускайте исходные навыки Claude изолированно, проверяйте и одобряйте изменения, а затем подтверждайте исправления Godot тестами агента. Доступны возобновление прерванных сессий и настройка режимов фреймворка.
+- Проверка запланированной цели показывает опубликованный граф, идентификатор Source и пересекающиеся запуски.
 
-- Добавлен каталог ролей и навыков Claude-Code-Game-Studios с фиксированной версией и шаблонами игровых движков. Можно размещать выбранные команды и просматривать полные исходные инструкции и источники настроек.
+- В списке интеграции показаны возможные пересечения файлов, различия базовой ревизии и содержимого, а также идентификаторы проверок.
 
-- Результаты длительных сборок можно передавать в пределах утверждённых сроков этапа и выполнения.
+- Проверяйте сохранённые идентификаторы Run, Job и Source перед возобновлением; Core блокирует несогласованные записи.
 
-- Просматривайте зависимые задачи, готовность устройств, передачу артефактов и восстановление; настраивайте ограниченные повторы, пропущенные запуски и черновики передачи TASTEFILES.
+- Просматривайте зависимости, параллельные этапы, согласования и сбои; изменения версии, Source, начала или срока требуют новой проверки.
 
-- Управляйте пересекающимися интеграциями и политиками устройств, запускайте расписания после успешных зависимостей, просматривайте этапы и историю и проверяйте переназначение очереди.
+- Привяжите рабочие области Agent к ОС и типу Source и блокируйте назначения, не соответствующие согласованным привязкам.
 
-- Проверяйте изменения и утверждайте создание, удаление и переименование файлов; доступны разрешение конфликтов и повторная проверка исходников зависимых задач.
-
-- Добавлена команда выпуска пакетов macOS с сохранением существующих выпусков Windows и Linux.
-
-- Добавлены пакеты DMG и распространение через Homebrew для macOS Apple Silicon.
-
-
-- При первом запуске окно размещается по центру своего монитора.
-- Убраны фиксированные задержки после обновления в Windows: окно состояния закрывается, как только приложение готово. Несохранённая работа в нескольких окнах по-прежнему защищена.
-
-- Проверенные изменения можно отправить в исходную задачу и завершить её после повторных тестов, независимой проверки и принятия.
+- Предварительная проверка узла показывает возможности Agent, требования задач, Source и состояние проверки аутентификации и согласования.
 
 ## What's new [nl]
 
-- Voer originele Claude-skills geïsoleerd uit, beoordeel en keur wijzigingen goed en verifieer Godot-oplossingen met Agent-tests. Hervat onderbroken sessies en stel frameworkmodi in.
+- Doelcontrole toont de gepubliceerde graaf, Source-identiteit en overlappende uitvoeringen.
 
-- Een vastgelegde Claude-Code-Game-Studios-catalogus met rollen, vaardigheden en enginesjablonen is toegevoegd. Plaats geselecteerde teams en bekijk volledige originele prompts en configuratiebronnen.
+- Het integratieoverzicht toont mogelijke bestandsoverlap, verschillen in basisrevisie en voorgestelde inhoud en beoordelingsidentiteiten.
 
-- Resultaten van langere builds blijven overdraagbaar binnen de goedgekeurde stap- en uitvoeringstermijnen.
+- Controleer opgeslagen Run-, Job- en Source-identiteiten voor hervatten; Core blokkeert inconsistente records.
 
-- Bekijk afhankelijk werk, apparaatgereedheid, artefactlevering en herstelstappen, met begrensde regels voor gemiste uitvoeringen/herhalingen en TASTEFILES-leveringsconcepten.
+- Bekijk afhankelijkheden, parallelle stappen, goedkeuringen en foutpaden. Wijzigingen aan versie, Source, start of timeout vereisen herbeoordeling.
 
-- Beheer overlappende integraties en apparaatbeleid, start schema’s na geslaagde afhankelijkheden, bekijk stappen en geschiedenis en beoordeel nieuwe toewijzingen in de wachtrij.
+- Koppel Agent-werkruimtes aan een OS en Source-type en blokkeer afwijkende toewijzingen.
 
-- Bekijk integratiewijzigingen en keur aanmaken, verwijderen en hernoemen goed, met conflictoplossing en herbeoordeling van broncode voor vervolgwerk.
-
-- Een releaseopdracht toegevoegd om macOS-pakketten toe te voegen met behoud van bestaande Windows- en Linux-releases.
-
-- DMG-pakketten en Homebrew-distributie voor macOS Apple Silicon toegevoegd.
-
-
-- Bij de eerste start wordt het venster op het bijbehorende scherm gecentreerd.
-- Vaste wachttijden na Windows-updates zijn verwijderd: het statusvenster sluit zodra de app gereed is. Niet-opgeslagen werk in meerdere vensters blijft beschermd.
-
-- Dien geteste wijzigingen in bij het oorspronkelijke werk en rond het af na hertests, onafhankelijke beoordeling en acceptatie.
+- De nodecontrole toont Agent-capaciteiten, gepubliceerde taakeisen, Source en de status van authenticatie en goedkeuring.
 
 ## What's new [pl]
 
-- Uruchamiaj oryginalne umiejętności Claude w izolacji, przeglądaj i zatwierdzaj zmiany oraz weryfikuj poprawki Godot testami agenta. Wznawiaj przerwane sesje i ustawiaj tryby frameworka.
+- Przegląd celu pokazuje opublikowany graf, tożsamość Source i nakładające się uruchomienia.
 
-- Dodano katalog ról i umiejętności Claude-Code-Game-Studios z przypiętą wersją i szablonami silników. Rozmieść wybrane zespoły i przeglądaj pełne oryginalne instrukcje oraz źródła konfiguracji.
+- Skrzynka integracji pokazuje możliwe nakładanie plików, różnice wersji bazowej i treści oraz identyfikatory przeglądów.
 
-- Wyniki dłuższych kompilacji można przesyłać w zatwierdzonych terminach etapu i wykonania.
+- Sprawdzaj zapisane tożsamości Run, Job i Source przed wznowieniem; Core blokuje niespójne rekordy.
 
-- Przeglądaj zadania zależne, gotowość urządzeń, przekazywanie artefaktów i odzyskiwanie oraz ustawiaj ograniczone ponowienia i szkice dostarczania TASTEFILES.
+- Przeglądaj zależności, równoległe etapy, zatwierdzenia i błędy; zmiany wersji, Source, startu lub limitu wymagają ponownego przeglądu.
 
-- Zarządzaj nakładającymi się integracjami i zasadami urządzeń, uruchamiaj harmonogramy po udanych zależnościach, przeglądaj kroki i historię oraz zatwierdzaj zmiany przydziałów w kolejce.
+- Powiąż obszary Agent z systemem i typem Source oraz blokuj niezgodne przydziały.
 
-- Przeglądaj zmiany i zatwierdzaj tworzenie, usuwanie oraz zmianę nazw plików, z rozwiązywaniem konfliktów i ponownym przeglądem źródeł zależnych zadań.
-
-- Dodano polecenie wydania pakietów macOS z zachowaniem istniejących wydań Windows i Linux.
-
-- Dodano pakiety DMG i dystrybucję przez Homebrew dla macOS Apple Silicon.
-
-
-- Przy pierwszym uruchomieniu okno jest wyśrodkowane na swoim monitorze.
-- Usunięto stałe opóźnienia po aktualizacji w Windows: okno stanu zamyka się, gdy aplikacja jest gotowa. Niezapisana praca w wielu oknach nadal jest chroniona.
-
-- Prześlij przetestowane zmiany do zadania źródłowego i zakończ je po ponownych testach, niezależnym przeglądzie i akceptacji.
+- Kontrola węzła pokazuje możliwości Agent, wymagania opublikowanych zadań, Source oraz stan uwierzytelniania i zatwierdzania.
 
 ## What's new [uk]
 
-- Запускайте оригінальні навички Claude ізольовано, перевіряйте та схвалюйте зміни й підтверджуйте виправлення Godot тестами агента. Відновлюйте перервані сесії та налаштовуйте режими фреймворку.
+- Перевірка цілі показує опублікований граф, ідентифікатор Source та одночасні запуски.
 
-- Додано каталог ролей і навичок Claude-Code-Game-Studios із зафіксованою версією та шаблонами рушіїв. Можна розміщувати вибрані команди й переглядати повні оригінальні інструкції та джерела налаштувань.
+- Список інтеграції показує можливі перетини файлів, відмінності базової версії й вмісту та ідентифікатори перевірок.
 
-- Результати тривалих збірок можна передавати в межах затверджених строків етапу та виконання.
+- Перевіряйте збережені ідентифікатори Run, Job і Source перед відновленням; Core блокує невідповідні записи.
 
-- Переглядайте залежні завдання, готовність пристроїв, передачу артефактів і відновлення; налаштовуйте обмежені повтори, пропущені запуски та чернетки передачі TASTEFILES.
+- Переглядайте залежності, паралельні кроки, погодження й збої; зміни версії, Source, початку або строку потребують нового перегляду.
 
-- Керуйте інтеграціями, що перетинаються, і політиками пристроїв, запускайте розклади після успішних залежностей, переглядайте етапи й історію та перевіряйте перепризначення черги.
+- Прив’язуйте робочі області Agent до ОС і типу Source та блокуйте невідповідні призначення.
 
-- Перевіряйте зміни та схвалюйте створення, видалення й перейменування файлів; доступні розв’язання конфліктів і повторна перевірка джерел залежних завдань.
-
-- Додано команду випуску пакетів macOS зі збереженням наявних випусків Windows і Linux.
-
-- Додано пакети DMG і розповсюдження через Homebrew для macOS Apple Silicon.
-
-
-- Під час першого запуску вікно розміщується в центрі свого монітора.
-- Прибрано фіксовані затримки після оновлення у Windows: вікно стану закривається, щойно програма готова. Незбережена робота в кількох вікнах залишається захищеною.
-
-- Перевірені зміни можна подати до вихідного завдання й завершити його після повторних тестів, незалежного огляду та прийняття.
+- Попередня перевірка вузла показує можливості Agent, вимоги завдань, Source та стан перевірки автентифікації й погодження.
 
 ## What's new [tr]
 
-- Özgün Claude becerilerini yalıtılmış alanda çalıştırın, değişiklikleri inceleyip onaylayın ve Godot düzeltmelerini Agent testleriyle doğrulayın. Kesilen oturumları sürdürün ve çerçeve modlarını ayarlayın.
+- Planlanan hedef incelemesi yayımlanan grafiği, Source kimliğini ve çakışan çalıştırmaları gösterir.
 
-- Sabit sürümlü Claude-Code-Game-Studios rol ve beceri kataloğu ile oyun motoru şablonları eklendi. Seçili ekipleri yerleştirin ve tam özgün istemleri ve yapılandırma kaynaklarını inceleyin.
+- Entegrasyon kutusu olası dosya çakışmalarını, temel sürüm ve içerik farklarını ve inceleme kimliklerini gösterir.
 
-- Uzun derlemelerin çıktıları, onaylanan adım ve yürütme süreleri içinde aktarılabilir.
+- Devam etmeden önce Run, Job ve Source kimliklerini denetleyin; Core tutarsız kayıtları engeller.
 
-- Bağımlı işleri, cihaz hazırlığını, çıktı teslimini ve kurtarma adımlarını inceleyin; sınırlı kaçırılan çalışma/yeniden deneme ilkeleri ve TASTEFILES teslim taslakları ayarlayın.
+- Bağımlılıkları, paralel adımları, onayları ve hata yollarını inceleyin; sürüm, Source, başlangıç veya süre değişirse yeniden inceleyin.
 
-- Çakışan entegrasyonları ve cihaz ilkelerini yönetin, başarılı bağımlılıklardan sonra zamanlamaları tetikleyin, adımları ve geçmişi görüntüleyin ve kuyruk yeniden atamalarını inceleyin.
+- Agent çalışma alanlarını işletim sistemi ve Source türüne bağlayın; onaylanan bağlara uymayan atamaları engelleyin.
 
-- Entegrasyon değişikliklerini inceleyip dosya oluşturma, silme ve yeniden adlandırmayı onaylayın; çakışma çözümü ve bağımlı işler için kaynak incelemesi desteklenir.
-
-- Mevcut Windows ve Linux sürümlerini koruyarak macOS paketleri ekleyen yayın komutu eklendi.
-
-- macOS Apple Silicon için DMG paketleme ve Homebrew dağıtımı eklendi.
-
-
-- İlk açılışta pencere, bulunduğu monitörün ortasına yerleştirilir.
-- Windows güncellemelerinden sonraki sabit beklemeler kaldırıldı: uygulama hazır olduğunda durum penceresi hemen kapanır. Birden fazla penceredeki kaydedilmemiş çalışmalar korunur.
-
-- Test edilmiş değişiklikleri asıl işe gönderin ve yeniden test, bağımsız inceleme ve kabul sonrasında tamamlayın.
+- Düğüm ön kontrolünde atanan Agent yetenekleri, yayımlanan görev gereksinimleri, Source ve kimlik doğrulama ile onay durumu görüntülenir.
 
 ## What's new [cs]
 
-- Spouštějte původní dovednosti Claude izolovaně, kontrolujte a schvalujte změny a ověřujte opravy Godot testy agenta. Obnovujte přerušené relace a nastavujte režimy frameworku.
+- Kontrola cíle ukazuje publikovaný graf, identitu Source a překrývající se běhy.
 
-- Přidán katalog rolí a dovedností Claude-Code-Game-Studios s pevnou verzí a šablonami herních enginů. Umístěte vybrané týmy a prohlížejte úplné původní pokyny a zdroje konfigurace.
+- Přehled integrací ukazuje možné překryvy souborů, rozdíly základní revize a obsahu i identity kontrol.
 
-- Výsledky delších sestavení lze přenášet v rámci schválených lhůt kroku a běhu.
+- Před pokračováním ověřte uložené identity Run, Job a Source; Core blokuje nekonzistentní záznamy.
 
-- Prohlížejte závislé úlohy, připravenost zařízení, doručování artefaktů a obnovu; nastavte omezené opakování a návrhy doručení TASTEFILES.
+- Zobrazte závislosti, souběžné kroky, schválení a chyby. Změny verze, Source, začátku nebo limitu vyžadují nové posouzení.
 
-- Spravujte překrývající se integrace a pravidla zařízení, spouštějte plány po úspěšných závislostech, prohlížejte kroky a historii a kontrolujte změny přiřazení ve frontě.
+- Svažte pracovní oblasti Agent s OS a typem Source a blokujte neodpovídající přiřazení.
 
-- Kontrolujte integrační změny a schvalujte vytváření, mazání a přejmenování souborů, s řešením konfliktů a novou kontrolou zdrojů navazujících úloh.
-
-- Přidán příkaz pro doplnění balíčků macOS se zachováním stávajících vydání Windows a Linux.
-
-- Přidány balíčky DMG a distribuce přes Homebrew pro macOS Apple Silicon.
-
-
-- Při prvním spuštění se okno umístí doprostřed příslušného monitoru.
-- Byly odstraněny pevné prodlevy po aktualizaci ve Windows: stavové okno se zavře, jakmile je aplikace připravena. Neuložená práce ve více oknech zůstává chráněna.
-
-- Odešlete otestované změny původní úloze a dokončete ji po opakovaných testech, nezávislé kontrole a přijetí.
+- Kontrola uzlů zobrazuje schopnosti Agent, požadavky publikovaných úloh, Source a stav ověření a schválení.
 
 ## What's new [sv]
 
-- Kör ursprungliga Claude-färdigheter isolerat, granska och godkänn ändringar och verifiera Godot-korrigeringar med agenttester. Återuppta avbrutna sessioner och ställ in ramverkslägen.
+- Målgranskningen visar publicerad graf, Source-identitet och överlappande körningar.
 
-- En versionslåst Claude-Code-Game-Studios-katalog med roller, färdigheter och spelmotormallar har lagts till. Placera valda team och granska fullständiga originalinstruktioner och konfigurationskällor.
+- Integrationsinkorgen visar möjliga filöverlappningar, skillnader i basrevision och innehåll samt granskningsidentiteter.
 
-- Resultat från längre byggen kan överföras inom godkända tidsgränser för steg och körning.
+- Kontrollera sparade Run-, Job- och Source-identiteter före återupptagning; Core blockerar inkonsekventa poster.
 
-- Granska beroende arbete, enhetsberedskap, artefaktleverans och återställning, med begränsade regler för missade körningar/omförsök och TASTEFILES-leveransutkast.
+- Granska beroenden, parallella steg, godkännanden och felvägar. Ändrad version, Source, start eller tidsgräns kräver ny granskning.
 
-- Hantera överlappande integrationer och enhetspolicyer, utlös scheman efter lyckade beroenden, granska steg och historik och godkänn omfördelning av köat arbete.
+- Bind Agent-arbetsområden till OS och Source-typ och blockera avvikande tilldelningar.
 
-- Granska integrationsändringar och godkänn skapande, borttagning och namnbyte av filer, med konfliktlösning och ny källgranskning för beroende arbete.
-
-- Lade till ett publiceringskommando för macOS-paket som bevarar befintliga Windows- och Linux-versioner.
-
-- Lagt till DMG-paket och Homebrew-distribution för macOS Apple Silicon.
-
-
-- Vid första starten centreras fönstret på sin bildskärm.
-- Fasta väntetider efter Windows-uppdateringar har tagits bort: statusfönstret stängs så snart appen är redo. Osparat arbete i flera fönster skyddas fortfarande.
-
-- Skicka testade ändringar till originalarbetet och slutför det efter omtester, oberoende granskning och godkännande.
+- Nodkontrollen visar Agent-funktioner, publicerade uppgiftskrav, Source och status för autentisering och godkännande.
 
 ## What's new [da]
 
-- Kør originale Claude-færdigheder isoleret, gennemgå og godkend ændringer, og verificer Godot-rettelser med agenttests. Genoptag afbrudte sessioner og indstil frameworktilstande.
+- Målgennemgang viser udgivet graf, Source-identitet og overlappende kørsler.
 
-- Tilføjet et versionsfast Claude-Code-Game-Studios-katalog med roller, færdigheder og spilmotorskabeloner. Placér valgte teams og se komplette originale instruktioner og konfigurationskilder.
+- Integrationsindbakken viser mulige filoverlap, forskelle i basisrevision og indhold samt gennemgangsidentiteter.
 
-- Resultater fra længere builds kan overføres inden for de godkendte frister for trin og kørsel.
+- Kontrollér gemte Run-, Job- og Source-identiteter før genoptagelse; Core blokerer uoverensstemmelser.
 
-- Se afhængigt arbejde, enhedsberedskab, artefaktlevering og gendannelse med begrænsede regler for mistede kørsler/genforsøg og TASTEFILES-leveringskladder.
+- Se afhængigheder, parallelle trin, godkendelser og fejlveje. Ændret version, Source, start eller tidsgrænse kræver ny gennemgang.
 
-- Administrer overlappende integrationer og enhedspolitikker, udløs tidsplaner efter vellykkede afhængigheder, se trin og historik og gennemgå omfordeling i køen.
+- Bind Agent-arbejdsområder til OS og Source-type, og blokér afvigende tildelinger.
 
-- Gennemgå integrationsændringer og godkend oprettelse, sletning og omdøbning af filer med konfliktløsning og ny kildegennemgang for afhængigt arbejde.
-
-- Tilføjet en udgivelseskommando til macOS-pakker, som bevarer eksisterende Windows- og Linux-udgivelser.
-
-- Tilføjet DMG-pakker og Homebrew-distribution til macOS Apple Silicon.
-
-
-- Ved første start centreres vinduet på sin skærm.
-- Faste ventetider efter Windows-opdateringer er fjernet: statusvinduet lukkes, så snart appen er klar. Ikke-gemt arbejde i flere vinduer beskyttes stadig.
-
-- Indsend testede ændringer til det oprindelige arbejde, og afslut efter gentest, uafhængig gennemgang og accept.
+- Nodekontrollen viser Agent-funktioner, publicerede opgavekrav, Source samt status for godkendelse og autentificering.
 
 ## What's new [nb]
 
-- Kjør originale Claude-ferdigheter isolert, gjennomgå og godkjenn endringer, og verifiser Godot-rettelser med agenttester. Gjenoppta avbrutte økter og still inn rammeverksmoduser.
+- Målgjennomgangen viser publisert graf, Source-identitet og overlappende kjøringer.
 
-- Lagt til en versjonslåst Claude-Code-Game-Studios-katalog med roller, ferdigheter og spillmotormaler. Plasser valgte team og se fullstendige originale instruksjoner og konfigurasjonskilder.
+- Integrasjonsinnboksen viser mulige filoverlapp, forskjeller i basisrevisjon og innhold samt gjennomgangsidentiteter.
 
-- Resultater fra lengre bygg kan overføres innen godkjente frister for trinn og kjøring.
+- Kontroller lagrede Run-, Job- og Source-identiteter før gjenopptakelse; Core blokkerer inkonsistente poster.
 
-- Se avhengig arbeid, enhetsberedskap, artefaktlevering og gjenoppretting med begrensede regler for tapte kjøringer/forsøk og TASTEFILES-leveringsutkast.
+- Se avhengigheter, parallelle trinn, godkjenninger og feilbaner. Endret versjon, Source, start eller tidsgrense krever ny gjennomgang.
 
-- Administrer overlappende integrasjoner og enhetspolicyer, utløs tidsplaner etter vellykkede avhengigheter, se trinn og historikk og gjennomgå omfordeling i køen.
+- Bind Agent-arbeidsområder til OS og Source-type og blokker avvikende tildelinger.
 
-- Gjennomgå integrasjonsendringer og godkjenn oppretting, sletting og navneendring av filer med konfliktløsning og ny kildegjennomgang for avhengig arbeid.
-
-- Lagt til en utgivelseskommando for macOS-pakker som bevarer eksisterende Windows- og Linux-utgivelser.
-
-- Lagt til DMG-pakker og Homebrew-distribusjon for macOS Apple Silicon.
-
-
-- Ved første oppstart sentreres vinduet på sin skjerm.
-- Faste ventetider etter Windows-oppdateringer er fjernet: statusvinduet lukkes så snart appen er klar. Ulagret arbeid i flere vinduer er fortsatt beskyttet.
-
-- Send testede endringer til det opprinnelige arbeidet og fullfør etter nye tester, uavhengig gjennomgang og godkjenning.
+- Nodekontrollen viser Agent-funksjoner, publiserte oppgavekrav, Source og status for autentisering og godkjenning.
 
 ## What's new [fi]
 
-- Suorita alkuperäiset Claude-taidot eristetysti, tarkista ja hyväksy muutokset ja varmista Godot-korjaukset agenttitesteillä. Jatka keskeytyneitä istuntoja ja säädä kehystiloja.
+- Kohteen tarkastus näyttää julkaistun kaavion, Source-tunnisteen ja päällekkäiset suoritukset.
 
-- Lisätty kiinnitetyn version Claude-Code-Game-Studios-rooli- ja taitoluettelo sekä pelimoottorimallit. Aseta valitut tiimit solmuiksi ja tarkastele alkuperäisiä kehotteita ja asetusten lähteitä.
+- Integrointinäkymä näyttää mahdolliset tiedostopäällekkäisyydet, pohjaversion ja sisällön erot sekä tarkastustunnisteet.
 
-- Pitkien koontien tulokset voidaan siirtää hyväksyttyjen vaihe- ja suoritusaikarajojen sisällä.
+- Tarkista tallennetut Run-, Job- ja Source-tunnisteet ennen jatkamista; Core estää ristiriitaiset tietueet.
 
-- Tarkastele riippuvaisia töitä, laitteiden valmiutta, artefaktien toimitusta ja palautusta sekä määritä rajatut uusinnat ja TASTEFILES-toimitusluonnokset.
+- Esikatsele riippuvuuksia, rinnakkaisia vaiheita, hyväksyntöjä ja virhepolkuja. Version, Sourcen, aloituksen tai aikarajan muutos vaatii uuden tarkistuksen.
 
-- Hallitse päällekkäisiä integraatioita ja laitekäytäntöjä, käynnistä ajastukset onnistuneiden riippuvuuksien jälkeen, tarkastele vaiheita ja historiaa sekä hyväksy jonon uudelleenmääritykset.
+- Sido Agentin työtilat käyttöjärjestelmään ja Source-tyyppiin ja estä poikkeavat tehtävämääritykset.
 
-- Tarkista integraatiomuutokset ja hyväksy tiedostojen luonti, poisto ja nimeäminen uudelleen; mukana ristiriitojen ratkaisu ja riippuvien tehtävien lähdetarkistus.
-
-- Lisätty julkaisukomento macOS-pakettien lisäämiseen säilyttäen nykyiset Windows- ja Linux-julkaisut.
-
-- Lisätty DMG-paketointi ja Homebrew-jakelu macOS Apple Siliconille.
-
-
-- Ensimmäisellä käynnistyskerralla ikkuna keskitetään näytölleen.
-- Windows-päivitysten jälkeiset kiinteät odotusajat on poistettu: tilaikkuna sulkeutuu heti sovelluksen ollessa valmis. Tallentamaton työ useissa ikkunoissa on edelleen suojattu.
-
-- Lähetä testatut muutokset alkuperäiseen tehtävään ja viimeistele se uusintatestien, riippumattoman tarkistuksen ja hyväksynnän jälkeen.
+- Solmun esitarkistus näyttää Agentin ominaisuudet, julkaistut tehtävävaatimukset, Sourcen sekä tunnistautumisen ja hyväksynnän tilan.
 
 ## What's new [hu]
 
-- Futtassa az eredeti Claude-készségeket elkülönítve, ellenőrizze és hagyja jóvá a változásokat, majd igazolja a Godot-javításokat ügynökteszttel. Folytathatók a megszakított munkamenetek, és állíthatók a keretrendszer módjai.
+- A cél ellenőrzése mutatja a közzétett gráfot, a Source-azonosítót és az átfedő futásokat.
 
-- Rögzített verziójú Claude-Code-Game-Studios szerep- és készségkatalógus, valamint játékmotor-sablonok kerültek be. A kiválasztott csapatok elhelyezhetők, a teljes eredeti utasítások és beállításforrások megtekinthetők.
+- Az integrációs lista mutatja a lehetséges fájlátfedéseket, az alapverzió és tartalom eltéréseit és az ellenőrzések azonosítóit.
 
-- A hosszabb fordítások eredményei a jóváhagyott lépés- és futási határidőn belül átadhatók.
+- Folytatás előtt ellenőrizze a mentett Run-, Job- és Source-azonosítókat; Core blokkolja az eltérő rekordokat.
 
-- Függő feladatok, eszközkészültség, eredményátadás és helyreállítás áttekintése, korlátozott pótlási/újrapróbálási szabályokkal és TASTEFILES-átadási tervezetekkel.
+- Tekintse át a függőségeket, párhuzamos lépéseket, jóváhagyásokat és hibautakat; módosult verzió, Source, kezdés vagy időkorlát esetén új ellenőrzés kell.
 
-- Átfedő integrációk és eszközszabályok kezelése, ütemezés sikeres függőségek után, lépések és előzmények megtekintése, valamint várakozó feladatok újrakiosztásának ellenőrzése.
+- Kösse az Agent munkaterületeit operációs rendszerhez és Source-típushoz, és tiltsa a nem megfelelő hozzárendeléseket.
 
-- Tekintse át az integrációs változásokat, és hagyja jóvá a fájlok létrehozását, törlését és átnevezését, ütközésfeloldással és a függő feladatok forrásának újraellenőrzésével.
-
-- Új kiadási parancs macOS-csomagok hozzáadásához a meglévő Windows- és Linux-kiadások megőrzésével.
-
-- DMG-csomagolás és Homebrew-terjesztés hozzáadva macOS Apple Siliconhoz.
-
-
-- Az első indításkor az ablak a saját monitorának közepén jelenik meg.
-- Megszűntek a Windows-frissítések utáni rögzített várakozások: az állapotablak bezárul, amint az alkalmazás készen áll. A több ablakban lévő nem mentett munka továbbra is védett.
-
-- A tesztelt módosítások az eredeti feladatba küldhetők, majd újratesztelés, független ellenőrzés és elfogadás után lezárhatók.
+- A csomópont ellenőrzése megjeleníti az Agent képességeit, a közzétett feladatkövetelményeket, a Source és a hitelesítés, illetve jóváhagyás állapotát.
 
 ## What's new [ro]
 
-- Rulați abilitățile Claude originale izolat, examinați și aprobați modificările și verificați remedierile Godot prin teste Agent. Reluați sesiunile întrerupte și ajustați modurile cadrului.
+- Revizuirea țintei arată graful publicat, identitatea Source și execuțiile suprapuse.
 
-- A fost adăugat un catalog Claude-Code-Game-Studios cu versiune fixă pentru roluri și abilități, cu șabloane pentru motoare. Plasați echipele selectate și consultați instrucțiunile originale complete și sursele configurației.
+- Lista de integrare arată posibile suprapuneri de fișiere, diferențe de versiune și conținut și identitățile revizuirilor.
 
-- Rezultatele compilărilor lungi pot fi transferate în termenele aprobate pentru etapă și execuție.
+- Verificați identitățile Run, Job și Source înainte de reluare; Core blochează înregistrările neconforme.
 
-- Consultați sarcinile dependente, pregătirea dispozitivelor, livrarea artefactelor și recuperarea, cu politici limitate de reluare și schițe TASTEFILES.
+- Previzualizați dependențe, pași paraleli, aprobări și erori; schimbarea versiunii, Source, începutului sau limitei cere o nouă revizuire.
 
-- Gestionați integrările suprapuse și politicile dispozitivelor, declanșați programări după dependențe reușite, consultați pașii și istoricul și revizuiți realocările din coadă.
+- Asociați spațiile Agent cu un OS și tip de Source și blocați atribuirile neconforme.
 
-- Examinați modificările și aprobați crearea, ștergerea și redenumirea fișierelor, cu rezolvarea conflictelor și reevaluarea surselor pentru sarcinile dependente.
-
-- Comandă nouă de publicare pentru adăugarea pachetelor macOS, păstrând versiunile Windows și Linux existente.
-
-- Au fost adăugate pachete DMG și distribuția prin Homebrew pentru macOS Apple Silicon.
-
-
-- La prima pornire, fereastra este centrată pe monitorul său.
-- Au fost eliminate așteptările fixe după actualizările pe Windows: fereastra de stare se închide când aplicația este pregătită. Lucrul nesalvat din mai multe ferestre rămâne protejat.
-
-- Trimiteți modificările testate lucrării originale și finalizați după retestare, verificare independentă și acceptare.
+- Verificarea nodurilor arată capacitățile Agent, cerințele publicate, Source și starea autentificării și aprobării.
 
 ## What's new [el]
 
-- Εκτελέστε τις αρχικές δεξιότητες Claude απομονωμένα, ελέγξτε και εγκρίνετε αλλαγές και επαληθεύστε διορθώσεις Godot με δοκιμές Agent. Συνεχίστε συνεδρίες που διακόπηκαν και ρυθμίστε τις λειτουργίες του πλαισίου.
+- Ο έλεγχος στόχου δείχνει το δημοσιευμένο γράφημα, την ταυτότητα Source και επικαλυπτόμενες εκτελέσεις.
 
-- Προστέθηκε κατάλογος ρόλων και δεξιοτήτων Claude-Code-Game-Studios με σταθερή έκδοση και πρότυπα μηχανών παιχνιδιών. Τοποθετήστε επιλεγμένες ομάδες και δείτε τις πλήρεις αρχικές οδηγίες και τις πηγές ρυθμίσεων.
+- Τα εισερχόμενα ενσωμάτωσης δείχνουν πιθανές επικαλύψεις αρχείων, διαφορές βασικής έκδοσης και περιεχομένου και ταυτότητες ελέγχων.
 
-- Τα αποτελέσματα μεγάλων μεταγλωττίσεων μεταφέρονται εντός των εγκεκριμένων προθεσμιών βήματος και εκτέλεσης.
+- Ελέγξτε τις αποθηκευμένες ταυτότητες Run, Job και Source πριν τη συνέχιση· το Core αποκλείει ασυνεπείς εγγραφές.
 
-- Ελέγξτε εξαρτώμενες εργασίες, ετοιμότητα συσκευών, παράδοση τεχνουργημάτων και ανάκτηση, με περιορισμένες πολιτικές επανάληψης και προσχέδια παράδοσης TASTEFILES.
+- Προεπισκόπηση εξαρτήσεων, παράλληλων βημάτων, εγκρίσεων και σφαλμάτων. Αλλαγές έκδοσης, Source, αρχής ή ορίου απαιτούν νέο έλεγχο.
 
-- Διαχειριστείτε επικαλυπτόμενες ενσωματώσεις και πολιτικές συσκευών, ενεργοποιήστε προγράμματα μετά από επιτυχείς εξαρτήσεις, δείτε βήματα και ιστορικό και ελέγξτε επαναναθέσεις στην ουρά.
+- Συνδέστε τους χώρους Agent με OS και τύπο Source και αποκλείστε μη συμβατές αναθέσεις.
 
-- Ελέγξτε τις αλλαγές και εγκρίνετε δημιουργία, διαγραφή και μετονομασία αρχείων, με επίλυση συγκρούσεων και νέο έλεγχο πηγών εξαρτώμενων εργασιών.
-
-- Προστέθηκε εντολή έκδοσης για προσθήκη πακέτων macOS με διατήρηση των υπαρχουσών εκδόσεων Windows και Linux.
-
-- Προστέθηκαν πακέτα DMG και διανομή μέσω Homebrew για macOS Apple Silicon.
-
-
-- Κατά την πρώτη εκκίνηση, το παράθυρο τοποθετείται στο κέντρο της οθόνης του.
-- Καταργήθηκαν οι σταθερές αναμονές μετά τις ενημερώσεις στα Windows: το παράθυρο κατάστασης κλείνει μόλις η εφαρμογή είναι έτοιμη. Η μη αποθηκευμένη εργασία σε πολλά παράθυρα εξακολουθεί να προστατεύεται.
-
-- Υποβάλετε τις δοκιμασμένες αλλαγές στην αρχική εργασία και ολοκληρώστε τη μετά από επανέλεγχο, ανεξάρτητη αναθεώρηση και αποδοχή.
+- Ο προέλεγχος κόμβων εμφανίζει δυνατότητες Agent, δημοσιευμένες απαιτήσεις εργασιών, Source και κατάσταση ελέγχου ταυτοποίησης και έγκρισης.
 
 ## What's new [vi]
 
-- Chạy kỹ năng Claude gốc trong vùng cách ly, xem xét và phê duyệt thay đổi rồi xác minh bản sửa Godot bằng kiểm thử Agent. Tiếp tục phiên bị gián đoạn và điều chỉnh chế độ khung.
+- Đánh giá mục tiêu lịch hiển thị đồ thị đã công bố, danh tính Source và lượt chạy trùng.
 
-- Đã thêm danh mục vai trò và kỹ năng Claude-Code-Game-Studios được ghim phiên bản cùng mẫu cho công cụ trò chơi. Đặt các nhóm đã chọn và xem đầy đủ lời nhắc gốc cùng nguồn cấu hình.
+- Hộp tích hợp hiển thị tệp có thể trùng, khác biệt phiên bản gốc và nội dung đề xuất, cùng danh tính đánh giá.
 
-- Kết quả bản dựng dài vẫn được truyền trong thời hạn bước và thực thi đã phê duyệt.
+- Kiểm tra danh tính Run, Job và Source trước khi tiếp tục; Core chặn bản ghi không nhất quán.
 
-- Xem công việc phụ thuộc, trạng thái thiết bị, chuyển giao sản phẩm và phục hồi; đặt chính sách chạy bù/thử lại có giới hạn và bản nháp chuyển giao TASTEFILES.
+- Xem trước phụ thuộc, bước song song, phê duyệt và lỗi; phải xét duyệt lại khi đổi phiên bản, Source, nút đầu hoặc thời hạn.
 
-- Quản lý tích hợp chồng chéo và chính sách thiết bị, kích hoạt lịch sau phụ thuộc thành công, xem bước và lịch sử, đồng thời duyệt phân công lại công việc đang chờ.
+- Gắn không gian Agent với hệ điều hành và loại Source, đồng thời chặn phân công không khớp liên kết đã duyệt.
 
-- Xem xét thay đổi và phê duyệt tạo, xóa, đổi tên tệp, cùng giải quyết xung đột và xem lại mã nguồn cho công việc phụ thuộc.
-
-- Thêm lệnh phát hành để bổ sung gói macOS và giữ nguyên các bản phát hành Windows và Linux hiện có.
-
-- Đã bổ sung gói DMG và phân phối qua Homebrew cho macOS Apple Silicon.
-
-
-- Khi khởi chạy lần đầu, cửa sổ được căn giữa trên màn hình tương ứng.
-- Đã bỏ thời gian chờ cố định sau khi cập nhật trên Windows: cửa sổ trạng thái đóng ngay khi ứng dụng sẵn sàng. Công việc chưa lưu trong nhiều cửa sổ vẫn được bảo vệ.
-
-- Gửi thay đổi đã kiểm thử về công việc gốc và hoàn tất sau khi kiểm thử lại, đánh giá độc lập và chấp thuận.
+- Kiểm tra nút trước khi chạy hiển thị khả năng Agent, yêu cầu tác vụ đã công bố, Source và trạng thái xác thực, xét duyệt.
 
 ## What's new [id]
 
-- Jalankan skill Claude asli secara terisolasi, tinjau dan setujui perubahan, lalu verifikasi perbaikan Godot dengan pengujian Agent. Lanjutkan sesi yang terputus dan atur mode framework.
+- Tinjauan target terjadwal menampilkan graf terbit, identitas Source, dan eksekusi tumpang tindih.
 
-- Menambahkan katalog peran dan keterampilan Claude-Code-Game-Studios dengan versi tetap serta templat mesin game. Tempatkan tim terpilih dan lihat prompt asli lengkap serta sumber konfigurasi.
+- Kotak integrasi menampilkan potensi tumpang tindih berkas, perbedaan revisi dasar dan isi usulan, serta identitas tinjauan.
 
-- Hasil build yang lama tetap dapat ditransfer dalam batas waktu tahap dan eksekusi yang disetujui.
+- Periksa identitas Run, Job, dan Source sebelum melanjutkan; Core memblokir catatan yang tidak konsisten.
 
-- Tinjau pekerjaan dependen, kesiapan perangkat, pengiriman artefak dan pemulihan, dengan kebijakan eksekusi terlewat/percobaan ulang terbatas dan draf TASTEFILES.
+- Pratinjau dependensi, langkah paralel, persetujuan, dan jalur gagal; perubahan versi, Source, awal, atau batas waktu memerlukan tinjauan ulang.
 
-- Kelola integrasi yang bertumpang tindih dan kebijakan perangkat, picu jadwal setelah dependensi berhasil, lihat langkah dan riwayat, serta tinjau penugasan ulang antrean.
+- Ikat ruang Agent ke OS dan jenis Source, lalu blokir penugasan yang tidak sesuai dengan ikatan yang disetujui.
 
-- Tinjau perubahan integrasi dan setujui pembuatan, penghapusan serta penggantian nama berkas, dengan penyelesaian konflik dan peninjauan ulang sumber pekerjaan terkait.
-
-- Menambahkan perintah rilis untuk menambah paket macOS sambil mempertahankan rilis Windows dan Linux yang ada.
-
-- Menambahkan paket DMG dan distribusi Homebrew untuk macOS Apple Silicon.
-
-
-- Saat pertama kali dijalankan, jendela ditempatkan di tengah monitornya.
-- Waktu tunggu tetap setelah pembaruan Windows dihapus: jendela status langsung ditutup saat aplikasi siap. Pekerjaan yang belum disimpan di beberapa jendela tetap terlindungi.
-
-- Kirim perubahan teruji ke pekerjaan asli dan selesaikan setelah pengujian ulang, tinjauan independen, serta penerimaan.
+- Pemeriksaan node menampilkan kemampuan Agent, persyaratan tugas yang dipublikasikan, Source, serta status autentikasi dan persetujuan.

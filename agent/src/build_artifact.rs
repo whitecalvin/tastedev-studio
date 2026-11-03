@@ -14,6 +14,16 @@ use std::{
 };
 
 pub const LIMIT: u64 = 128 * 1024 * 1024;
+// Captured batches are preflighted before any upload. Bound aggregate resident
+// bytes while retaining the established Artifact per-file limit, not Source's8MiB.
+pub(crate) const CAPTURED_TOTAL_LIMIT: u64 = LIMIT;
+/// Immutable bytes captured by the trusted isolation broker. No credentials or
+/// destinations belong in this structure, and no host Source path is reread.
+pub struct CapturedOutput {
+    pub path: String,
+    pub checksum: String,
+    pub bytes: Vec<u8>,
+}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Artifact {
@@ -334,6 +344,48 @@ pub fn download(
     cancel: &Arc<AtomicBool>,
     deadline: Instant,
 ) -> Result<()> {
+    download_at(
+        request,
+        cancel,
+        deadline,
+        &root.join("runs").join(&request.run_id),
+        |path| target(root, request, path),
+    )
+}
+/// Trusted caller supplies the newly owned private cwd/staging root. Destination
+/// paths still use the normal artifact policy, checksum and transaction logic.
+pub(crate) fn download_into(
+    request: &Request,
+    cwd: &Path,
+    staging_root: &Path,
+    cancel: &Arc<AtomicBool>,
+    deadline: Instant,
+) -> Result<()> {
+    no_links(cwd)?;
+    no_links(staging_root)?;
+    let base = cwd
+        .canonicalize()
+        .map_err(|_| "Private artifact cwd unavailable")?;
+    let owner = staging_root
+        .canonicalize()
+        .map_err(|_| "Private artifact owner unavailable")?;
+    if !base.starts_with(&owner) || !base.is_dir() {
+        return Err("Private artifact workspace mismatch".into());
+    }
+    download_at(request, cancel, deadline, &owner, |path| {
+        safe_path(path)?;
+        let destination = base.join(path);
+        no_links(&destination)?;
+        Ok(destination)
+    })
+}
+fn download_at(
+    request: &Request,
+    cancel: &Arc<AtomicBool>,
+    deadline: Instant,
+    staging_root: &Path,
+    resolve: impl Fn(&str) -> Result<PathBuf>,
+) -> Result<()> {
     let Some(transfer) = &request.build_artifact_transfer else {
         return Ok(());
     };
@@ -341,7 +393,7 @@ pub fn download(
     check(cancel, deadline)?;
     let mut destinations = Vec::new();
     for input in &transfer.inputs {
-        let dest = target(root, request, &input.path)?;
+        let dest = resolve(&input.path)?;
         if fs::symlink_metadata(&dest).is_ok() {
             return Err("Build input target already exists".into());
         }
@@ -350,10 +402,7 @@ pub fn download(
     if destinations.is_empty() {
         return Ok(());
     }
-    let stage = root
-        .join("runs")
-        .join(&request.run_id)
-        .join(format!(".build-transfer-{}", uuid::Uuid::new_v4()));
+    let stage = staging_root.join(format!(".build-transfer-{}", uuid::Uuid::new_v4()));
     no_links(&stage)?;
     fs::create_dir(&stage).map_err(|_| "Build staging unavailable")?;
     let operation = (|| -> Result<()> {
@@ -432,6 +481,100 @@ pub fn download(
     cleanup?;
     Ok(())
 }
+
+/// Recheck installed immutable identities immediately before the private child
+/// starts. This never opens the original Source or infers executable permission.
+pub(crate) fn verify_inputs_at(
+    request: &Request,
+    cwd: &Path,
+    cancel: &AtomicBool,
+    deadline: Instant,
+) -> Result<()> {
+    let Some(transfer) = &request.build_artifact_transfer else {
+        return Ok(());
+    };
+    for input in &transfer.inputs {
+        check(cancel, deadline)?;
+        safe_path(&input.path)?;
+        let path = cwd.join(&input.path);
+        no_links(&path)?;
+        let mut options = fs::OpenOptions::new();
+        options.read(true);
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            options.share_mode(windows_sys::Win32::Storage::FileSystem::FILE_SHARE_READ);
+        }
+        let mut file = options
+            .open(&path)
+            .map_err(|_| "Private input unavailable")?;
+        let metadata = file
+            .metadata()
+            .map_err(|_| "Private input metadata unavailable")?;
+        if !metadata.is_file() || metadata.len() != input.artifact.size || metadata.len() > LIMIT {
+            return Err("Private input integrity mismatch".into());
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::io::AsRawHandle;
+            use windows_sys::Win32::Storage::FileSystem::{
+                GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION,
+            };
+            let mut info = std::mem::MaybeUninit::<BY_HANDLE_FILE_INFORMATION>::uninit();
+            // SAFETY: live owned read handle and correctly sized output storage.
+            if unsafe { GetFileInformationByHandle(file.as_raw_handle(), info.as_mut_ptr()) } == 0 {
+                return Err("Private input link identity unavailable".into());
+            }
+            if unsafe { info.assume_init() }.nNumberOfLinks != 1 {
+                return Err("Hard-linked private input rejected".into());
+            }
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            if metadata.nlink() != 1 {
+                return Err("Hard-linked private input rejected".into());
+            }
+        }
+        let mut hash = Sha256::new();
+        let mut total = 0u64;
+        let mut bytes = [0u8; 65536];
+        loop {
+            check(cancel, deadline)?;
+            let count = file
+                .read(&mut bytes)
+                .map_err(|_| "Private input read failed")?;
+            if count == 0 {
+                break;
+            }
+            total += count as u64;
+            if total > input.artifact.size {
+                return Err("Private input size mismatch".into());
+            }
+            hash.update(&bytes[..count]);
+        }
+        if total != input.artifact.size
+            || format!("{:x}", hash.finalize()) != input.artifact.checksum
+        {
+            return Err("Private input checksum mismatch".into());
+        }
+        #[cfg(unix)]
+        if let Some(executable) = input.artifact.executable {
+            use std::os::unix::fs::PermissionsExt;
+            if metadata.permissions().mode() & 0o7777 != if executable { 0o700 } else { 0o600 } {
+                return Err("Private input executable policy mismatch".into());
+            }
+        }
+    }
+    Ok(())
+}
+pub(crate) fn installation_report(request: &Request) -> Option<serde_json::Value> {
+    request.build_artifact_transfer.as_ref().filter(|t| !t.inputs.is_empty()).map(|transfer| serde_json::json!(transfer.inputs.iter().map(|input| {
+        let mut value=serde_json::json!({"id":input.artifact.id,"path":input.path,"size":input.artifact.size,"checksum":input.artifact.checksum});
+        if let Some(executable)=input.artifact.executable {value["executable"]=serde_json::json!(executable);}
+        value
+    }).collect::<Vec<_>>()))
+}
 struct UploadReader {
     bytes: std::io::Cursor<Vec<u8>>,
     cancel: Arc<AtomicBool>,
@@ -488,42 +631,178 @@ pub fn upload(
         if bytes.len() as u64 != metadata.len() {
             return Err("Build output changed during read".into());
         }
-        let private = request
-            .env
-            .iter()
-            .filter(|(k, _)| k.as_str() != "TASTEDEV_GRAPH_CONTEXT")
-            .map(|(_, v)| v.as_str())
-            .chain(std::iter::once(output.token.as_str()));
-        if private
-            .filter(|v| v.len() >= 4)
-            .any(|v| bytes.windows(v.len()).any(|w| w == v.as_bytes()))
-        {
+        validate_private(request, &bytes, cancel, deadline)?;
+        let checksum = format!("{:x}", Sha256::digest(&bytes));
+        upload_one(request, output, bytes, &checksum, cancel, deadline)?;
+    }
+    Ok(())
+}
+
+fn contains_private(
+    bytes: &[u8],
+    value: &[u8],
+    cancel: &AtomicBool,
+    deadline: Instant,
+) -> Result<bool> {
+    if value.is_empty() {
+        return Ok(false);
+    }
+    // Linear matching, including adversarial repeated prefixes. Check the task
+    // budget while scanning rather than hiding cancellation in a large memcmp loop.
+    let mut prefix = vec![0; value.len()];
+    for index in 1..value.len() {
+        let mut matched = prefix[index - 1];
+        while matched > 0 && value[index] != value[matched] {
+            matched = prefix[matched - 1];
+        }
+        if value[index] == value[matched] {
+            matched += 1;
+        }
+        prefix[index] = matched;
+    }
+    let mut matched = 0;
+    for (index, byte) in bytes.iter().enumerate() {
+        if index % 65536 == 0 {
+            check(cancel, deadline)?;
+        }
+        while matched > 0 && *byte != value[matched] {
+            matched = prefix[matched - 1];
+        }
+        if *byte == value[matched] {
+            matched += 1;
+        }
+        if matched == value.len() {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+fn validate_private(
+    request: &Request,
+    bytes: &[u8],
+    cancel: &AtomicBool,
+    deadline: Instant,
+) -> Result<()> {
+    let values = request
+        .env
+        .iter()
+        .filter(|(key, _)| key.as_str() != "TASTEDEV_GRAPH_CONTEXT")
+        .map(|(_, value)| value.as_str())
+        .chain(request.build_artifact_transfer.iter().flat_map(|t| {
+            t.outputs
+                .iter()
+                .map(|o| o.token.as_str())
+                .chain(t.inputs.iter().map(|i| i.token.as_str()))
+        }));
+    for value in values.filter(|value| value.len() >= 4) {
+        if contains_private(bytes, value.as_bytes(), cancel, deadline)? {
             return Err("Build output contains configured private value".into());
         }
-        let checksum = format!("{:x}", Sha256::digest(&bytes));
-        let mut upload = client(deadline)?.put(&output.url);
-        if let Some(executable) = output.executable {
-            upload = upload.header("X-Build-Executable", executable.to_string());
-        }
-        let response = upload
-            .bearer_auth(&output.token)
-            .header("X-Project-Id", &request.project_id)
-            .header("X-Build-Size", bytes.len())
-            .header("X-Build-Checksum", &checksum)
-            .body(reqwest::blocking::Body::sized(
-                UploadReader {
-                    bytes: std::io::Cursor::new(bytes),
-                    cancel: cancel.clone(),
-                    deadline,
-                },
-                metadata.len(),
-            ))
-            .send()
-            .map_err(|_| "Build upload failed")?;
+    }
+    Ok(())
+}
+pub(crate) fn validate_captured(
+    request: &Request,
+    captured: &[CapturedOutput],
+    cancel: &AtomicBool,
+    deadline: Instant,
+) -> Result<()> {
+    check(cancel, deadline)?;
+    let transfer = request
+        .build_artifact_transfer
+        .as_ref()
+        .ok_or("Captured output transfer required")?;
+    transfer.validate(request)?;
+    if captured.len() != transfer.outputs.len() {
+        return Err("Captured output scope mismatch".into());
+    }
+    let mut seen = HashSet::new();
+    let mut total = 0usize;
+    for item in captured {
         check(cancel, deadline)?;
-        if response.status() != reqwest::StatusCode::OK {
-            return Err("Build upload rejected".into());
+        safe_path(&item.path)?;
+        total = total
+            .checked_add(item.bytes.len())
+            .ok_or("Captured output size overflow")?;
+        if item.bytes.is_empty()
+            || item.bytes.len() as u64 > LIMIT
+            || total as u64 > CAPTURED_TOTAL_LIMIT
+            || !seen.insert(item.path.as_str())
+            || !transfer
+                .outputs
+                .iter()
+                .any(|output| output.path == item.path)
+            || !hex(&item.checksum)
+            || format!("{:x}", Sha256::digest(&item.bytes)) != item.checksum
+        {
+            return Err("Captured output integrity or scope mismatch".into());
         }
+        validate_private(request, &item.bytes, cancel, deadline)?;
+    }
+    Ok(())
+}
+/// All declarations, bytes and private-value checks pass before the first HTTP
+/// request. Uses exactly the existing authenticated, no-redirect upload protocol.
+pub(crate) fn upload_captured(
+    request: &Request,
+    captured: Vec<CapturedOutput>,
+    cancel: &Arc<AtomicBool>,
+    deadline: Instant,
+) -> Result<()> {
+    validate_captured(request, &captured, cancel, deadline)?;
+    let transfer = request
+        .build_artifact_transfer
+        .as_ref()
+        .ok_or("Captured output transfer required")?;
+    for item in captured {
+        let output = transfer
+            .outputs
+            .iter()
+            .find(|output| output.path == item.path)
+            .ok_or("Captured output scope mismatch")?;
+        upload_one(
+            request,
+            output,
+            item.bytes,
+            &item.checksum,
+            cancel,
+            deadline,
+        )?;
+    }
+    Ok(())
+}
+fn upload_one(
+    request: &Request,
+    output: &Output,
+    bytes: Vec<u8>,
+    checksum: &str,
+    cancel: &Arc<AtomicBool>,
+    deadline: Instant,
+) -> Result<()> {
+    check(cancel, deadline)?;
+    let length = bytes.len() as u64;
+    let mut upload = client(deadline)?.put(&output.url);
+    if let Some(executable) = output.executable {
+        upload = upload.header("X-Build-Executable", executable.to_string());
+    }
+    let response = upload
+        .bearer_auth(&output.token)
+        .header("X-Project-Id", &request.project_id)
+        .header("X-Build-Size", length)
+        .header("X-Build-Checksum", checksum)
+        .body(reqwest::blocking::Body::sized(
+            UploadReader {
+                bytes: std::io::Cursor::new(bytes),
+                cancel: cancel.clone(),
+                deadline,
+            },
+            length,
+        ))
+        .send()
+        .map_err(|_| "Build upload failed")?;
+    check(cancel, deadline)?;
+    if response.status() != reqwest::StatusCode::OK {
+        return Err("Build upload rejected".into());
     }
     Ok(())
 }
@@ -532,6 +811,110 @@ pub fn upload(
 mod tests {
     use super::*;
     use std::{net::TcpListener, thread};
+    #[test]
+    fn private_value_matching_is_linear_and_budget_aware() {
+        let cancel = AtomicBool::new(false);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        assert!(contains_private(b"abababac", b"abac", &cancel, deadline).unwrap());
+        assert!(!contains_private(
+            &vec![b'a'; 262144],
+            &[vec![b'a'; 4095], vec![b'b']].concat(),
+            &cancel,
+            deadline
+        )
+        .unwrap());
+        assert!(!contains_private(b"short", b"", &cancel, deadline).unwrap());
+        cancel.store(true, Ordering::SeqCst);
+        assert!(contains_private(b"abc", b"x", &cancel, deadline).is_err());
+    }
+    fn captured(path: &str, bytes: &[u8]) -> CapturedOutput {
+        CapturedOutput {
+            path: path.into(),
+            checksum: format!("{:x}", Sha256::digest(bytes)),
+            bytes: bytes.into(),
+        }
+    }
+    #[test]
+    fn actual_http_captured_upload_uses_verified_bytes_without_a_source_path() {
+        let bytes = b"private-result\0\xff";
+        let (base, worker) = peer(Vec::new(), String::new());
+        let request = request(&base, bytes, false);
+        upload_captured(
+            &request,
+            vec![captured("out/app.exe", bytes)],
+            &Arc::new(AtomicBool::new(false)),
+            Instant::now() + Duration::from_secs(5),
+        )
+        .unwrap();
+        assert_eq!(worker.join().unwrap(), bytes);
+    }
+    #[test]
+    fn all_captured_outputs_are_checked_before_any_http_request() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let mut request = request(&base, b"safe result", false);
+        let mut second = request.build_artifact_transfer.as_ref().unwrap().outputs[0].clone();
+        second.name = "frame".into();
+        second.path = "out/frame.png".into();
+        second.id = "c".repeat(64);
+        second.token = "d".repeat(64);
+        second.url = format!("{base}/build-artifacts/upload/{}", second.id);
+        request
+            .build_artifact_transfer
+            .as_mut()
+            .unwrap()
+            .outputs
+            .push(second);
+        // A different output's token is also private; no earlier output may
+        // have been sent before this later-file failure is discovered.
+        let secret = "b".repeat(64);
+        let result = upload_captured(
+            &request,
+            vec![
+                captured("out/app.exe", b"safe result"),
+                captured("out/frame.png", secret.as_bytes()),
+            ],
+            &Arc::new(AtomicBool::new(false)),
+            Instant::now() + Duration::from_secs(5),
+        );
+        assert!(result.is_err());
+        assert!(
+            matches!(listener.accept(), Err(error) if error.kind()==std::io::ErrorKind::WouldBlock)
+        );
+        assert!(upload_captured(
+            &request,
+            vec![captured("unapproved.txt", b"data")],
+            &Arc::new(AtomicBool::new(false)),
+            Instant::now() + Duration::from_secs(5)
+        )
+        .is_err());
+    }
+    #[test]
+    fn unqualified_pipeline_cannot_download_or_install_artifact_inputs() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let mut request = request(&base, b"not downloaded", true);
+        request.requirements.execution_isolation = Some(1);
+        let root = tempfile::tempdir().unwrap();
+        let sessions = Arc::new(std::sync::Mutex::new(None));
+        let (sender, _receiver) = std::sync::mpsc::sync_channel(4);
+        let outcome = crate::pipeline::execute(
+            request,
+            root.path(),
+            Arc::new(AtomicBool::new(false)),
+            sender,
+            sessions.clone(),
+        );
+        assert_eq!(outcome["status"], "failed");
+        assert!(outcome["error"].as_str().unwrap().contains("not qualified"));
+        assert!(sessions.lock().unwrap().is_none());
+        assert_eq!(fs::read_dir(root.path()).unwrap().count(), 0);
+        assert!(
+            matches!(listener.accept(), Err(error) if error.kind()==std::io::ErrorKind::WouldBlock)
+        );
+    }
     fn peer(body: Vec<u8>, advertised_checksum: String) -> (String, thread::JoinHandle<Vec<u8>>) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
@@ -599,6 +982,74 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         fs::create_dir_all(root.path().join("runs").join(&r.run_id)).unwrap();
         root
+    }
+    #[test]
+    fn private_input_download_preserves_source_and_rechecks_identity() {
+        let bytes = b"private artifact";
+        let (base, worker) = peer(bytes.to_vec(), format!("{:x}", Sha256::digest(bytes)));
+        let r = request(&base, bytes, true);
+        let owner = tempfile::tempdir().unwrap();
+        let cwd = owner.path().join("private");
+        let source = owner.path().join("original");
+        fs::create_dir(&cwd).unwrap();
+        fs::create_dir_all(source.join("received")).unwrap();
+        fs::write(source.join("received/app.exe"), b"user content").unwrap();
+        let cancel = Arc::new(AtomicBool::new(false));
+        let deadline = Instant::now() + Duration::from_secs(5);
+        download_into(&r, &cwd, owner.path(), &cancel, deadline).unwrap();
+        worker.join().unwrap();
+        verify_inputs_at(&r, &cwd, &cancel, deadline).unwrap();
+        assert_eq!(
+            fs::read(source.join("received/app.exe")).unwrap(),
+            b"user content"
+        );
+        let report = installation_report(&r).unwrap().to_string();
+        assert!(!report.contains(&"b".repeat(64)));
+        assert!(!report.contains("http"));
+        fs::write(cwd.join("received/app.exe"), b"tampered content").unwrap();
+        assert!(verify_inputs_at(&r, &cwd, &cancel, deadline).is_err());
+    }
+    #[test]
+    fn private_input_rejects_collision_scope_and_hard_links() {
+        let bytes = b"private artifact";
+        let r = request("http://127.0.0.1:1", bytes, true);
+        let owner = tempfile::tempdir().unwrap();
+        let cwd = owner.path().join("private");
+        fs::create_dir_all(cwd.join("received")).unwrap();
+        let file = cwd.join("received/app.exe");
+        fs::write(&file, bytes).unwrap();
+        let cancel = Arc::new(AtomicBool::new(false));
+        let deadline = Instant::now() + Duration::from_secs(3);
+        assert!(download_into(&r, &cwd, owner.path(), &cancel, deadline)
+            .unwrap_err()
+            .contains("already exists"));
+        assert_eq!(fs::read(&file).unwrap(), bytes);
+        let outside = tempfile::tempdir().unwrap();
+        assert!(download_into(&r, outside.path(), owner.path(), &cancel, deadline).is_err());
+        fs::hard_link(&file, cwd.join("alias")).unwrap();
+        assert!(verify_inputs_at(&r, &cwd, &cancel, deadline)
+            .unwrap_err()
+            .contains("Hard-linked"));
+    }
+    #[test]
+    fn private_input_bad_payload_never_installs() {
+        let bytes = b"expected";
+        let (base, worker) = peer(b"tampered".to_vec(), format!("{:x}", Sha256::digest(bytes)));
+        let r = request(&base, bytes, true);
+        let owner = tempfile::tempdir().unwrap();
+        let cwd = owner.path().join("private");
+        fs::create_dir(&cwd).unwrap();
+        assert!(download_into(
+            &r,
+            &cwd,
+            owner.path(),
+            &Arc::new(AtomicBool::new(false)),
+            Instant::now() + Duration::from_secs(3)
+        )
+        .is_err());
+        worker.join().unwrap();
+        assert!(!cwd.join("received/app.exe").exists());
+        assert_eq!(fs::read_dir(owner.path()).unwrap().count(), 1);
     }
     #[test]
     fn actual_http_upload_and_download_preserve_bytes() {

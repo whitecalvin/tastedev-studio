@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-git-collaboration"
+description = "Enables the git_collaboration command without any pre-configured scope."
+commands.allow = ["git_collaboration"]
+
+[[permission]]
+identifier = "deny-git-collaboration"
+description = "Denies the git_collaboration command without any pre-configured scope."
+commands.deny = ["git_collaboration"]

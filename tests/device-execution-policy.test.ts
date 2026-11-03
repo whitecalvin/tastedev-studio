@@ -8,6 +8,23 @@ import {DevicePolicies,deviceWorkRole} from '../transport/device-execution-polic
 import type {Agent,Job,Run} from '../src/features/core/domain.ts';
 import type {ProjectGraph,GraphNode} from '../src/features/orchestration/domain.ts';
 import type {GraphDefinition} from '../src/features/orchestration/execution.ts';
+test('real Core workspace policy blocks a job without approved Source and rejects foreign Agent bindings',async()=>{
+ const token=crypto.randomUUID(),server=await startCoreServer({port:0,studioToken:token,agentToken:token}),client=new RemoteCoreClient(),project={id:crypto.randomUUID(),name:'workspace policy'} as Project;
+ try{
+  client.connect(`ws://127.0.0.1:${server.port}/studio`,token,project);for(let i=0;i<100&&!client.connected;i++)await new Promise(r=>setTimeout(r,10));assert(client.connected);
+  server.service.connectAgent('agent-a',{name:'Linux workspace',platform:'linux',architecture:'x86_64',capabilities:{cpuCores:2,memoryMiB:2048,docker:false,gpu:false,pty:false,runtimes:{node:'22'},browsers:[],sourceSnapshot:2}});
+  const graph={...initialWorkspaceGraph(project.id)};
+  const published=await client.graphRequest<{definition:{revision:number;checksum:string}}>('publish',{graph,sources:{'project.yml':JSON.stringify({version:1,project:{name:'workspace',type:'node'}}),'tasks.yml':JSON.stringify({check:{command:'node',args:['-v']}})},expectedRevision:0});
+  const d=published.definition,rule={deviceId:'pc',enabled:true,roles:['implementation'],maximumConcurrent:1,workspaces:[{agentId:'agent-a',platform:'linux',source:'snapshot'}]};
+  await assert.rejects(client.executionPolicyRequest('save',{revision:0,policy:{graphRevision:d.revision,graphChecksum:d.checksum,rules:[{...rule,workspaces:[{...rule.workspaces[0],agentId:'foreign'}]}]}}),/outside/);
+  await client.executionPolicyRequest('save',{revision:0,policy:{graphRevision:d.revision,graphChecksum:d.checksum,rules:[rule]}});
+  const job=await client.createJob(project.id,{name:'check',requirements:{},payload:{task:'check',steps:[{name:'node',executable:'node',args:['-v'],cwd:'.'}]}});
+  const matches=await client.assignmentReview<{matches:boolean;reasons:string[]}[]>(job.id);assert.equal(matches[0].matches,false);assert(matches[0].reasons.includes('Workspace Source mismatch'));assert.equal(server.service.dispatch(),null);assert.equal(server.service.snapshot(project.id).runs.length,0);
+ }finally{client.disconnect();await server.close();}
+});
+function initialWorkspaceGraph(projectId:string):ProjectGraph{
+ return{version:1,projectId,projectKind:'custom',retryLimit:3,nodes:[node('pc','device'),node('runner','agent','agent-a'),node('role','role'),node('task','task','check')],edges:[{id:'hosts',from:'pc',to:'runner',relation:'hosts'},{id:'assign',from:'pc',to:'role',relation:'assigns'},{id:'performs',from:'role',to:'task',relation:'performs'}]};
+}
 const node=(id:string,kind:GraphNode['kind'],reference=''):GraphNode=>({id,kind,reference,label:id,x:0,y:0,role:'implementation',taskType:'task'});
 const graph:ProjectGraph={version:1,projectId:'P',projectKind:'composite',retryLimit:3,nodes:[node('pc','device'),node('a','agent','agent-a'),node('b','agent','agent-b')],edges:[{id:'ea',from:'pc',to:'a',relation:'hosts'},{id:'eb',from:'pc',to:'b',relation:'hosts'}]};
 const policy:DevicePolicy={graphRevision:1,graphChecksum:'a'.repeat(64),rules:[{deviceId:'pc',enabled:true,roles:['implementation'],maximumConcurrent:1,platform:'linux'}]};

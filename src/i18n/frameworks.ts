@@ -1,6 +1,7 @@
 import type {Language} from './core.ts';
 const locales:Language[]=['ko','de','es','fr','it','pt','ja','zh','zh-hant'];
-const rows=`authentication-required|인증 필요|Anmeldung erforderlich|Autenticación necesaria|Authentification requise|Autenticazione richiesta|Autenticação necessária|認証が必要|需要认证|需要驗證
+const rows=`Validation Plan|검증 계획|Validierungsplan|Plan de validación|Plan de validation|Piano di convalida|Plano de validação|検証計画|验证计划|驗證計畫
+authentication-required|인증 필요|Anmeldung erforderlich|Autenticación necesaria|Authentification requise|Autenticazione richiesta|Autenticação necessária|認証が必要|需要认证|需要驗證
 interrupted|중단됨|Unterbrochen|Interrumpido|Interrompu|Interrotto|Interrompido|中断|已中断|已中斷
 prepared|준비됨|Vorbereitet|Preparado|Préparé|Preparato|Preparado|準備済み|已准备|已準備
 Pinned definitions; support is qualified per skill|고정 정의 · 스킬별 지원 상태 확인|Feste Definitionen; Unterstützung je Skill geprüft|Definiciones fijadas; compatibilidad validada por habilidad|Définitions figées ; prise en charge validée par compétence|Definizioni fissate; supporto verificato per competenza|Definições fixadas; suporte validado por habilidade|固定定義・対応状況はスキルごとに確認|固定定义，按技能确认支持状态|固定定義，依技能確認支援狀態

@@ -3,6 +3,20 @@ import type {FolderConnection} from '../filesystem/contracts.ts';
 export interface TaskWorkspaceBaseline {head:string;dirty:boolean;baseMode:'committed-head'}
 export interface TaskWorkspace {taskId:string;projectId:string;baseRevision:string;state:'ready'|'incomplete'|'unavailable'|'archived';baseMode:'committed-head';path?:string;connection?:FolderConnection}
 export interface TaskWorkspaceScope {projectId:string;workspaceId:string}
+/** Keep the approved parent baseline in snapshots taken from a managed child workspace. */
+export function workspaceSourceRevision(origin:import('../projects/types/project.ts').Project['taskWorkspace'],fallback:string){
+  if(!origin)return fallback;
+  if(!uuid(origin.parentProjectId)||!uuid(origin.taskId)||!sha(origin.baseRevision))throw Error('Invalid task workspace Source identity.');
+  return origin.baseRevision;
+}
+/** Native workspaces accept UUID task identities, including standalone factory drafts. */
+export function workspaceDraftContracts(projectId:string,tasks:import('./factory.ts').FactoryOverview['tasks']){
+  const seen=new Set<string>();return tasks.flatMap(task=>{
+    const c=task.contract;
+    if(task.status!=='draft'||c.projectId!==projectId||!uuid(c.taskId)||seen.has(c.taskId))return [];
+    seen.add(c.taskId);return [{taskId:c.taskId,status:task.status}];
+  });
+}
 export interface TaskComparison {projectId:string;taskId:string;baseRevision:string;parentHead:string;fingerprint:string;files:{path:string;base:string|null;parent:string|null;modified:string|null;conflict:boolean;supported:boolean}[]}
 const uuid=(value:unknown):value is string=>typeof value==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value);
 const sha=(v:unknown):v is string=>typeof v==='string'&&/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(v);

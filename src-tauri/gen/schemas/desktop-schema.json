@@ -189,10 +189,52 @@
           "markdownDescription": "Enables the announcements_open command without any pre-configured scope."
         },
         {
+          "description": "Enables the debug_action command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-debug-action",
+          "markdownDescription": "Enables the debug_action command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the debug_start command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-debug-start",
+          "markdownDescription": "Enables the debug_start command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the debug_stop command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-debug-stop",
+          "markdownDescription": "Enables the debug_stop command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the git_collaboration command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-git-collaboration",
+          "markdownDescription": "Enables the git_collaboration command without any pre-configured scope."
+        },
+        {
           "description": "Enables the git_operation command without any pre-configured scope.",
           "type": "string",
           "const": "allow-git-operation",
           "markdownDescription": "Enables the git_operation command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the language_call command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-language-call",
+          "markdownDescription": "Enables the language_call command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the language_start command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-language-start",
+          "markdownDescription": "Enables the language_start command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the language_stop command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-language-stop",
+          "markdownDescription": "Enables the language_stop command without any pre-configured scope."
         },
         {
           "description": "Enables the process_resize command without any pre-configured scope.",
@@ -217,6 +259,30 @@
           "type": "string",
           "const": "allow-process-write",
           "markdownDescription": "Enables the process_write command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the project_begin command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-project-begin",
+          "markdownDescription": "Enables the project_begin command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the project_cancel command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-project-cancel",
+          "markdownDescription": "Enables the project_cancel command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the project_environment command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-project-environment",
+          "markdownDescription": "Enables the project_environment command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the project_prepare command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-project-prepare",
+          "markdownDescription": "Enables the project_prepare command without any pre-configured scope."
         },
         {
           "description": "Enables the runtime_diagnostic command without any pre-configured scope.",
@@ -297,10 +363,52 @@
           "markdownDescription": "Denies the announcements_open command without any pre-configured scope."
         },
         {
+          "description": "Denies the debug_action command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-debug-action",
+          "markdownDescription": "Denies the debug_action command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the debug_start command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-debug-start",
+          "markdownDescription": "Denies the debug_start command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the debug_stop command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-debug-stop",
+          "markdownDescription": "Denies the debug_stop command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the git_collaboration command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-git-collaboration",
+          "markdownDescription": "Denies the git_collaboration command without any pre-configured scope."
+        },
+        {
           "description": "Denies the git_operation command without any pre-configured scope.",
           "type": "string",
           "const": "deny-git-operation",
           "markdownDescription": "Denies the git_operation command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the language_call command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-language-call",
+          "markdownDescription": "Denies the language_call command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the language_start command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-language-start",
+          "markdownDescription": "Denies the language_start command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the language_stop command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-language-stop",
+          "markdownDescription": "Denies the language_stop command without any pre-configured scope."
         },
         {
           "description": "Denies the process_resize command without any pre-configured scope.",
@@ -325,6 +433,30 @@
           "type": "string",
           "const": "deny-process-write",
           "markdownDescription": "Denies the process_write command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the project_begin command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-project-begin",
+          "markdownDescription": "Denies the project_begin command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the project_cancel command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-project-cancel",
+          "markdownDescription": "Denies the project_cancel command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the project_environment command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-project-environment",
+          "markdownDescription": "Denies the project_environment command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the project_prepare command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-project-prepare",
+          "markdownDescription": "Denies the project_prepare command without any pre-configured scope."
         },
         {
           "description": "Denies the runtime_diagnostic command without any pre-configured scope.",

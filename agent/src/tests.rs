@@ -1,7 +1,48 @@
 use super::*;
 use crate::executor::execute;
+#[test]
+fn isolation_capabilities_cannot_be_set_without_this_process_live_qualification() {
+    let mut capability:Capabilities=serde_json::from_value(serde_json::json!({"executionIsolation":1,"isolatedChildProcesses":4,"cpuCores":2,"memoryMiB":1024,"docker":false,"gpu":false,"pty":false,"runtimes":{},"browsers":[]})).unwrap();
+    crate::isolation::qualify_capabilities(&mut capability);
+    assert!(capability.execution_isolation.is_none());
+    assert!(capability.isolated_child_processes.is_none());
+}
+#[test]
+fn bounded_children_require_an_explicit_worker_capability() {
+    let mut request = request();
+    request.requirements.execution_isolation = Some(1);
+    request.requirements.isolated_child_processes = Some(2);
+    let mut capability:Capabilities=serde_json::from_value(serde_json::json!({"executionIsolation":1,"cpuCores":2,"memoryMiB":1024,"docker":false,"gpu":false,"pty":false,"runtimes":{},"browsers":[]})).unwrap();
+    assert!(!request.matches(&capability));
+    capability.isolated_child_processes = Some(2);
+    assert!(request.matches(&capability));
+    request.requirements.isolated_child_processes = Some(4);
+    assert!(!request.matches(&capability));
+}
+
+#[test]
+fn isolation_catalog_configuration_is_optional_and_requires_an_absolute_operator_path() {
+    let old = serde_json::json!({"endpoint":"ws://127.0.0.1:4340/agent", "name":"Agent", "workspaceRoot":std::env::current_dir().unwrap()});
+    let config: Config = serde_json::from_value(old.clone()).unwrap();
+    assert!(config.isolation_catalog.is_none());
+    assert!(config.validate().is_ok());
+    let mut value = old;
+    value["isolationCatalog"] = serde_json::json!("source/runtime.json");
+    assert!(serde_json::from_value::<Config>(value.clone())
+        .unwrap()
+        .validate()
+        .is_err());
+    value["isolationCatalog"] = serde_json::json!(std::env::current_dir()
+        .unwrap()
+        .join("operator-runtimes.json"));
+    assert!(serde_json::from_value::<Config>(value)
+        .unwrap()
+        .validate()
+        .is_ok());
+}
 pub(crate) fn request() -> Request {
     Request {
+        isolation: None,
         protocol_version: 1,
         kind: "execute".into(),
         agent_id: "test-agent".into(),
@@ -71,6 +112,8 @@ fn capability_recheck_rejects_a_stale_advertised_runtime_before_execution() {
     let mut request = request();
     request.requirements.runtimes = Some([("node".into(), ">=999".into())].into());
     let advertised = Capabilities {
+        execution_isolation: None,
+        isolated_child_processes: None,
         framework_runtime: None,
         source_snapshot: Some(2),
         build_artifacts: None,
@@ -89,6 +132,8 @@ fn capability_recheck_rejects_a_stale_advertised_runtime_before_execution() {
 fn execution_observation_omits_unrequested_stale_runtime_inventory() {
     let request = request();
     let advertised = Capabilities {
+        execution_isolation: None,
+        isolated_child_processes: None,
         framework_runtime: None,
         source_snapshot: Some(2),
         build_artifacts: None,
@@ -110,6 +155,8 @@ fn capability_check_observes_cancellation_before_starting_a_tool_probe() {
     let mut request = request();
     request.requirements.runtimes = Some([("node".into(), ">=24".into())].into());
     let advertised = Capabilities {
+        execution_isolation: None,
+        isolated_child_processes: None,
         framework_runtime: None,
         source_snapshot: Some(2),
         build_artifacts: None,
@@ -147,6 +194,8 @@ fn capability_probe_respects_task_path_instead_of_agent_path() {
         .insert("PATH".into(), empty.path().to_string_lossy().into());
     request.requirements.runtimes = Some([("git".into(), ">=1".into())].into());
     let advertised = Capabilities {
+        execution_isolation: None,
+        isolated_child_processes: None,
         framework_runtime: None,
         source_snapshot: Some(2),
         build_artifacts: None,
@@ -370,6 +419,8 @@ fn workspace_boundary_and_duplicate() {
 fn capability_matching() {
     let r = request();
     let c = Capabilities {
+        execution_isolation: None,
+        isolated_child_processes: None,
         framework_runtime: None,
         source_snapshot: Some(2),
         build_artifacts: None,
@@ -403,6 +454,86 @@ fn execution(mut r: Request, cancel: bool) -> Value {
 #[test]
 fn process_success_streams() {
     assert_eq!(execution(request(), false)["status"], "passed");
+}
+#[test]
+fn unqualified_isolated_command_never_falls_back_to_host_or_creates_a_workspace() {
+    let root = tempfile::tempdir().unwrap();
+    let mut request = request();
+    request.isolation = Some(
+        serde_json::from_value(
+            json!({"version":1,"filesystem":"workspace","network":"deny","childProcesses":"deny"}),
+        )
+        .unwrap(),
+    );
+    request.requirements.execution_isolation = Some(1);
+    let marker = root.path().join("must-not-run.txt");
+    request.args = vec![
+        "-e".into(),
+        format!(
+            "require('fs').writeFileSync({}, 'unexpected')",
+            json!(marker)
+        ),
+    ];
+    for omit_policy in [false, true] {
+        let mut request = request.clone();
+        if omit_policy {
+            request.isolation = None;
+        }
+        let (sender, receiver) = mpsc::sync_channel(4);
+        let result = execute(
+            request,
+            root.path(),
+            Arc::new(AtomicBool::new(false)),
+            sender,
+        );
+        assert_eq!(result["status"], "failed");
+        assert_eq!(result["classification"], "EXECUTION_ERROR");
+        assert!(result["error"].as_str().unwrap().contains("not qualified"));
+        assert!(!marker.exists());
+        assert_eq!(fs::read_dir(root.path()).unwrap().count(), 0);
+        assert!(receiver.try_iter().next().is_none());
+    }
+}
+#[test]
+fn isolated_capability_check_rejects_before_source_selected_runtime_probes() {
+    let mut request = request();
+    request.isolation = Some(
+        serde_json::from_value(
+            json!({"version":1,"filesystem":"workspace","network":"deny","childProcesses":"deny"}),
+        )
+        .unwrap(),
+    );
+    request.requirements.execution_isolation = Some(1);
+    request.requirements.runtimes = Some([("node".into(), ">=1".into())].into());
+    let empty = tempfile::tempdir().unwrap();
+    request
+        .env
+        .insert("PATH".into(), empty.path().to_string_lossy().into());
+    let advertised = Capabilities {
+        execution_isolation: Some(1),
+        isolated_child_processes: None,
+        framework_runtime: None,
+        source_snapshot: Some(2),
+        build_artifacts: None,
+        cpu_cores: 2,
+        memory_mi_b: 4096,
+        docker: false,
+        gpu: false,
+        pty: false,
+        runtimes: [("node".into(), "24.0.0".into())].into(),
+        browsers: vec![],
+    };
+    for omit_policy in [false, true] {
+        let mut request = request.clone();
+        if omit_policy {
+            request.isolation = None;
+        }
+        assert_eq!(
+            executor::verify_capabilities(&request, advertised.clone(), &AtomicBool::new(false))
+                .unwrap_err(),
+            "Required OS execution isolation backend is not qualified"
+        );
+    }
 }
 #[test]
 fn process_failure() {
@@ -472,6 +603,8 @@ fn junction_escape_rejected() {
 
 #[test]
 fn compiler_environment_is_narrow_and_never_inherits_credentials() {
+    assert!(executor::inherited_environment("cargo").contains(&"CARGO_TARGET_DIR"));
+    assert!(!executor::inherited_environment("node").contains(&"CARGO_TARGET_DIR"));
     for executable in ["node", "python", "git", "cargo-other", "shell"] {
         let keys = executor::inherited_environment(executable);
         assert!(!keys.contains(&"LIB"));
@@ -541,4 +674,67 @@ fn build_artifact_input_project_and_snapshot_lineage_are_required() {
     transfer.inputs[0].artifact.project_id = r.project_id.clone();
     transfer.inputs[0].artifact.snapshot_id = "other".into();
     assert!(transfer.validate(&r).is_err());
+}
+
+#[test]
+fn bounded_wire_backpressure_retains_and_retries_the_unsent_frame() {
+    use std::io::{Read, Write};
+    use tungstenite::protocol::{Role, WebSocketConfig};
+    struct SlowWriter {
+        blocked: bool,
+        bytes: Vec<u8>,
+    }
+    impl Read for SlowWriter {
+        fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+            Err(std::io::ErrorKind::WouldBlock.into())
+        }
+    }
+    impl Write for SlowWriter {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            if self.blocked {
+                Err(std::io::ErrorKind::WouldBlock.into())
+            } else {
+                self.bytes.extend_from_slice(bytes);
+                Ok(bytes.len())
+            }
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let config = WebSocketConfig::default()
+        .write_buffer_size(0)
+        .max_write_buffer_size(1024);
+    let mut ws = WebSocket::from_raw_socket(
+        SlowWriter {
+            blocked: true,
+            bytes: vec![],
+        },
+        Role::Server,
+        Some(config),
+    );
+    let event = json!({"type":"output","sequence":1,"text":"x".repeat(700)});
+    assert_eq!(send_outcome(&mut ws, &event), SendOutcome::Queued);
+    assert_eq!(send_outcome(&mut ws, &event), SendOutcome::Backpressured);
+    assert_eq!(ws.get_ref().bytes.len(), 0);
+    ws.get_mut().blocked = false;
+    ws.flush().unwrap();
+    let first = ws.get_ref().bytes.len();
+    assert!(first > 700 && first < 1024);
+    assert_eq!(send_outcome(&mut ws, &event), SendOutcome::Queued);
+    assert_eq!(ws.get_ref().bytes.len(), first * 2);
+}
+
+#[test]
+fn keepalive_backpressure_is_not_a_lost_connection() {
+    assert!(wire_would_block(&tungstenite::Error::Io(
+        std::io::ErrorKind::WouldBlock.into()
+    )));
+    assert!(wire_would_block(&tungstenite::Error::WriteBufferFull(
+        Box::new(Message::Ping(vec![1].into()))
+    )));
+    assert!(!wire_would_block(&tungstenite::Error::ConnectionClosed));
+    assert!(!wire_would_block(&tungstenite::Error::Io(
+        std::io::ErrorKind::ConnectionReset.into()
+    )));
 }
