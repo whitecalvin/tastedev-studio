@@ -266,6 +266,7 @@ impl Bootstrap {
             project_id: self.project_id.clone(),
             requirements: Requirements::default(),
             isolation: None,
+            native_build: None,
             executable: "agent-self-check".into(),
             args: vec![],
             cwd: ".".into(),

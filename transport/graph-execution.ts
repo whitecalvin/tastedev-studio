@@ -1,3 +1,5 @@
+import {nativeBuildJob} from '../src/features/build/plan.ts';
+import {executionEdges} from '../src/features/orchestration/build-package-group.ts';
 import {auditRecovery,type RecoveryAudit} from '../src/features/orchestration/recovery-audit.ts';
 import {isolationReview} from '../src/features/orchestration/isolation-review.ts';
 import {frameworkJob} from './framework-job.ts';
@@ -138,24 +140,27 @@ export class GraphExecutionService {
   for(const n of graph.nodes.filter(n=>n.kind==='task')){
    const aiBound=configurations?.bindings[n.id];
    if(aiBound){if(!this.ai)fail('AI bridge unavailable.');aiTasks[n.id]=taskAIRequest(configurations!,n,this.ai!.connections(project));}
-   if(!aiBound&&!n.reference)fail('Every task needs a Protocol reference.');
+   if(!aiBound&&!n.nativeStage&&!n.reference)fail('Every task needs a Protocol reference.');
+   if(n.nativeStage){if(aiBound||n.frameworkTask)fail('Native build cannot use an AI or framework shell fallback.');plans[n.id]=nativeBuildJob(graph.nodes.find(p=>p.id===n.parentId)!.nativeRecipe!,n.nativeStage,n.parentId!);}
    if(n.frameworkTask){if(aiBound||n.frameworkTask.mode!=='claude-code'||!verifiedSource||!i.snapshot)fail('Native framework tasks require their own saved Snapshot and model scope.');const op=n.frameworkTask;plans[n.id]=frameworkJob(verifiedSource!,{version:1,skillId:op.skillId,arguments:op.arguments,roleId:op.roleId,engine:'godot',manifest:'b1f58c40e2d5d01f1871af574849853f908301afc57242da0251881b6988a12f',writablePaths:op.writablePaths??[],maxTurns:op.maxTurns??20,...(op.model?{model:op.model}:{}),overrides:verifiedSource!.files.filter(f=>(overridePaths as readonly string[]).includes(f.path)).map(f=>({path:f.path,sha256:f.checksum}))},'graph-agent',n.reference,'graph-preflight',i.sources);}
-   if(!aiBound&&!n.frameworkTask){const p=n.taskType==='test'?resolveTestPlan(protocol,project,n.reference):null;plans[n.id]=p?{name:'test: '+n.reference,requirements:p.requirements,payload:planPayload(p)}:resolveProtocol(protocol,'task',n.reference);}
-   const roles=graph.edges.filter(e=>e.to===n.id&&e.relation==='performs');if(roles.length!==1)fail('Each task needs exactly one responsible role.');
+   if(!aiBound&&!n.frameworkTask&&!n.nativeStage){const p=n.taskType==='test'?resolveTestPlan(protocol,project,n.reference):null;plans[n.id]=p?{name:'test: '+n.reference,requirements:p.requirements,payload:planPayload(p)}:resolveProtocol(protocol,'task',n.reference);}
+   const directRoles=executionEdges(graph).filter(e=>e.to===n.id&&e.relation==='performs'),roles=directRoles.length?directRoles:executionEdges(graph).filter(e=>e.to===n.parentId&&e.relation==='performs');if(roles.length!==1)fail('Each task needs exactly one responsible role.');
    if(n.teamRole&&graph.nodes.find(v=>v.id===roles[0].from)?.teamRole!==n.teamRole)fail('Team task responsibility must match its declared role.');
    if(graph.nodes.find(v=>v.id===roles[0].from)?.role==='deployment'){
-    const incoming=graph.edges.filter(e=>e.to===n.id&&['success','failure'].includes(e.relation));if(incoming.length!==1||incoming[0].relation!=='success'||graph.nodes.find(v=>v.id===incoming[0].from)?.kind!=='approval')fail('Deployment requires an immediate approval predecessor, including retries.');deploymentNodes.push(n.id);
+    const incoming=executionEdges(graph).filter(e=>e.to===n.id&&['success','failure'].includes(e.relation));if(incoming.length!==1||incoming[0].relation!=='success'||graph.nodes.find(v=>v.id===incoming[0].from)?.kind!=='approval')fail('Deployment requires an immediate approval predecessor, including retries.');deploymentNodes.push(n.id);
    }
    if(aiBound){agents[n.id]=[];continue;}
-   if(i.snapshot)plans[n.id]=graphSourcePlan(plans[n.id],project,i.snapshot);
+   if(i.snapshot&&!n.nativeStage)plans[n.id]=graphSourcePlan(plans[n.id],project,i.snapshot);
    validatePayload(graphActivationPlan(plans[n.id],{executionId:'preflight',activationId:'preflight',nodeId:n.id,attempt:1,revision:(previous?.revision??0)+1,sourceChecksum:i.snapshot?.checksum,snapshotId:i.snapshot?.snapshotId}).payload);
-   const assigned=graph.edges.filter(e=>e.to===roles[0].from&&e.relation==='assigns').map(e=>e.from);
+   const assigned=executionEdges(graph).filter(e=>e.to===roles[0].from&&e.relation==='assigns').map(e=>e.from);
    const candidates=graph.nodes.filter(a=>a.kind==='agent'&&a.reference&&(assigned.includes(a.id)||graph.edges.some(e=>e.relation==='hosts'&&e.to===a.id&&assigned.includes(e.from))));
    agents[n.id]=candidates.map(a=>a.reference).filter(id=>snapshot.agents.some(a=>a.id===id));
+   if(n.nativeStage&&agents[n.id].length!==1)fail('Native build groups require one explicit build Agent to preserve workspace affinity.');
    if(!agents[n.id].length)fail('Responsible role needs an accessible registered Agent on its declared device.');
   }
+  for(const parent of graph.nodes.filter(n=>n.nativeRecipe)){const ids=new Set(graph.nodes.filter(n=>n.parentId===parent.id).flatMap(n=>agents[n.id]??[]));if(ids.size!==1)fail('All native build stages must use the same reviewed Agent.');}
   if(!Object.keys(plans).length&&!Object.keys(aiTasks).length)fail('At least one task required.');
-  for(const n of graph.nodes.filter(n=>n.kind==='task'||n.kind==='approval'))if(graph.edges.filter(e=>e.to===n.id&&e.relation==='success').length>1)fail('Multi-parent joins are not supported; use one explicit predecessor.');
+  for(const n of graph.nodes.filter(n=>n.kind==='task'||n.kind==='approval'))if(executionEdges(graph).filter(e=>e.to===n.id&&e.relation==='success').length>1)fail('Multi-parent joins are not supported; use one explicit predecessor.');
   const definition:GraphDefinition={protocolChecksum:digest(protocolFiles.map(n=>i.sources[n]??null)),...(i.snapshot?{source:i.snapshot}:{}),deploymentNodes,projectId:project,revision:(previous?.revision??0)+1,checksum:digest(graph),inputChecksum:digest(Object.keys(aiTasks).length?[i.sources,aiTasks]:i.sources),aiTasks,graph,plans,agents,publishedAt:new Date(this.now()).toISOString()};
   validateArtifactLineage(definition);
   if(Object.values(plans).some(p=>p.payload.steps.some(s=>s.buildArtifacts))){if(!i.snapshot)fail('Build artifacts require a published workspace Snapshot.');if(!this.core.supportsBuildArtifacts())fail('Build artifact runtime is not enabled; publish did not execute or change the graph.');}
@@ -166,7 +171,7 @@ export class GraphExecutionService {
   const timeout=i.factory?.timeoutMinutes??i.timeoutMinutes??10;if(!Number.isInteger(timeout)||timeout<1||timeout>120||i.factory&&i.timeoutMinutes!==undefined&&i.timeoutMinutes!==i.factory.timeoutMinutes)fail('Invalid execution timeout.');
   const existing=this.state.executions.find(e=>e.id===i.requestId);if(existing){if(Date.parse(existing.deadline)-Date.parse(existing.createdAt)!==timeout*60000||JSON.stringify(existing.factory)!==JSON.stringify(i.factory)||existing.team?.id!==i.teamIntentId||existing.projectId!==project||existing.revision!==d.revision||existing.inputChecksum!==d.inputChecksum||existing.definition.source?.checksum!==d.source?.checksum||existing.checksum!==d.checksum||existing.activations[0]?.nodeId!==i.entryNodeId)fail('Request identity conflict.');return;}
   const node=d.graph.nodes.find(n=>n.id===i.entryNodeId&&['task','approval'].includes(n.kind))??fail('Choose a task or approval entry.');
-  if(d.graph.edges.some(e=>e.to===node.id&&e.relation==='success'))fail('Entry must be a root; approval cannot be bypassed.');
+  if(executionEdges(d.graph).some(e=>e.to===node.id&&e.relation==='success'))fail('Entry must be a root; approval cannot be bypassed.');
   if(this.state.executions.some(e=>e.projectId===project&&['running','paused','cancelling'].includes(e.status)))fail('Finish or cancel the active project execution first.');
   let context:FactoryContext|undefined;
   const team=i.teamIntentId?this.ai?.teamContext?.(project,i.teamIntentId,i.entryNodeId):undefined;
@@ -179,7 +184,7 @@ export class GraphExecutionService {
   this.commit(s=>{if(s.executions.length>=500)fail('Execution history capacity reached.');s.executions.push(e);});
  }
  private activate(e:GraphExecution,nodeId:string,approvalId?:string){const node=e.definition.graph.nodes.find(n=>n.id===nodeId)!,attempt=e.activations.filter(a=>a.nodeId===nodeId).length+1;if(attempt>Math.min(e.definition.graph.retryLimit,e.definition.aiTasks?.[nodeId]?.maximum??3)){e.status='failed';e.reason='Retry limit reached.';e.finishedAt=new Date(this.now()).toISOString();return;}if(e.definition.deploymentNodes?.includes(nodeId)&&(!approvalId||!e.activations.some(a=>a.id===approvalId&&a.approvedAt)||e.activations.some(a=>a.approvalId===approvalId))){e.status='failed';e.reason='Fresh deployment approval required.';return;}e.activations.push({id:randomUUID(),nodeId,attempt,...(approvalId?{approvalId}:{}),status:node.kind==='approval'?'approval':e.definition.aiTasks?.[nodeId]?'ai-review':'ready'});}
- private follow(e:GraphExecution,a:GraphActivation,relation:'success'|'failure'){const targets=e.definition.graph.edges.filter(v=>v.from===a.nodeId&&v.relation===relation);if(relation==='failure'&&!targets.length){e.status='failed';e.reason='Task failed without a recovery branch.';e.finishedAt=new Date(this.now()).toISOString();return;}for(const edge of targets)this.activate(e,edge.to,a.approvedAt&&e.definition.deploymentNodes?.includes(edge.to)?a.id:undefined);}
+ private follow(e:GraphExecution,a:GraphActivation,relation:'success'|'failure'){const targets=executionEdges(e.definition.graph).filter(v=>v.from===a.nodeId&&v.relation===relation);if(relation==='failure'&&!targets.length){e.status='failed';e.reason='Task failed without a recovery branch.';e.finishedAt=new Date(this.now()).toISOString();return;}for(const edge of targets)this.activate(e,edge.to,a.approvedAt&&e.definition.deploymentNodes?.includes(edge.to)?a.id:undefined);}
  private owner(jobId:string){const job=this.core.repository.readEntity?.('jobs',jobId)??this.core.repository.read().jobs.find(j=>j.id===jobId);return this.state.executions.find(e=>e.activations.some(a=>a.jobId===jobId||job?.idempotencyKey===`graph:${e.id}:${a.id}`));}
  owns(jobId:string){return !!this.owner(jobId);}
  /** Core-owned identity for transfer grants; Protocol env/Agent metadata cannot supply it. */

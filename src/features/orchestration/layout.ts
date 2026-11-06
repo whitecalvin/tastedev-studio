@@ -1,8 +1,10 @@
 import {validateGraph, type ProjectGraph} from './domain.ts';
+import {arrangeBuildGroups} from './build-package-group.ts';
 
 /** 실패 피드백은 순서를 뒤집지 않는다. 위치만 바꾸고 실행 정의는 보존한다. */
 export function arrangeGraph(input: ProjectGraph): ProjectGraph {
   const graph = validateGraph(input, input.projectId);
+  if(graph.nodes.some(n=>n.kind==='build-package'))return arrangeBuildGroups(graph);
   const pending = new Set(graph.nodes.map(n => n.id));
   const layers: typeof graph.nodes[] = [];
   while (pending.size) {

@@ -223,6 +223,7 @@ pub fn command(
             workspace(root, &request.run_id, &request.cwd)?
         };
         crate::framework::configure(&mut request, &cwd)?;
+        crate::native_build::configure(&mut request, root)?;
         let mut command = Command::new(&request.executable);
         command
             .args(&request.args)
@@ -231,7 +232,10 @@ pub fn command(
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         // Credential-bearing Agent environment is never inherited by executed jobs.
-        let inherited = inherited_environment(&request.executable);
+        let mut inherited = inherited_environment(&request.executable);
+        if request.native_build.is_some() && cfg!(windows) {
+            inherited.extend(["LIB", "LIBPATH", "INCLUDE"]);
+        }
         command.env_clear();
         for key in inherited {
             if let Some(value) = std::env::var_os(key) {
@@ -357,7 +361,23 @@ pub fn command(
             _ => "TEST_FAILED",
         }
     };
+    let native_receipt = if status == "passed" && request.native_build.is_some() {
+        Some(crate::native_build::result(root, &request))
+    } else {
+        None
+    };
     let mut result = json!({"type":"result","protocolVersion":VERSION,"jobId":request.job_id,"runId":request.run_id,"runStepId":request.run_step_id,"status":status,"exitCode":exit,"startedAt":started,"finishedAt":chrono::Utc::now().to_rfc3339(),"error":operation.err(),"classification":classification,"outputSummary":output});
+    if let Some(receipt) = native_receipt {
+        match receipt {
+            Ok(r) => result["nativeBuildReceipt"] = json!(r),
+            Err(e) => {
+                result["status"] = json!("failed");
+                result["classification"] = json!("EXECUTION_ERROR");
+                result["exitCode"] = json!(1);
+                result["error"] = json!(e);
+            }
+        }
+    }
     if let Some(installation) = artifact_installation {
         result["artifactInstallation"] = installation;
     }
@@ -584,6 +604,7 @@ pub fn detect() -> Capabilities {
         execution_isolation: None,
         isolated_child_processes: None,
         framework_runtime: crate::framework::available().then_some(1),
+        native_build: crate::native_build::available().then_some(1),
         source_snapshot: Some(2),
         build_artifacts: Some(2),
         cpu_cores: thread::available_parallelism().map_or(0, |n| n.get() as u64),

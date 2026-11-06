@@ -1,11 +1,13 @@
 'use client';
 import {useLayoutEffect,useRef} from 'react';
 import {createPortal} from 'react-dom';
-import {ArrowDown,ArrowUp,Bot,ChevronsDown,ChevronsUp,Clock,Copy,Play,SlidersHorizontal,Trash2,type LucideIcon} from 'lucide-react';
+import {ArrowDown,ArrowUp,ChevronDown,ChevronRight,Bot,ChevronsDown,ChevronsUp,Clock,Copy,Play,SlidersHorizontal,Trash2,type LucideIcon} from 'lucide-react';
 import {useI18n} from '@/i18n/react';
 
 const actionIcons:Record<string,LucideIcon>={
  'Node settings':SlidersHorizontal,
+ 'Expand build steps':ChevronRight,
+ 'Collapse build steps':ChevronDown,
  'Duplicate node':Copy,
  'Bring to front':ChevronsUp,
  'Send to back':ChevronsDown,

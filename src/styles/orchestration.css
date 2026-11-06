@@ -173,3 +173,17 @@
 .orch-execution-preview code, .orch-execution-preview li { overflow-wrap: anywhere; }
 
 .orch-recovery-audit code, .orch-recovery-audit small { overflow-wrap: anywhere; white-space: normal; }
+.orch-node.build-package { pointer-events:none; background:var(--studio-bg); border:1px solid var(--studio-line); }
+.orch-node.build-package>.orch-node-handle,.orch-node.build-package>.orch-node-content,.orch-node.build-package>.orch-group-toggle { pointer-events:auto; }
+.orch-node.build-package>.orch-node-content { max-width:calc(100% - 48px); min-height:66px; }
+.orch-node.build-package>.orch-node-handle { padding-right:48px; }
+.orch-group-toggle { position:absolute; top:6px; right:8px; width:28px; height:28px; padding:0; display:grid; place-items:center; }
+.orch-group-steps { display:flex; flex-direction:column; gap:6px; }
+.orch-node.build-package>.orch-group-toggle.fs-button { padding:0; display:grid; place-items:center; width:28px; min-width:28px; height:28px; }
+.orch-node.build-package>.orch-group-toggle svg { width:14px; height:14px; flex-shrink:0; }
+.orch-node.build-package>.orch-node-content>small:last-of-type { display:none; }
+.orch-node.build-package[aria-owns]>.orch-node-content { display:flex; flex-direction:row; align-items:center; gap:12px; padding:8px 16px; min-height:36px; height:36px; }
+
+.orch-native-build{margin:12px 0;padding:12px;min-width:0;border:1px solid var(--border);border-radius:6px}.orch-native-build textarea{font-family:var(--font-mono,monospace);font-size:12px;min-height:160px}.orch-native-build legend{font-weight:600}.orch-native-build p{font-size:12px;line-height:1.5}
+
+.orch-native-receipts{min-width:0}.orch-native-receipts details,.orch-native-receipts p,.orch-native-receipts li{min-width:0;overflow-wrap:anywhere}.orch-native-receipts code{white-space:normal;overflow-wrap:anywhere;word-break:break-word;font-size:11px}.orch-native-build textarea{box-sizing:border-box;width:100%;min-width:0}.orch-native-build label{min-width:0}

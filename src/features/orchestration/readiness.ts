@@ -1,3 +1,4 @@
+import {executionEdges} from './build-package-group.ts';
 import {validateGraph,type ProjectGraph} from './domain.ts';
 import type {ProtocolState} from '../protocol/domain.ts';
 import {availableAgentStatus,type Agent} from '../core/domain.ts';
@@ -44,14 +45,14 @@ export function graphReadiness(graph:ProjectGraph,context:ReadinessContext):Read
   const aiBound=!!context.ai?.bindings[node.id];
   if(context.ai!==null){
    if(aiBound){if(context.connected){if(!context.aiConnectionsReady)add('Waiting for managed AI connections.',node.id,'waiting');else try{taskAIRequest(context.ai!,node,context.aiConnections);}catch{add('Review the AI profile, model and connection.',node.id);}}}
-   else if(!node.reference)add('Choose a Protocol task or test.',node.id);
-   else if(context.protocol?.status==='Valid'&&!Object.hasOwn(node.taskType==='test'?context.protocol.definition.tests:context.protocol.definition.tasks,node.reference))add('The Protocol reference does not exist.',node.id);
+   else if(!node.reference&&!node.nativeStage)add('Choose a Protocol task or test.',node.id);
+   else if(!node.nativeStage&&context.protocol?.status==='Valid'&&!Object.hasOwn(node.taskType==='test'?context.protocol.definition.tests:context.protocol.definition.tasks,node.reference))add('The Protocol reference does not exist.',node.id);
   }
-  const roles=graph.edges.filter(edge=>edge.to===node.id&&edge.relation==='performs');
+  const directRoles=graph.edges.filter(edge=>edge.to===node.id&&edge.relation==='performs'),roles=directRoles.length?directRoles:graph.edges.filter(edge=>edge.to===node.parentId&&edge.relation==='performs');
   if(roles.length!==1){add('Connect exactly one responsible role.',node.id);continue;}
   const role=graph.nodes.find(other=>other.id===roles[0].from)!;
   if(role.role==='deployment'){
-   const incoming=graph.edges.filter(edge=>edge.to===node.id&&['success','failure'].includes(edge.relation));
+   const incoming=executionEdges(graph).filter(edge=>edge.to===node.id&&['success','failure'].includes(edge.relation));
    if(incoming.length!==1||incoming[0].relation!=='success'||graph.nodes.find(other=>other.id===incoming[0].from)?.kind!=='approval')add('Deployment needs an immediate approval predecessor.',node.id);
   }
   if(aiBound)continue;

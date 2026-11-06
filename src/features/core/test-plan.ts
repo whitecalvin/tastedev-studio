@@ -13,6 +13,7 @@ export function validateBrowser(b: BrowserTest): BrowserTest {
 export interface HealthCheck { url: string; expectedStatus: number; retryIntervalMs: number }
 export type PipelineStage = 'source' | 'install' | 'build' | 'start' | 'healthcheck' | 'test' | 'cleanup';
 export interface ExecutionStep {isolation?:import('../process/isolation.ts').ExecutionIsolation;framework?:import('../frameworks/operation.ts').FrameworkOperation;
+  nativeBuild?:import('../build/domain.ts').NativeBuildOperation;
   buildArtifacts?:import('../orchestration/build-artifact.ts').BuildArtifactDeclaration;
   name: string; executable: string; args: string[]; cwd: string;
   env?: Record<string, string>; timeoutMs?: number;

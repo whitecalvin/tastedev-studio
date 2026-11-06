@@ -11,7 +11,7 @@ export function graphSourcePlan(input:CreateJob,projectId:string,snapshot:Worksp
 /** Core supplies identity; a Protocol environment override cannot spoof it. */
 export function graphActivationPlan(input:CreateJob,identity:{executionId:string;activationId:string;nodeId:string;attempt:number;revision:number;sourceChecksum?:string;snapshotId?:string}):CreateJob {
  const payload=structuredClone(input.payload),context=JSON.stringify(identity);
- payload.steps=payload.steps.map(step=>({...step,env:{...step.env,TASTEDEV_GRAPH_CONTEXT:context}}));
+ payload.steps=payload.steps.map(step=>({...step,...(step.nativeBuild?{nativeBuild:{...step.nativeBuild,executionId:identity.executionId}}:{}),env:{...step.env,TASTEDEV_GRAPH_CONTEXT:context}}));
  if(payload.testPlan)payload.testPlan={...payload.testPlan,steps:payload.steps};
  return {...input,payload};
 }

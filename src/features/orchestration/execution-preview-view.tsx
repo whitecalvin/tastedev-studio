@@ -13,7 +13,7 @@ export function ExecutionPlanPreview({graph,definition,entry,timeoutMinutes,agen
    <p>{t('Execution Source')}: {definition!.source?<><code>{definition!.source.snapshotId}</code><br/><code>{definition!.source.checksum}</code></>:t('Protocol Source / Agent workspace')}</p>
    <p>{t('Tasks at the same dependency level may run in parallel; Agent capacity and policies still apply.')}</p>
    <ol>{plan.levels.map((level,index)=><li key={index}><strong>{t('Dependency level')} {index+1}</strong><ul>{level.map(row=><li key={row.nodeId}>
-    <strong>{label(row.nodeId)}</strong> · {t(row.kind==='approval'?'Review execution scope':row.kind==='ai'?'AI':row.kind==='framework'?'Native framework':'Protocol')}
+    <strong>{label(row.nodeId)}</strong> · {t(row.kind==='approval'?'Review execution scope':row.kind==='ai'?'AI':row.kind==='framework'?'Native framework':row.kind==='native-build'?'Native build stage':'Protocol')}
     {!!row.agentIds.length&&<span> · {row.agentIds.map(id=>agents.find(a=>a.id===id)?.name??id).join(', ')}</span>}
     {definition!.aiTasks?.[row.nodeId]&&<small> · {definition!.aiTasks[row.nodeId].route.connectionId} · {definition!.aiTasks[row.nodeId].route.model}</small>}
     {definition!.requirements?.[row.nodeId]&&<small> · {definition!.requirements[row.nodeId].platform??t('Any')} · {Object.entries(definition!.requirements[row.nodeId].runtimes??{}).map(([name,version])=>`${name} ${version}`).join(', ')}</small>}

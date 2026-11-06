@@ -4,6 +4,7 @@ mod executor;
 mod framework;
 mod isolation;
 mod model;
+mod native_build;
 mod output_window;
 mod pipeline;
 mod reliability;
@@ -607,6 +608,13 @@ fn run(config: Config) -> Result<()> {
 }
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    if args.len() == 3 && args[1] == "--native-build-step" {
+        if let Err(error) = native_build::run_spec(std::path::Path::new(&args[2])) {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     let result = (|| -> Result<()> {
         if args.len() == 2 && args[1] == "--isolation-self-check-child" {
             return isolation::self_check_child();

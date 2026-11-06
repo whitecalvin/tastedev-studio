@@ -1,6 +1,46 @@
 import type {Language} from './core.ts';
 const locales:Language[]=['ko','de','es','fr','it','pt','ja','zh','zh-hant'];
-const rows=`Scheduled target review|예약 대상 검토|Geplantes Ziel prüfen|Revisar destino programado|Vérification de la cible planifiée|Verifica destinazione pianificata|Revisão do destino agendado|予約対象の確認|审核计划目标|檢閱排程目標
+const rows=`Product ID|제품 ID|Produkt-ID|ID del producto|ID du produit|ID prodotto|ID do produto|製品ID|产品ID|產品ID
+Product name|제품 이름|Produktname|Nombre del producto|Nom du produit|Nome prodotto|Nome do produto|製品名|产品名称|產品名稱
+Version|버전|Version|Versión|Version|Versione|Versão|バージョン|版本|版本
+Application identifier|앱 식별자|Anwendungskennung|Identificador de aplicación|Identifiant de l’application|Identificatore applicazione|Identificador do aplicativo|アプリ識別子|应用标识符|應用程式識別碼
+Rust toolchain|Rust 툴체인|Rust-Toolchain|Cadena de Rust|Chaîne Rust|Toolchain Rust|Toolchain Rust|Rustツールチェーン|Rust工具链|Rust工具鏈
+Cargo packages|Cargo 패키지|Cargo-Pakete|Paquetes Cargo|Paquets Cargo|Pacchetti Cargo|Pacotes Cargo|Cargoパッケージ|Cargo包|Cargo套件
+Cargo features|Cargo 기능|Cargo-Funktionen|Funciones Cargo|Fonctionnalités Cargo|Funzionalità Cargo|Recursos Cargo|Cargo機能|Cargo功能|Cargo功能
+All Cargo features|모든 Cargo 기능|Alle Cargo-Funktionen|Todas las funciones Cargo|Toutes les fonctionnalités Cargo|Tutte le funzionalità Cargo|Todos os recursos Cargo|すべてのCargo機能|全部Cargo功能|全部Cargo功能
+Node build task|Node 빌드 작업|Node-Build-Aufgabe|Tarea de compilación Node|Tâche de compilation Node|Attività build Node|Tarefa de build Node|Nodeビルドタスク|Node构建任务|Node建置工作
+Recipe checksum|빌드 설정 해시|Build-Konfigurationshash|Hash de configuración|Empreinte de configuration|Hash configurazione|Hash da configuração|ビルド設定ハッシュ|构建配置哈希|建置設定雜湊
+Agent catalog checksum|Agent 카탈로그 해시|Agent-Kataloghash|Hash del catálogo Agent|Empreinte du catalogue Agent|Hash catalogo Agent|Hash do catálogo Agent|Agentカタログハッシュ|Agent目录哈希|Agent目錄雜湊
+Output files|산출 파일|Ausgabedateien|Archivos de salida|Fichiers de sortie|File di output|Arquivos de saída|出力ファイル|输出文件|輸出檔案
+Output manifest checksum|산출물 목록 해시|Ausgabemanifest-Hash|Hash del manifiesto de salida|Empreinte du manifeste de sortie|Hash manifesto output|Hash do manifesto de saída|出力一覧ハッシュ|输出清单哈希|輸出清單雜湊
+not-required|정책상 불필요|Laut Richtlinie nicht erforderlich|No requerido por política|Non requis par la politique|Non richiesto dal criterio|Não exigido pela política|ポリシーにより不要|策略不要求|原則不要求
+Verified outputs reused|검증한 산출물 재사용|Geprüfte Ausgaben wiederverwendet|Salidas verificadas reutilizadas|Sorties vérifiées réutilisées|Output verificati riutilizzati|Saídas verificadas reutilizadas|検証済み出力を再利用|已复用验证后的输出|已重用驗證後的輸出
+Executed|실행됨|Ausgeführt|Ejecutado|Exécuté|Eseguito|Executado|実行済み|已执行|已執行
+Native build configuration|네이티브 빌드 설정|Native Build-Konfiguration|Configuración de compilación nativa|Configuration de compilation native|Configurazione build nativa|Configuração de build nativa|ネイティブビルド設定|原生构建配置|原生建置設定
+Native build stage|네이티브 빌드 단계|Nativer Build-Schritt|Etapa de compilación nativa|Étape de compilation native|Fase build nativa|Etapa de build nativa|ネイティブビルド段階|原生构建阶段|原生建置階段
+Save native build configuration|네이티브 빌드 설정 저장|Native Konfiguration speichern|Guardar configuración nativa|Enregistrer la configuration native|Salva configurazione nativa|Salvar configuração nativa|ビルド設定を保存|保存原生构建配置|儲存原生建置設定
+Native stage receipts|단계별 실행 근거|Schrittnachweise|Comprobantes de etapas|Preuves des étapes|Ricevute delle fasi|Comprovantes das etapas|段階別の実行証跡|阶段执行凭据|階段執行憑據
+Signing policy|서명 정책|Signaturrichtlinie|Política de firma|Politique de signature|Criterio di firma|Política de assinatura|署名ポリシー|签名策略|簽章原則
+Binary and resource mappings|실행 파일·리소스 매핑|Binär- und Ressourcenzuordnung|Mapeo de binarios y recursos|Mappage des binaires et ressources|Mappatura binari e risorse|Mapeamento de binários e recursos|実行ファイルとリソースの対応|二进制与资源映射|二進位與資源對應
+Build system|빌드 시스템|Build-System|Sistema de compilación|Système de compilation|Sistema di build|Sistema de build|ビルドシステム|构建系统|建置系統
+Package formats|패키지 형식|Paketformate|Formatos de paquete|Formats de paquet|Formati pacchetto|Formatos de pacote|パッケージ形式|软件包格式|套件格式
+Saving configures eight native stages. Execution starts only after plan review.|저장은 8개 실행 단계를 설정합니다. 실제 실행은 계획 검토 후 시작합니다.|Speichern konfiguriert acht Schritte. Ausführung erst nach Planprüfung.|Guardar configura ocho etapas. La ejecución requiere revisar el plan.|Enregistrer configure huit étapes. Exécution après examen du plan.|Il salvataggio configura otto fasi. Esecuzione dopo la revisione del piano.|Salvar configura oito etapas. A execução exige revisão do plano.|保存で8段階を設定します。実行は計画確認後に開始します。|保存会配置八个阶段，审核计划后才开始执行。|儲存會設定八個階段，審閱計畫後才開始執行。
+Source roots, approved tools and signing identities stay in the Agent-local build catalog. One build Agent is required for all stages.|소스 위치·승인 도구·서명 정보는 Agent 로컬 카탈로그에 둡니다. 전체 단계에 하나의 빌드 Agent를 지정하세요.|Quellen, Tools und Signaturen bleiben im Agent-Katalog. Alle Schritte benötigen denselben Agent.|Fuentes, herramientas y firmas quedan en el catálogo local. Todas las etapas requieren un mismo Agent.|Sources, outils et signatures restent dans le catalogue local. Toutes les étapes utilisent le même Agent.|Fonti, strumenti e firme restano nel catalogo locale. Tutte le fasi usano lo stesso Agent.|Fontes, ferramentas e assinaturas ficam no catálogo local. Todas as etapas usam o mesmo Agent.|ソース・ツール・署名情報はAgentのローカルカタログに保持します。全段階に同じAgentが必要です。|源目录、工具和签名身份保留在Agent本地目录中，所有阶段须使用同一Agent。|原始碼位置、工具與簽章身分保留在Agent本機目錄中，所有階段須使用同一Agent。
+build-package|빌드·패키지|Build und Paket|Compilación y paquete|Compilation et paquet|Build e pacchetto|Build e pacote|ビルド・パッケージ|构建与打包|建置與封裝
+Build and package|빌드·패키지|Build und Paket|Compilación y paquete|Compilation et paquet|Build e pacchetto|Build e pacote|ビルド・パッケージ|构建与打包|建置與封裝
+Build steps|빌드 단계|Build-Schritte|Pasos de compilación|Étapes de compilation|Fasi di build|Etapas de build|ビルド手順|构建步骤|建置步驟
+Expand build steps|하위 단계 펼치기|Build-Schritte aufklappen|Expandir pasos|Développer les étapes|Espandi le fasi|Expandir etapas|手順を展開|展开子步骤|展開子步驟
+Collapse build steps|하위 단계 접기|Build-Schritte einklappen|Contraer pasos|Réduire les étapes|Comprimi le fasi|Recolher etapas|手順を折りたたむ|折叠子步骤|摺疊子步驟
+Each child is a separate task with its own configuration and result.|각 하위 노드는 독립된 작업으로 설정과 결과를 가집니다.|Jeder Unterknoten ist eine eigene Aufgabe mit Konfiguration und Ergebnis.|Cada nodo hijo es una tarea con configuración y resultado propios.|Chaque nœud enfant a sa tâche, sa configuration et son résultat.|Ogni nodo figlio ha attività, configurazione e risultato propri.|Cada nó filho tem tarefa, configuração e resultado próprios.|各子ノードは設定と結果を持つ独立したタスクです。|每个子节点都是具有独立配置和结果的任务。|每個子節點都是具有獨立設定和結果的工作。
+Prepare source|소스 준비|Quellen vorbereiten|Preparar fuentes|Préparer les sources|Prepara sorgenti|Preparar fontes|ソースを準備|准备源码|準備原始碼
+Prepare dependencies|의존성 준비|Abhängigkeiten vorbereiten|Preparar dependencias|Préparer les dépendances|Prepara dipendenze|Preparar dependências|依存関係を準備|准备依赖|準備相依套件
+Stage files|파일 구성|Dateien bereitstellen|Preparar archivos|Préparer les fichiers|Prepara file|Preparar arquivos|ファイルを配置|整理文件|整理檔案
+Sign|서명|Signieren|Firmar|Signer|Firma|Assinar|署名|签名|簽章
+Package|패키징|Paket erstellen|Empaquetar|Créer le paquet|Crea pacchetto|Empacotar|パッケージ化|打包|封裝
+Verify packages|패키지 검증|Pakete prüfen|Verificar paquetes|Vérifier les paquets|Verifica pacchetti|Verificar pacotes|パッケージを検証|验证包|驗證套件
+Saved build group view is invalid.|저장된 빌드 그룹 표시 설정이 올바르지 않습니다.|Gespeicherte Build-Gruppenansicht ist ungültig.|La vista guardada del grupo no es válida.|La vue enregistrée du groupe est invalide.|Vista salvata del gruppo non valida.|A visualização salva do grupo é inválida.|保存されたビルドグループ表示が無効です。|保存的构建组视图无效。|儲存的建置群組檢視無效。
+Build group view changed in another window.|다른 창에서 빌드 그룹 표시 설정을 변경했습니다.|Build-Gruppenansicht wurde in einem anderen Fenster geändert.|Otra ventana cambió la vista del grupo.|La vue du groupe a changé dans une autre fenêtre.|Vista del gruppo modificata in un’altra finestra.|Outra janela alterou a visualização do grupo.|別のウィンドウでビルドグループ表示が変更されました。|其他窗口更改了构建组视图。|其他視窗已變更建置群組檢視。
+Scheduled target review|예약 대상 검토|Geplantes Ziel prüfen|Revisar destino programado|Vérification de la cible planifiée|Verifica destinazione pianificata|Revisão do destino agendado|予約対象の確認|审核计划目标|檢閱排程目標
 Scheduled graph identity matches.|예약된 관계도 신원이 일치합니다.|Geplante Graphidentität stimmt überein.|La identidad del grafo programado coincide.|L’identité du graphe planifié correspond.|L’identità del grafo pianificato corrisponde.|A identidade do grafo agendado corresponde.|予約された関係図の識別情報が一致しています。|计划关系图身份匹配。|排程關係圖識別資訊相符。
 Scheduled graph changed. Review and save a new target.|예약된 관계도가 변경됐습니다. 새 대상을 검토하고 저장하세요.|Geplanter Graph geändert. Neues Ziel prüfen und speichern.|El grafo programado cambió. Revisa y guarda un destino nuevo.|Le graphe planifié a changé. Vérifiez et enregistrez une nouvelle cible.|Il grafo pianificato è cambiato. Verifica e salva una nuova destinazione.|O grafo agendado mudou. Revise e salve um novo destino.|予約された関係図が変更されました。新しい対象を確認して保存してください。|计划关系图已更改。请审核并保存新目标。|排程關係圖已變更。請檢閱並儲存新目標。
 An active graph prevents overlapping scheduled execution.|진행 중인 관계도가 있어 중복 예약 실행을 막습니다.|Ein aktiver Graph verhindert überlappende geplante Ausführung.|Un grafo activo impide ejecuciones programadas solapadas.|Un graphe actif empêche les exécutions planifiées simultanées.|Un grafo attivo impedisce esecuzioni pianificate sovrapposte.|Um grafo ativo impede execuções agendadas sobrepostas.|進行中の関係図があるため予約の重複実行を防ぎます。|活动关系图阻止重叠的计划执行。|執行中的關係圖會阻止重疊排程執行。

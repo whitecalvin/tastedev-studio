@@ -84,6 +84,8 @@ pub struct Capabilities {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub framework_runtime: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_build: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_snapshot: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub build_artifacts: Option<u32>,
@@ -104,6 +106,8 @@ pub struct Requirements {
     pub isolated_child_processes: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub framework_runtime: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_build: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_snapshot: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -131,6 +135,8 @@ pub struct Request {
     pub requirements: Requirements,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub isolation: Option<crate::isolation::Policy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_build: Option<crate::native_build::Operation>,
     pub executable: String,
     pub args: Vec<String>,
     pub cwd: String,
@@ -209,6 +215,20 @@ impl Request {
         self.run_step_id.as_deref().unwrap_or(&self.run_id)
     }
     pub fn validate(&self, agent: &str) -> Result<()> {
+        if (self.executable == "internal-native-build") != self.native_build.is_some() {
+            return Err("Typed native build operation required".into());
+        }
+        if let Some(op) = &self.native_build {
+            op.validate()?;
+            if self.requirements.native_build != Some(1)
+                || !self.args.is_empty()
+                || self.cwd != "."
+                || self.isolation.is_some()
+                || self.source.is_some()
+            {
+                return Err("Invalid native build envelope".into());
+            }
+        }
         if self.requirements.isolated_child_processes.is_some_and(|n| {
             !(2..=4).contains(&n) || self.requirements.execution_isolation != Some(1)
         }) {
@@ -344,6 +364,8 @@ impl Request {
                     && c.isolated_child_processes
                         .is_some_and(|max| n <= max && max <= 4)
             })
+            && r.native_build
+                .is_none_or(|v| v == 1 && c.native_build == Some(1))
             && r.framework_runtime
                 .is_none_or(|v| v == 1 && c.framework_runtime == Some(1))
             && r.source_snapshot

@@ -1130,3 +1130,22 @@ Studio Provider는 별도로 실제 OpenAI의 producer·godot-specialist·qa-lea
 실제 Windows DEV01 Run→Web 별도 승인→Linux102 Run 모두 PASS이며 동일 Snapshot의 Source6개 디스크 hash 일치, .env 제외, Scheduler PASS를 확인했다. 소유 Core/Agent/SSH/Web/브라우저 종료, orphan0. 103은 접근하지 않았다. 109는 임시 경로 권한 부족으로 제외했다. Linux Node22는 합성 Protocol >=22 검증으로 Studio Core Node24 패키지 검증을 대신하지 않는다. 기존 binary를 사용했고 설치·배포·패키징·버전/태그 변경·커밋/푸시 없음. 새 실제 Provider 호출·Native 설치 GUI·실제 겹치는 사용자 Proposal UI는 이번 검증으로 주장하지 않는다.
 
 정본 resources/verification/multi-device-orchestration-20261103/FINAL-RESULT.ko.md 및 EVIDENCE-INDEX.md. 안내 docs/TASTESTUDIO_MULTI_DEVICE_ORCHESTRATION.md. 다음 고도화나 패키징을 자동 시작하지 않는다.
+
+
+## 빌드·패키지 하위 그룹 — 2026-11-06
+
+최신 사용자 정정에 따라 공용 스크립트 래퍼 대신 build-package 부모 노드와 단계별 자식 노드 그룹을 구현했다. 부모/자식 모델, 분리된 표시 접기/CAS, 그룹 이동·복제·제거·배치·겹침, 책임 역할 상속, 실행 경계 확장과 승인·실패·재개를 기존 Core/Queue/Agent에 연결했다. 부모는 집계만 하고 자식별 Job/Run을 기록한다. 기존 평면 그래프는 유지하며 부모 포함60개 제한과1단계 깊이를 적용한다.
+
+Node1265/1265, lint/typecheck, 최종 Web export PASS. 실제 Web 밝게·어둡게·접기 복원·배치와 실제 Rust Agent의 합성8개 Run PASS를 확인했다. 원래 공용 도구 기능 전체의 직접 이식이나 실제 빌드·서명·패키징·게시 완료로 주장하지 않는다. 하위 실행은 선택한 Protocol 작업에 연결하며 빈 참조는 게시를 차단한다. 실제 제품 패키징·설치·외부 게시·버전/태그·커푸 없음,103 미접근. 소유 runtime 종료·Core unexpected errors0·Agent 잔류0. 안내 docs/TASTESTUDIO_BUILD_PACKAGE_GROUP.md, 정본 resources/verification/native-build-engine-20261106/RESULT.ko.md 및 qualification.json.
+
+
+## 2026-11-06 — 빌드·패키지 하위 노드 직접 실행
+
+- `build-package` 부모에 recipe를 저장하고 source → dependencies → build → test → stage → sign → package → verify를 기존 Core/Queue/Matcher/Graph와 실제 Rust Agent에 연결했다. 공용 릴리스 PowerShell 호출이나 구버전 Agent의 일반 Shell 우회는 없다.
+- 저장된 Working Tree 복사, 원본/사본 해시, 도구 SHA-256, Windows 컴파일러 LIB/LIBPATH/INCLUDE의 좁은 전달과 환경 변경 검사, OS 파일 잠금, 원자 ledger, 같은 Agent 배정, 실제 산출물/서명/형식/해시 확인을 구현했다.
+- 실제 Windows Rust Agent에서 disposable Cargo와 Node 각각 8개 단계가 통과했다. Cargo 빌드 실패는 Source/dependencies를 재실행하지 않고 해당 빌드부터 재개했다. Node 자동 lifecycle hook과 Agent 인증 환경 비상속, Dummy .env 제외, 원본 소스 보존을 확인했다.
+- 설정·하위 단계·실제 Run 영수증/Source/설정/카탈로그/전체 manifest hash를 GUI에 표시한다. 밝게/어둡게 DOM 검사에서 상세 패널 scrollWidth=clientWidth=278, 컨트롤 32px를 확인했다. 스크린샷은 상단 viewport이며 전체 상세 내용은 DOM 기록을 함께 본다. 설치된 Native 앱 화면 검증과는 구분한다.
+- Node 유효 전체 결과+실패한 번역 검사 재개+추가 회귀를 합산해 1273개 검사를 확인했다. Agent 최종 전체 Debug/Release는 각각 150 PASS / 13 ignored이며, 마지막 인증 JSON/DB 파일 경계 보강 후 관련 10개 Debug/Release와 Clippy/Release 실행 파일도 다시 통과했다. lint/typecheck/Web production compile·generate·export PASS.
+- 실제 인증서 서명 및 제품 MSI/NSIS/DEB/RPM/AppImage/DMG 생성·설치·업그레이드, Linux/macOS 실전 실행은 미검증이다. 공용 CLI의 제품별 설치 hook·게시까지 완전 동등하다고 주장하지 않는다. 실제 제품 패키징은 사용자 담당이며 103은 사용하지 않았다.
+
+상세: [네이티브 하위 단계](TASTESTUDIO_NATIVE_BUILD_STEPS.md). 근거: `resources/verification/native-build-steps-20261106/RESULT.ko.md`, `EVIDENCE_INDEX.md`, `qualification.json`.

@@ -1,3 +1,4 @@
+import {executionEdges} from './build-package-group.ts';
 import type {GraphDefinition,GraphExecution} from './execution.ts';
 
 /** 완료 기록을 재작성하지 않는다. 변경된 입력은 새 실행으로 검토해야 한다. */
@@ -18,7 +19,7 @@ export function retryPlan(execution:Parameters<typeof recoveryPlan>[0],definitio
  if(identity.blocked)return {blocked:identity.blocked,target:nodeId};
  const latest=execution.activations.filter(a=>a.nodeId===nodeId).at(-1);
  if(execution.status!=='failed'||!latest||latest.status!=='failed'||execution.activations.some(a=>!['passed','failed','cancelled'].includes(a.status)))return {blocked:'Review an unexpired failed activation before retrying.',target:nodeId};
- const target=definition!.deploymentNodes?.includes(nodeId)?definition!.graph.edges.find(e=>e.to===nodeId&&e.relation==='success')?.from:nodeId;
+ const target=definition!.deploymentNodes?.includes(nodeId)?executionEdges(definition!.graph).find(e=>e.to===nodeId&&e.relation==='success')?.from:nodeId;
  if(!target||definition!.deploymentNodes?.includes(nodeId)&&definition!.graph.nodes.find(n=>n.id===target)?.kind!=='approval')return {blocked:'Fresh deployment approval required.',target:nodeId};
  if([nodeId,target].some(id=>execution.activations.filter(a=>a.nodeId===id).length>=definition!.graph.retryLimit))return {blocked:'Retry limit reached.',target};
  return {blocked:null,target};

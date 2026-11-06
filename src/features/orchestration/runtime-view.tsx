@@ -1,4 +1,5 @@
 'use client';
+import {executionEdges} from './build-package-group';
 import {ExecutionPlanPreview} from './execution-preview-view';
 import {executionReviewKey,reviewedExecutionInput} from './execution-preview';
 import {FrameworkGraphReview} from '../frameworks/graph-review';
@@ -38,7 +39,7 @@ export function GraphRuntime({aiConnections=[],aiConfigurations,graph,dirty,onOv
  const sessionOverview=sessionGraphOverview(overview,overviewSession,generation,graph.projectId,connected);
  useEffect(()=>{onOverview?.(sessionOverview);},[sessionOverview,onOverview]);
  useEffect(()=>{active.current=true;let live=true;const refresh=()=>{if(!connected)return;void remoteCore.graphRequest<GraphOverview>('list').then(value=>{if(live){if(value.definition&&value.definition.projectId!==graph.projectId||value.executions.some(e=>e.projectId!==graph.projectId))throw Error('Graph project mismatch.');setOverview(value);setOverviewSession(generation);}}).catch(error=>{if(live){setOverviewSession(-1);setMessage(error instanceof Error?error.message:'Core graph request failed.');}});};refresh();const timer=setInterval(refresh,2000);return()=>{live=false;active.current=false;clearInterval(timer);};},[connected,generation,graph.projectId]);
- const definition=sessionOverview?.definition,aiMatches=graphAIConfigurationMatches(aiConfigurations,graph,definition?.aiTasks,aiConnections),matches=!!definition&&aiMatches&&JSON.stringify(definition.graph)===JSON.stringify(graph),roots=graph.nodes.filter(n=>['task','approval'].includes(n.kind)&&!graph.edges.some(e=>e.to===n.id&&e.relation==='success'));
+ const definition=sessionOverview?.definition,aiMatches=graphAIConfigurationMatches(aiConfigurations,graph,definition?.aiTasks,aiConnections),matches=!!definition&&aiMatches&&JSON.stringify(definition.graph)===JSON.stringify(graph),roots=graph.nodes.filter(n=>['task','approval'].includes(n.kind)&&!executionEdges(graph).some(e=>e.to===n.id&&e.relation==='success'));
  const selected=roots.find(n=>n.id===entry)?.id??roots[0]?.id??'';
  const reviewKey=executionReviewKey(definition,selected,timeoutMinutes,generation),reviewed=!!reviewKey&&review===reviewKey;
  function startReviewed(){if(!definition||!reviewed||busy||!matches||dirty||current)return;void action('start',{...reviewedExecutionInput(definition,selected,timeoutMinutes,generation,review),requestId:crypto.randomUUID()});}

@@ -24,7 +24,7 @@ export function graphMonitor(graph: ProjectGraph, overview: GraphOverview | null
       if(nodes.has(node.id)){activity.set(node.id,nodes.get(node.id)!);continue;}
       if(!['device','agent','role'].includes(node.kind))continue;
       const visited=new Set<string>(),pending=[node.id],tasks:string[]=[];
-      while(pending.length){const id=pending.pop()!;if(visited.has(id))continue;visited.add(id);if(graph.nodes.some(n=>n.id===id&&n.kind==='task'))tasks.push(id);for(const edge of graph.edges)if(edge.from===id&&['hosts','assigns','performs'].includes(edge.relation))pending.push(edge.to);}
+      while(pending.length){const id=pending.pop()!;if(visited.has(id))continue;visited.add(id);if(graph.nodes.some(n=>n.id===id&&n.kind==='task'))tasks.push(id);if(graph.nodes.some(n=>n.id===id&&n.kind==='build-package'))pending.push(...graph.nodes.filter(n=>n.parentId===id).map(n=>n.id));for(const edge of graph.edges)if(edge.from===id&&['hosts','assigns','performs'].includes(edge.relation))pending.push(edge.to);}
       if(!tasks.some(id=>nodes.has(id)))continue;
       const states=tasks.map(id=>nodes.get(id)??{status:'ready' as const,attempt:0,reason:'Waiting for predecessor work.'}).sort((a,b)=>rank.indexOf(a.status)-rank.indexOf(b.status)),first=states[0];
       if(first)activity.set(node.id,{status:first.status,attempt:Math.max(...states.map(a=>a.attempt)),reason:first.reason});
