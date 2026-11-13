@@ -80,7 +80,7 @@
     "prepareScript": "scripts/prepare-linux-release.sh"
   },
   "macos": {
-    "host": "192.168.0.182",
+    "host": "192.168.0.107",
     "user": "whitecalvin",
     "packageFormats": [
       "dmg"
